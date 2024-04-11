@@ -118,28 +118,28 @@ namespace RAWVoxel
             get { return surfaceNoise; }
             set { surfaceNoise = value; }
         }
-        private static FastNoiseLite surfaceNoise = GD.Load<FastNoiseLite>("res://addons/raw_voxel/resources/world/surface_noise.tres");
+        private static FastNoiseLite surfaceNoise = GD.Load<FastNoiseLite>("res://addons/RawVoxel/resources/world/surface_noise.tres");
         // Noise map used for density generation. Controls y value for terrain generation.
         [Export] public FastNoiseLite DensityNoise
         {
             get { return densityNoise; }
             set { densityNoise = value; }
         }
-        private static FastNoiseLite densityNoise = GD.Load<FastNoiseLite>("res://addons/raw_voxel/resources/world/density_noise.tres");
+        private static FastNoiseLite densityNoise = GD.Load<FastNoiseLite>("res://addons/RawVoxel/resources/world/density_noise.tres");
         // Noise map used for humidity generation. Controls x value for terrain generation.
         [Export] public FastNoiseLite HumidityNoise
         {
             get { return humidityNoise; }
             set { humidityNoise = value; }
         }
-        private static FastNoiseLite humidityNoise = GD.Load<FastNoiseLite>("res://addons/raw_voxel/resources/world/humidity_noise.tres");
+        private static FastNoiseLite humidityNoise = GD.Load<FastNoiseLite>("res://addons/RawVoxel/resources/world/humidity_noise.tres");
         // Noise map used for temperature generation. Controls z value for terrain generation.
         [Export] public FastNoiseLite TemperatureNoise
         {
             get { return temperatureNoise; }
             set { temperatureNoise = value; }
         }
-        private static FastNoiseLite temperatureNoise = GD.Load<FastNoiseLite>("res://addons/raw_voxel/resources/world/temperature_noise.tres");
+        private static FastNoiseLite temperatureNoise = GD.Load<FastNoiseLite>("res://addons/RawVoxel/resources/world/temperature_noise.tres");
 
         #endregion Exports -> Noise
         
@@ -152,28 +152,28 @@ namespace RAWVoxel
             get { return surfaceCurve; }
             set { surfaceCurve = value; }
         }
-        private static Curve surfaceCurve = GD.Load<Curve>("res://addons/raw_voxel/resources/world/surface_curve.tres");
+        private static Curve surfaceCurve = GD.Load<Curve>("res://addons/RawVoxel/resources/world/surface_curve.tres");
         // Controls density distribution.
         [Export] public Curve DensityCurve
         {
             get { return densityCurve; }
             set { densityCurve = value; }
         }
-        private static Curve densityCurve = GD.Load<Curve>("res://addons/raw_voxel/resources/world/density_curve.tres");
+        private static Curve densityCurve = GD.Load<Curve>("res://addons/RawVoxel/resources/world/density_curve.tres");
         // Controls humidity distribution.
         [Export] public Curve HumidityCurve
         {
             get { return humidityCurve; }
             set { humidityCurve = value; }
         }
-        private static Curve humidityCurve = GD.Load<Curve>("res://addons/raw_voxel/resources/world/humidity_curve.tres");
+        private static Curve humidityCurve = GD.Load<Curve>("res://addons/RawVoxel/resources/world/humidity_curve.tres");
         // Controls temperature distribution.
         [Export] public Curve TemperatureCurve
         {
             get { return temperatureCurve; }
             set { temperatureCurve = value; }
         }
-        private static Curve temperatureCurve = GD.Load<Curve>("res://addons/raw_voxel/resources/world/temperature_curve.tres");
+        private static Curve temperatureCurve = GD.Load<Curve>("res://addons/RawVoxel/resources/world/temperature_curve.tres");
 
         #endregion Exports -> Curves
 
