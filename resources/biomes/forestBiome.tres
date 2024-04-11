@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="Biome" load_steps=3 format=3 uid="uid://th43vqv2t18k"]
+
+[ext_resource type="Resource" uid="uid://bl7aifdxw3d7p" path="res://addons/raw_voxel/resources/voxels/Bedrock.tres" id="1_ufa1u"]
+[ext_resource type="Script" path="res://addons/raw_voxel/scripts/Biome.cs" id="2_jl88s"]
+
+[resource]
+script = ExtResource("2_jl88s")
+SurfaceType = ExtResource("1_ufa1u")
+SurfaceHeight = 128
+Layer3Type = 3
+Layer3Height = 96
+Layer2Type = 2
+Layer2Height = 64
+Layer1Type = 2
+Layer1Height = 32
+BedrockHeight = 0

@@ -1,0 +1,8 @@
+[gd_resource type="Curve" format=3 uid="uid://ba0tqi6xkpyj2"]
+
+[resource]
+resource_local_to_scene = true
+_data = [Vector2(0.25, 0), 0.0, 0.0, 0, 0, Vector2(0.5, 1), 0.0, 0.0, 0, 0]
+point_count = 2
+metadata/_snap_enabled = true
+metadata/_snap_count = 16
