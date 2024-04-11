@@ -409,7 +409,6 @@ namespace RAWVoxel
                 loadedChunks.Add(chunkPosition, chunk);
                 
                 CallDeferred(Node.MethodName.AddChild, chunk);
-                //chunk.GenerateChunk();
             }
         
             loadableChunkPositions.Clear();
