@@ -77,9 +77,9 @@ namespace RAWVoxel
             Console.WriteLine("--- Generating chunk: " + ChunkPosition + " ---");
             
             GenerateVoxels();
-            GenerateChunkSurfaceData();
-            GenerateSurfaceArray();
-            GenerateSurface();
+            GenerateChunkMeshSurfaceData();
+            GenerateMeshSurfaceArray();
+            GenerateMeshSurface();
             GenerateCollision();
 
             generateStopwatch.Stop();
@@ -106,9 +106,9 @@ namespace RAWVoxel
         public void ClearChunk()
         {
             ClearVoxels();
-            ClearChunkSurfaceData();
-            ClearSurfaceArray();
-            ClearSurface();
+            ClearChunkMeshSurfaceData();
+            ClearMeshSurfaceArray();
+            ClearMeshSurface();
             ClearCollision();
         }
 
@@ -140,25 +140,26 @@ namespace RAWVoxel
             // Sample noise value for density using the voxel's global position.
             float densityNoise = World.DensityNoise.GetNoise3Dv(voxelPosition + Position);
             // Sample curve for density using the above noise sample.
-            //float density = World.DensityCurve.Sample((densityNoise + 1) / 2);
-            float density = World.DensityCurve.Sample(densityNoise);
+            float density = World.DensityCurve.Sample((densityNoise + 1) / 2);
+            // float density = World.DensityCurve.Sample(densityNoise);
 
             // If the voxel being generated is not dense enough to be considered solid, assume it's air and return early.
-            // if (density < 0.5) return Voxel.Type.Air;
+            if (voxelPosition.Y > 0 && density < 0.5) return Voxel.Type.Air;
             
             // Sample noise value for surface using the voxel's global position.
             float surfaceNoise = World.SurfaceNoise.GetNoise2D(voxelPosition.X + Position.X, voxelPosition.Z + Position.Z);
             // Sample curve for surface using the above noise sample.
-            //float surface = World.SurfaceCurve.Sample((surfaceNoise + 1) / 2);
-            float surface = World.SurfaceCurve.Sample(surfaceNoise);
+            float surface = World.SurfaceCurve.Sample((surfaceNoise + 1) / 2);
+            // float surface = World.SurfaceCurve.Sample(surfaceNoise);
 
             // Switch voxel type based on the generated surface value.
             return voxelPosition.Y switch
             {
-                (>= 0) when voxelPosition.Y < World.BedrockHeight + (int)(surface * World.BedrockHeight) => Voxel.Type.Bedrock,
-                (>= 0) when voxelPosition.Y < World.Layer1Height  + (int)(surface * World.Layer1Height)  => Voxel.Type.Stone,
-                (>= 0) when voxelPosition.Y < World.Layer2Height  + (int)(surface * World.Layer2Height)  => Voxel.Type.Dirt,
-                (>= 0) when voxelPosition.Y < World.SurfaceHeight + (int)(surface * World.SurfaceHeight) => Voxel.Type.Grass,
+                (0) => Voxel.Type.Bedrock,
+                (> 0) when voxelPosition.Y <  World.BedrockHeight + (int)(surface * 50) => Voxel.Type.Bedrock,
+                (> 0) when voxelPosition.Y <  World.Layer2Height  + (int)(surface * 50) => Voxel.Type.Stone,
+                (> 0) when voxelPosition.Y <  World.SurfaceHeight + (int)(surface * 50) => Voxel.Type.Dirt,
+                (> 0) when voxelPosition.Y == World.SurfaceHeight + (int)(surface * 50) => Voxel.Type.Grass,
                 _ => Voxel.Type.Air,
             };
         }
@@ -194,20 +195,20 @@ namespace RAWVoxel
             return false;
         }
         
-        private void GenerateChunkSurfaceData()
+        private void GenerateChunkMeshSurfaceData()
         {
             stopwatch.Reset();
             stopwatch.Start();
 
             foreach (Vector3I voxelPosition in voxels.Keys)
             {
-                GenerateVoxelSurfaceData(voxelPosition);
+                GenerateVoxelMeshSurfaceData(voxelPosition);
             }
 
             stopwatch.Stop();
-            Console.WriteLine(nameof(GenerateChunkSurfaceData) + " completed in " + stopwatch.ElapsedMilliseconds + " ms.");
+            Console.WriteLine(nameof(GenerateChunkMeshSurfaceData) + " completed in " + stopwatch.ElapsedMilliseconds + " ms.");
         }
-        private void GenerateVoxelSurfaceData(Vector3I voxelPosition)
+        private void GenerateVoxelMeshSurfaceData(Vector3I voxelPosition)
         {
             Voxel.Type type = GetVoxel(voxelPosition);
             System.Drawing.Color c = System.Drawing.Color.FromKnownColor(Voxel.Colors[type]);
@@ -217,30 +218,30 @@ namespace RAWVoxel
 
             if (GetVoxel(voxelPosition + Vector3I.Up) == Voxel.Type.Air)
             {
-                GenerateFaceSurfaceData(Voxel.Face.Top, voxelPosition, color);
+                GenerateFaceMeshSurfaceData(Voxel.Face.Top, voxelPosition, color);
             }
             if (GetVoxel(voxelPosition + Vector3I.Down) == Voxel.Type.Air)
             {
-                GenerateFaceSurfaceData(Voxel.Face.Btm, voxelPosition, color);
+                GenerateFaceMeshSurfaceData(Voxel.Face.Btm, voxelPosition, color);
             }
             if (GetVoxel(voxelPosition + Vector3I.Left) == Voxel.Type.Air)
             {
-                GenerateFaceSurfaceData(Voxel.Face.West, voxelPosition, color);
+                GenerateFaceMeshSurfaceData(Voxel.Face.West, voxelPosition, color);
             }
             if (GetVoxel(voxelPosition + Vector3I.Right) == Voxel.Type.Air)
             {
-                GenerateFaceSurfaceData(Voxel.Face.East, voxelPosition, color);
+                GenerateFaceMeshSurfaceData(Voxel.Face.East, voxelPosition, color);
             }
             if (GetVoxel(voxelPosition + Vector3I.Forward) == Voxel.Type.Air)
             {
-                GenerateFaceSurfaceData(Voxel.Face.North, voxelPosition, color);
+                GenerateFaceMeshSurfaceData(Voxel.Face.North, voxelPosition, color);
             }
             if (GetVoxel(voxelPosition + Vector3I.Back) == Voxel.Type.Air)
             {
-                GenerateFaceSurfaceData(Voxel.Face.South, voxelPosition, color);
+                GenerateFaceMeshSurfaceData(Voxel.Face.South, voxelPosition, color);
             }
         }
-        private void GenerateFaceSurfaceData(Voxel.Face face, Vector3I voxelPosition, Color color)
+        private void GenerateFaceMeshSurfaceData(Voxel.Face face, Vector3I voxelPosition, Color color)
         {
             // Assign vertices for the specified face.
             Vector3I vertexA = Voxel.Vertices[Voxel.Faces[face][0]] + voxelPosition;
@@ -280,7 +281,7 @@ namespace RAWVoxel
             // surfaceUVs.AddRange(new List<Vector2> {uvA, uvB, uvC, uvD});
             surfaceIndices.AddRange(new List<int> { 0 + offset, 1 + offset, 2 + offset, 0 + offset, 2 + offset, 3 + offset });
         }
-        private void ClearChunkSurfaceData()
+        private void ClearChunkMeshSurfaceData()
         {
             if (surfaceVertices.Count == 0) return;
             if (surfaceNormals.Count == 0)  return;
@@ -295,7 +296,7 @@ namespace RAWVoxel
             surfaceIndices.Clear();
         }
 
-        private void GenerateSurfaceArray()
+        private void GenerateMeshSurfaceArray()
         {
             stopwatch.Reset();
             stopwatch.Start();
@@ -307,9 +308,9 @@ namespace RAWVoxel
             surfaceArray[(int)Mesh.ArrayType.Index] = surfaceIndices.ToArray();
 
             stopwatch.Stop();
-            Console.WriteLine(nameof(GenerateSurfaceArray) + " completed in " + stopwatch.ElapsedMilliseconds + " ms.");
+            Console.WriteLine(nameof(GenerateMeshSurfaceArray) + " completed in " + stopwatch.ElapsedMilliseconds + " ms.");
         }
-        private void ClearSurfaceArray()
+        private void ClearMeshSurfaceArray()
         {
             if (surfaceArray.Count == 0) return;
 
@@ -317,7 +318,7 @@ namespace RAWVoxel
             SetupSurfaceArray();
         }
 
-        private void GenerateSurface()
+        private void GenerateMeshSurface()
         {
             stopwatch.Reset();
             stopwatch.Start();
@@ -325,9 +326,9 @@ namespace RAWVoxel
             arrayMesh.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles, surfaceArray);
 
             stopwatch.Stop();
-            Console.WriteLine(nameof(GenerateSurface) + " completed in " + stopwatch.ElapsedMilliseconds + " ms.");
+            Console.WriteLine(nameof(GenerateMeshSurface) + " completed in " + stopwatch.ElapsedMilliseconds + " ms.");
         }
-        private void ClearSurface()
+        private void ClearMeshSurface()
         {
             if (arrayMesh.GetSurfaceCount() == 0) return;
 

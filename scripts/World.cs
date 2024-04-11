@@ -12,6 +12,8 @@ namespace RAWVoxel
     {
         #region Exports
         
+        [Export] public bool Regenerate { get; set;}
+
         #region Exports -> FocusNode
 
         [ExportCategory("World")]
