@@ -5,4 +5,4 @@ resource_local_to_scene = true
 _data = [Vector2(0, 0), 0.0, 0.0, 0, 0, Vector2(1, 1), 0.0, 0.0, 0, 0]
 point_count = 2
 metadata/_snap_enabled = true
-metadata/_snap_count = 16
+metadata/_snap_count = 32

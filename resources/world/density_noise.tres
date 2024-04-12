@@ -3,5 +3,7 @@
 [resource]
 resource_local_to_scene = true
 seed = 1
+frequency = 0.005
+fractal_type = 3
 domain_warp_fractal_type = 0
 metadata/_preview_in_3d_space_ = true

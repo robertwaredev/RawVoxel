@@ -10,9 +10,20 @@ namespace RAWVoxel
     [Tool]
     public partial class World : Node3D
     {
+        #region Constructor
+
+        public World() {}
+
+        #endregion Constructor
+        
         #region Exports
         
-        [Export] public bool Regenerate { get; set;}
+        [Export] public bool Regenerate
+        {
+            get { return regenerate; }
+            set { regenerate = false; if(worldGenerated) { GenerateWorld(); } }
+        }
+        private static bool regenerate = false;
 
         #region Exports -> FocusNode
 
@@ -115,6 +126,12 @@ namespace RAWVoxel
 
         [ExportGroup("Noise Maps")]
         // Noise map used for height generation. Controls y value for terrain generation.
+        [Export] public FastNoiseLite DensityNoise
+        {
+            get { return densityNoise; }
+            set { densityNoise = value; }
+        }
+        private static FastNoiseLite densityNoise = GD.Load<FastNoiseLite>("res://addons/RawVoxel/resources/world/density_noise.tres");
         [Export] public FastNoiseLite SurfaceNoise
         {
             get { return surfaceNoise; }
@@ -122,12 +139,6 @@ namespace RAWVoxel
         }
         private static FastNoiseLite surfaceNoise = GD.Load<FastNoiseLite>("res://addons/RawVoxel/resources/world/surface_noise.tres");
         // Noise map used for density generation. Controls y value for terrain generation.
-        [Export] public FastNoiseLite DensityNoise
-        {
-            get { return densityNoise; }
-            set { densityNoise = value; }
-        }
-        private static FastNoiseLite densityNoise = GD.Load<FastNoiseLite>("res://addons/RawVoxel/resources/world/density_noise.tres");
         // Noise map used for humidity generation. Controls x value for terrain generation.
         [Export] public FastNoiseLite HumidityNoise
         {
@@ -149,19 +160,19 @@ namespace RAWVoxel
 
         [ExportGroup("Noise Curves")]
         // Controls surface distribution.
-        [Export] public Curve SurfaceCurve
-        {
-            get { return surfaceCurve; }
-            set { surfaceCurve = value; }
-        }
-        private static Curve surfaceCurve = GD.Load<Curve>("res://addons/RawVoxel/resources/world/surface_curve.tres");
-        // Controls density distribution.
         [Export] public Curve DensityCurve
         {
             get { return densityCurve; }
             set { densityCurve = value; }
         }
         private static Curve densityCurve = GD.Load<Curve>("res://addons/RawVoxel/resources/world/density_curve.tres");
+        [Export] public Curve SurfaceCurve
+        {
+            get { return surfaceCurve; }
+            set { surfaceCurve = value; if (worldGenerated) { GenerateWorld(); } }
+        }
+        private static Curve surfaceCurve = GD.Load<Curve>("res://addons/RawVoxel/resources/world/surface_curve.tres");
+        // Controls density distribution.
         // Controls humidity distribution.
         [Export] public Curve HumidityCurve
         {
@@ -185,8 +196,8 @@ namespace RAWVoxel
 
         #region Variables -> FocusNode
         
-        private Vector3 focusNodePosition = Vector3.Zero;
-        private Vector2I focusNodeChunkPosition = Vector2I.MinValue;
+        private Vector3 focusNodePosition;
+        private Vector3I focusNodeChunkPosition = Vector3I.MinValue;
         private readonly object focusNodeChunkPositionLock = new();
         
         #endregion Variables -> FocusNode
@@ -194,10 +205,10 @@ namespace RAWVoxel
         #region Variables -> Queues
 
         private bool worldGenerated = false;
-        private readonly List<Vector2I> drawableChunkPositions = new();
-        private readonly List<Vector2I> loadableChunkPositions = new();
-        private readonly List<Vector2I> freeableChunkPositions = new();
-        private readonly Dictionary<Vector2I, Chunk> loadedChunks = new();
+        private readonly List<Vector3I> drawableChunkPositions = new();
+        private readonly List<Vector3I> loadableChunkPositions = new();
+        private readonly List<Vector3I> freeableChunkPositions = new();
+        private readonly Dictionary<Vector3I, Chunk> loadedChunks = new();
 
         #endregion Variables -> Queues
         
@@ -208,7 +219,7 @@ namespace RAWVoxel
         #endregion Variables -> Utilities
 
         #endregion Variables
-        
+
         #region Functions
 
         #region Functions -> Processes
@@ -269,17 +280,15 @@ namespace RAWVoxel
         {
             bool updated = false;
             
-            Vector2I queriedFocusNodeChunkPosition;
+            Vector3I queriedFocusNodeChunkPosition;
             
             // Lock for secondary thread access.
             lock (focusNodeChunkPositionLock)
             {
-                
-                // Calculate queriedFocusNodeChunkPosition for the current frame. Convert Vector3 to Vector2I.
-                queriedFocusNodeChunkPosition.X = (int)MathF.Floor(focusNodePosition.X / chunkDimension.X);
-                queriedFocusNodeChunkPosition.Y = (int)MathF.Floor(focusNodePosition.Z / chunkDimension.Z);   
+                // Calculate queriedFocusNodeChunkPosition for the current frame.
+                queriedFocusNodeChunkPosition = (Vector3I)(focusNodePosition / chunkDimension).Floor();
             }
-                
+            
             // Check to see if focusNode has a new chunk position. If true, update focusNodeChunkPosition and return.
             if (focusNodeChunkPosition != queriedFocusNodeChunkPosition)
             {
@@ -304,6 +313,10 @@ namespace RAWVoxel
             
             Console.WriteLine();
             Console.WriteLine("--- Generating World ---");
+
+            foreach (Chunk chunk in loadedChunks.Values) chunk.QueueFree();
+
+            loadedChunks.Clear();
 
             QueueChunkPositions();
             LoadQueuedChunks();
@@ -342,35 +355,43 @@ namespace RAWVoxel
             stopwatch.Stop();
             Console.WriteLine(nameof(QueueChunkPositions) + " completed in " + stopwatch.ElapsedMilliseconds + " ms.");
         }
-        // Queue a new Vector2I into its respective List for each drawable chunk position. Called by QueueChunkPositions().
+        // Queue a new Vector3I into its respective List for each drawable chunk position. Called by QueueChunkPositions().
         private void QueueDrawableChunkPositions()
         {
             drawableChunkPositions.Clear();
 
-            Vector2I drawableCenter = focusNodeChunkPosition;
+            Vector3I drawableCenter = focusNodeChunkPosition;
             
             int drawableXMin = drawableCenter.X - drawDistance;
             int drawableXMax = drawableCenter.X + drawDistance;
             
             int drawableYMin = drawableCenter.Y - drawDistance;
             int drawableYMax = drawableCenter.Y + drawDistance;
+
+            int drawableZMin = drawableCenter.Z - drawDistance;
+            int drawableZMax = drawableCenter.Z + drawDistance;
             
             for (int x = drawableXMin; x <= drawableXMax; x++)
             {
                 for (int y = drawableYMin; y <= drawableYMax; y++)
                 {
-                    drawableChunkPositions.Add(new Vector2I(x, y));
+                    for (int z = drawableZMin; z <= drawableZMax; z++)
+                    {
+                        drawableChunkPositions.Add(new(x, y, z));
+                    }
                 }
             }
 
             Console.WriteLine("Drawable chunks: " + drawableChunkPositions.Count);
         }
-        // Queue a new Vector2I into its respective List for each loadable chunk position. Called by QueueChunkPositions().
+        // Queue a new Vector3I into its respective List for each loadable chunk position. Called by QueueChunkPositions().
         private void QueueLoadableChunkPositions()
         {
             if (drawableChunkPositions.Count == 0) return;
+            
+            loadableChunkPositions.Clear();
 
-            foreach (Vector2I chunkPosition in drawableChunkPositions)
+            foreach (Vector3I chunkPosition in drawableChunkPositions)
             {
                 if (loadedChunks.ContainsKey(chunkPosition) == false)
                 {
@@ -380,12 +401,14 @@ namespace RAWVoxel
 
             Console.WriteLine("Loadable chunks: " + loadableChunkPositions.Count);
         }
-        // Queue a new Vector2I into its respective List for each freeable chunk position. Called by QueueChunkPositions().
+        // Queue a new Vector3I into its respective List for each freeable chunk position. Called by QueueChunkPositions().
         private void QueueFreeableChunkPositions()
         {
             if (loadedChunks.Count == 0) return;
             
-            foreach (Vector2I chunkPosition in loadedChunks.Keys)
+            freeableChunkPositions.Clear();
+
+            foreach (Vector3I chunkPosition in loadedChunks.Keys)
             {
                 if (drawableChunkPositions.Contains(chunkPosition) == false)
                 {
@@ -396,7 +419,7 @@ namespace RAWVoxel
             Console.WriteLine("Freeable chunks: " + freeableChunkPositions.Count);
         }
 
-        // Load a Chunk instance into the scene tree for each Vector2I in loadableChunkPositions. Called by GenerateWorld().
+        // Load a Chunk instance into the scene tree for each Vector3I in loadableChunkPositions. Called by GenerateWorld().
         private void LoadQueuedChunks()
         {
             if (loadableChunkPositions.Count == 0) return;
@@ -404,7 +427,7 @@ namespace RAWVoxel
             stopwatch.Reset();
             stopwatch.Start();
 
-            foreach (Vector2I chunkPosition in loadableChunkPositions)
+            foreach (Vector3I chunkPosition in loadableChunkPositions)
             {
                 Chunk chunk = new(this, chunkPosition);
                 
@@ -418,7 +441,7 @@ namespace RAWVoxel
             stopwatch.Stop();
             Console.WriteLine(nameof(LoadQueuedChunks) + " completed in " + stopwatch.ElapsedMilliseconds + " ms.");
         }
-        // Free a Chunk instance from the scene tree for each Vector2I in freeableChunkPositions. Called by GenerateWorld().
+        // Free a Chunk instance from the scene tree for each Vector3I in freeableChunkPositions. Called by GenerateWorld().
         private void FreeQueuedChunks()
         {
             if (freeableChunkPositions.Count == 0) return;
@@ -426,7 +449,7 @@ namespace RAWVoxel
             stopwatch.Reset();
             stopwatch.Start();
 
-            foreach (Vector2I chunkPosition in freeableChunkPositions)
+            foreach (Vector3I chunkPosition in freeableChunkPositions)
             {
                 Chunk chunk = loadedChunks[chunkPosition];
                 
@@ -449,9 +472,9 @@ namespace RAWVoxel
             stopwatch.Reset();
             stopwatch.Start();
 
-            foreach (Vector2I loadableChunkPosition in loadableChunkPositions)
+            foreach (Vector3I loadableChunkPosition in loadableChunkPositions)
             {
-                Vector2I freeableChunkPosition = freeableChunkPositions.Last();
+                Vector3I freeableChunkPosition = freeableChunkPositions.Last();
                 Chunk chunk = loadedChunks[freeableChunkPosition];
                 
                 freeableChunkPositions.Remove(freeableChunkPosition);

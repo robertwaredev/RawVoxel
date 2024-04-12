@@ -10,7 +10,7 @@ namespace RAWVoxel
     {
         #region Constructor
 
-        public Chunk(World world, Vector2I chunkPosition)
+        public Chunk(World world, Vector3I chunkPosition)
         {
             World = world;
             SetPosition(chunkPosition);
@@ -21,7 +21,7 @@ namespace RAWVoxel
         #region Variables
 
         private static World World;
-        public Vector2I ChunkPosition;
+        public Vector3I ChunkPosition;
         private ArrayMesh arrayMesh = new();
         private Godot.Collections.Array surfaceArray = new();
         private readonly List<Vector3> surfaceVertices = new();
@@ -45,15 +45,10 @@ namespace RAWVoxel
 
             GenerateChunk();
         }
-
-        public void SetPosition(Vector2I chunkPosition)
+        public void SetPosition(Vector3I chunkPosition)
         {
             ChunkPosition = chunkPosition;
-
-            int PositionX = chunkPosition.X * World.ChunkDimension.X;
-            int PositionZ = chunkPosition.Y * World.ChunkDimension.Z;
-
-            Position = new Vector3(PositionX, 0, PositionZ);
+            Position = chunkPosition * World.ChunkDimension;
         }
         private void SetupSurfaceArray()
         {
@@ -86,7 +81,7 @@ namespace RAWVoxel
             Console.WriteLine("--- Generated chunk: " + ChunkPosition + " in " + generateStopwatch.ElapsedMilliseconds + " ms. ---");
             Console.WriteLine();
         }
-        public void UpdateChunk(Vector2I chunkPosition)
+        public void UpdateChunk(Vector3I chunkPosition)
         {
             Stopwatch updateStopwatch = Stopwatch.StartNew();
             
@@ -137,31 +132,28 @@ namespace RAWVoxel
             // If the voxel being generated is not in this chunk and we want to show chunk edges, assume it's air and return early.
             if (World.ShowChunkEdges == true && CheckVoxelOutOfBounds(voxelPosition) == true) return Voxel.Type.Air;
             
-            // Sample noise value for density using the voxel's global position.
-            float densityNoise = World.DensityNoise.GetNoise3Dv(voxelPosition + Position);
-            // Sample curve for density using the above noise sample.
-            float density = World.DensityCurve.Sample((densityNoise + 1) / 2);
-            // float density = World.DensityCurve.Sample(densityNoise);
+            Vector3I globalVoxelPosition = voxelPosition + (Vector3I)Position;
+            // Sample voxel density chance.
+            float densityNoise3D = World.DensityNoise.GetNoise3Dv(globalVoxelPosition);
+            float densityCurve3D = World.DensityCurve.Sample((densityNoise3D + 1) * 0.5f);
+            if (densityCurve3D < 0.5) return Voxel.Type.Air;
 
-            // If the voxel being generated is not dense enough to be considered solid, assume it's air and return early.
-            if (voxelPosition.Y > 0 && density < 0.5) return Voxel.Type.Air;
-            
             // Sample noise value for surface using the voxel's global position.
             float surfaceNoise = World.SurfaceNoise.GetNoise2D(voxelPosition.X + Position.X, voxelPosition.Z + Position.Z);
-            // Sample curve for surface using the above noise sample.
-            float surface = World.SurfaceCurve.Sample((surfaceNoise + 1) / 2);
-            // float surface = World.SurfaceCurve.Sample(surfaceNoise);
+            float surfaceCurve = World.SurfaceCurve.Sample((surfaceNoise + 1) * 0.5f);
+
 
             // Switch voxel type based on the generated surface value.
-            return voxelPosition.Y switch
+            return globalVoxelPosition.Y switch
             {
                 (0) => Voxel.Type.Bedrock,
-                (> 0) when voxelPosition.Y <  World.BedrockHeight + (int)(surface * 50) => Voxel.Type.Bedrock,
-                (> 0) when voxelPosition.Y <  World.Layer2Height  + (int)(surface * 50) => Voxel.Type.Stone,
-                (> 0) when voxelPosition.Y <  World.SurfaceHeight + (int)(surface * 50) => Voxel.Type.Dirt,
-                (> 0) when voxelPosition.Y == World.SurfaceHeight + (int)(surface * 50) => Voxel.Type.Grass,
+                (> 0) when globalVoxelPosition.Y <  World.BedrockHeight + (int)(surfaceCurve * World.BedrockHeight) => Voxel.Type.Bedrock,
+                (> 0) when globalVoxelPosition.Y <  World.Layer2Height  + (int)(surfaceCurve * World.Layer2Height)  => Voxel.Type.Stone,
+                (> 0) when globalVoxelPosition.Y <  World.SurfaceHeight + (int)(surfaceCurve * World.SurfaceHeight) => Voxel.Type.Dirt,
+                (> 0) when globalVoxelPosition.Y == World.SurfaceHeight + (int)(surfaceCurve * World.SurfaceHeight) => Voxel.Type.Grass,
                 _ => Voxel.Type.Air,
             };
+            
         }
         private void ClearVoxels()
         {
