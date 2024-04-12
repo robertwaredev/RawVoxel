@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading;
 using System.Diagnostics;
 using System.Collections.Generic;
+using RAWUtils;
 
 namespace RAWVoxel
 {
@@ -21,7 +22,7 @@ namespace RAWVoxel
         [Export] public bool Regenerate
         {
             get { return regenerate; }
-            set { regenerate = false; if(worldGenerated) { GenerateWorld(); } }
+            set { regenerate = false; if(worldGenerated) { RawTimer.Time(GenerateWorld); } }
         }
         private static bool regenerate = false;
 
@@ -43,7 +44,7 @@ namespace RAWVoxel
         [Export] public Vector3I DrawDistance
         {
             get { return drawDistance; }
-            set { drawDistance = value;  /* GenerateWorld(); */ }
+            set { drawDistance = value; }
         }
         private static Vector3I drawDistance = Vector3I.One;
         [Export] public bool ShowChunkEdges
@@ -55,7 +56,7 @@ namespace RAWVoxel
         [Export] public bool UseThreading
         {
             get { return useThreading; }
-            set { useThreading = value; /* GenerateWorld(); */ }
+            set { useThreading = value; }
         }
         private static bool useThreading = true;
         
@@ -169,7 +170,7 @@ namespace RAWVoxel
         [Export] public Curve SurfaceCurve
         {
             get { return surfaceCurve; }
-            set { surfaceCurve = value; if (worldGenerated) { GenerateWorld(); } }
+            set { surfaceCurve = value; }
         }
         private static Curve surfaceCurve = GD.Load<Curve>("res://addons/RawVoxel/resources/world/surface_curve.tres");
         // Controls density distribution.
@@ -226,15 +227,15 @@ namespace RAWVoxel
 
         public override void _Ready()
         {
-            GenerateWorld();
+            RawTimer.Time(GenerateWorld);
             
-            if (useThreading == false) return;
-            
-            // Start the secondary thread, running UpdateWorldProcess.
-            ThreadStart UpdateWorldProcessStart = new ThreadStart(UpdateWorldProcess);
-            Thread UpdateWorldThread = new Thread(UpdateWorldProcessStart);
-            UpdateWorldThread.Name = "UpdateWorldThread";
-            UpdateWorldThread.Start();
+            if (useThreading)
+            {
+                ThreadStart UpdateWorldProcessStart = new ThreadStart(UpdateWorldProcess);
+                Thread UpdateWorldThread = new Thread(UpdateWorldProcessStart);
+                UpdateWorldThread.Name = "UpdateWorldThread";
+                UpdateWorldThread.Start();
+            }
         }
         public override void _PhysicsProcess(double delta)
         {
@@ -255,7 +256,7 @@ namespace RAWVoxel
             {
                 if (UpdateFocusNodeChunkPosition() == true)
                 {
-                    UpdateWorld();
+                    CallDeferred(nameof(UpdateWorld));
                 }
                 
                 Thread.Sleep(100);
@@ -294,7 +295,9 @@ namespace RAWVoxel
             {
                 focusNodeChunkPosition = queriedFocusNodeChunkPosition;
                 
+                GD.Print("Focus node chunk position updated: " + focusNodeChunkPosition.ToString());
                 Console.WriteLine("Focus node chunk position updated: " + focusNodeChunkPosition.ToString());
+                
                 updated = true;
             }
 
@@ -310,32 +313,22 @@ namespace RAWVoxel
         {   
             UpdateFocusNodePosition();
             UpdateFocusNodeChunkPosition();
-            
-            Console.WriteLine();
-            Console.WriteLine("--- Generating World ---");
 
             foreach (Chunk chunk in loadedChunks.Values) chunk.QueueFree();
 
             loadedChunks.Clear();
 
-            QueueChunkPositions();
-            LoadQueuedChunks();
-            FreeQueuedChunks();
+            RawTimer.Time(QueueChunkPositions, RawTimer.AppendLine.Pre);
+            RawTimer.Time(LoadQueuedChunks);
+            RawTimer.Time(FreeQueuedChunks, RawTimer.AppendLine.Post);
 
             worldGenerated = true;
-
-            Console.WriteLine("--- World Generated ---");
         }
         // Reposition chunks at freeableChunkPositions to loadableChunkPositions.
         private void UpdateWorld()
         {
-            Console.WriteLine();
-            Console.WriteLine("--- Updating World ---");
-
-            QueueChunkPositions();
-            RecycleQueuedChunks();
-
-            Console.WriteLine("--- World Updated ---");
+            RawTimer.Time(QueueChunkPositions, RawTimer.AppendLine.Pre);
+            RawTimer.Time(RecycleQueuedChunks, RawTimer.AppendLine.Post);
         }
         
         #endregion Functions -> World
@@ -345,15 +338,9 @@ namespace RAWVoxel
         // Call all chunk position queueing methods.
         private void QueueChunkPositions()
         {
-            stopwatch.Reset();
-            stopwatch.Start();
-
             QueueDrawableChunkPositions();
             QueueLoadableChunkPositions();
             QueueFreeableChunkPositions();
-
-            stopwatch.Stop();
-            Console.WriteLine(nameof(QueueChunkPositions) + " completed in " + stopwatch.ElapsedMilliseconds + " ms.");
         }
         // Queue a new Vector3I into its respective List for each drawable chunk position. Called by QueueChunkPositions().
         private void QueueDrawableChunkPositions()
@@ -382,6 +369,7 @@ namespace RAWVoxel
                 }
             }
 
+            GD.Print("Drawable chunks: " + drawableChunkPositions.Count);
             Console.WriteLine("Drawable chunks: " + drawableChunkPositions.Count);
         }
         // Queue a new Vector3I into its respective List for each loadable chunk position. Called by QueueChunkPositions().
@@ -398,8 +386,6 @@ namespace RAWVoxel
                     loadableChunkPositions.Add(chunkPosition);
                 }
             }
-
-            Console.WriteLine("Loadable chunks: " + loadableChunkPositions.Count);
         }
         // Queue a new Vector3I into its respective List for each freeable chunk position. Called by QueueChunkPositions().
         private void QueueFreeableChunkPositions()
@@ -415,8 +401,6 @@ namespace RAWVoxel
                     freeableChunkPositions.Add(chunkPosition);
                 }
             }
-
-            Console.WriteLine("Freeable chunks: " + freeableChunkPositions.Count);
         }
 
         // Load a Chunk instance into the scene tree for each Vector3I in loadableChunkPositions. Called by GenerateWorld().
@@ -482,6 +466,8 @@ namespace RAWVoxel
                 loadedChunks.Add(loadableChunkPosition, chunk);
 
                 chunk.CallDeferred(nameof(Chunk.UpdateChunk), loadableChunkPosition);
+                
+                Thread.Sleep(100);
             }
 
             loadableChunkPositions.Clear();

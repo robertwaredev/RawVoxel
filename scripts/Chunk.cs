@@ -3,6 +3,7 @@ using System;
 using System.Diagnostics;
 using System.Collections.Generic;
 using System.Reflection.Metadata.Ecma335;
+using RAWUtils;
 
 namespace RAWVoxel
 {
@@ -67,37 +68,19 @@ namespace RAWVoxel
 
         public void GenerateChunk()
         {
-            Stopwatch generateStopwatch = Stopwatch.StartNew();
-            
-            Console.WriteLine();
-            Console.WriteLine("--- Generating chunk: " + ChunkPosition + " ---");
-            
-            GenerateVoxels();
-            GenerateChunkMeshSurfaceData();
-            GenerateMeshSurfaceArray();
-            GenerateMeshSurface();
-            GenerateCollision();
-
-            generateStopwatch.Stop();
-            Console.WriteLine("--- Generated chunk: " + ChunkPosition + " in " + generateStopwatch.ElapsedMilliseconds + " ms. ---");
-            Console.WriteLine();
+            RawTimer.Time(GenerateVoxels, RawTimer.AppendLine.Pre);
+            RawTimer.Time(GenerateChunkMeshSurfaceData);
+            RawTimer.Time(GenerateMeshSurfaceArray);
+            RawTimer.Time(GenerateMeshSurface);
+            RawTimer.Time(GenerateCollision, RawTimer.AppendLine.Post);
         }
         public void UpdateChunk(Vector3I chunkPosition)
         {
-            Stopwatch updateStopwatch = Stopwatch.StartNew();
-            
-            Console.WriteLine();
-            Console.WriteLine("--- Updating chunk: " + ChunkPosition + " ---");
-            
             SetPosition(chunkPosition);
             
             ClearChunk();
             
             GenerateChunk();
-
-            updateStopwatch.Stop();
-            Console.WriteLine("--- Updated chunk: " + ChunkPosition + " in " + updateStopwatch.ElapsedMilliseconds + " ms. ---");
-            Console.WriteLine();
         }
         public void ClearChunk()
         {
@@ -110,9 +93,6 @@ namespace RAWVoxel
 
         private void GenerateVoxels()
         {
-            stopwatch.Reset();
-            stopwatch.Start();
-
             for (int x = 0; x < World.ChunkDimension.X; x++)
             {
                 for (int y = 0; y < World.ChunkDimension.Y; y++)
@@ -124,9 +104,6 @@ namespace RAWVoxel
                     }
                 }
             }
-
-            stopwatch.Stop();
-            Console.WriteLine(nameof(GenerateVoxels) + " completed in " + stopwatch.ElapsedMilliseconds + " ms.");
         }
         private Voxel.Type GenerateVoxel(Vector3I voxelPosition)
         {
@@ -190,16 +167,10 @@ namespace RAWVoxel
         
         private void GenerateChunkMeshSurfaceData()
         {
-            stopwatch.Reset();
-            stopwatch.Start();
-
             foreach (Vector3I voxelPosition in voxels.Keys)
             {
                 GenerateVoxelMeshSurfaceData(voxelPosition);
             }
-
-            stopwatch.Stop();
-            Console.WriteLine(nameof(GenerateChunkMeshSurfaceData) + " completed in " + stopwatch.ElapsedMilliseconds + " ms.");
         }
         private void GenerateVoxelMeshSurfaceData(Vector3I voxelPosition)
         {
@@ -296,17 +267,11 @@ namespace RAWVoxel
             if (surfaceColors.Count == 0)   { surfaceArray.Clear(); return; }
             if (surfaceIndices.Count == 0)  { surfaceArray.Clear(); return; }
 
-            stopwatch.Reset();
-            stopwatch.Start();
-
             surfaceArray[(int)Mesh.ArrayType.Vertex] = surfaceVertices.ToArray();
             surfaceArray[(int)Mesh.ArrayType.Normal] = surfaceNormals.ToArray();
             surfaceArray[(int)Mesh.ArrayType.Color] = surfaceColors.ToArray();
             //surfaceArray[(int)Mesh.ArrayType.TexUV] = surfaceUVs.ToArray();
             surfaceArray[(int)Mesh.ArrayType.Index] = surfaceIndices.ToArray();
-
-            stopwatch.Stop();
-            Console.WriteLine(nameof(GenerateMeshSurfaceArray) + " completed in " + stopwatch.ElapsedMilliseconds + " ms.");
         }
         private void ClearMeshSurfaceArray()
         {
@@ -324,13 +289,7 @@ namespace RAWVoxel
                 return;
             }
 
-            stopwatch.Reset();
-            stopwatch.Start();
-
             arrayMesh.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles, surfaceArray);
-
-            stopwatch.Stop();
-            Console.WriteLine(nameof(GenerateMeshSurface) + " completed in " + stopwatch.ElapsedMilliseconds + " ms.");
         }
         private void ClearMeshSurface()
         {
@@ -343,14 +302,8 @@ namespace RAWVoxel
         {
             if (arrayMesh.GetSurfaceCount() == 0) return;
 
-            stopwatch.Reset();
-            stopwatch.Start();
-
             CreateTrimeshCollision();
             AddToGroup("NavSource");
-
-            stopwatch.Stop();
-            Console.WriteLine(nameof(GenerateCollision) + " completed in " + stopwatch.ElapsedMilliseconds + " ms.");
         }
         private void ClearCollision()
         {
