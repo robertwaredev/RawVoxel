@@ -40,12 +40,12 @@ namespace RAWVoxel
         #region Exports -> Rendering
 
         [ExportGroup("Rendering")]
-        [Export] public int DrawDistance
+        [Export] public Vector3I DrawDistance
         {
             get { return drawDistance; }
             set { drawDistance = value;  /* GenerateWorld(); */ }
         }
-        private static int drawDistance = 1;
+        private static Vector3I drawDistance = Vector3I.One;
         [Export] public bool ShowChunkEdges
         {
             get { return showChunkEdges; }
@@ -362,14 +362,14 @@ namespace RAWVoxel
 
             Vector3I drawableCenter = focusNodeChunkPosition;
             
-            int drawableXMin = drawableCenter.X - drawDistance;
-            int drawableXMax = drawableCenter.X + drawDistance;
+            int drawableXMin = drawableCenter.X - drawDistance.X;
+            int drawableXMax = drawableCenter.X + drawDistance.X;
             
-            int drawableYMin = drawableCenter.Y - drawDistance;
-            int drawableYMax = drawableCenter.Y + drawDistance;
+            int drawableYMin = drawableCenter.Y - drawDistance.Y;
+            int drawableYMax = drawableCenter.Y + drawDistance.Y;
 
-            int drawableZMin = drawableCenter.Z - drawDistance;
-            int drawableZMax = drawableCenter.Z + drawDistance;
+            int drawableZMin = drawableCenter.Z - drawDistance.Z;
+            int drawableZMax = drawableCenter.Z + drawDistance.Z;
             
             for (int x = drawableXMin; x <= drawableXMax; x++)
             {
@@ -482,8 +482,6 @@ namespace RAWVoxel
                 loadedChunks.Add(loadableChunkPosition, chunk);
 
                 chunk.CallDeferred(nameof(Chunk.UpdateChunk), loadableChunkPosition);
-
-                Thread.Sleep(100);
             }
 
             loadableChunkPositions.Clear();

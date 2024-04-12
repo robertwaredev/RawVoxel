@@ -2,6 +2,7 @@ using Godot;
 using System;
 using System.Diagnostics;
 using System.Collections.Generic;
+using System.Reflection.Metadata.Ecma335;
 
 namespace RAWVoxel
 {
@@ -290,6 +291,11 @@ namespace RAWVoxel
 
         private void GenerateMeshSurfaceArray()
         {
+            if (surfaceVertices.Count == 0) { surfaceArray.Clear(); return; }
+            if (surfaceNormals.Count == 0)  { surfaceArray.Clear(); return; }
+            if (surfaceColors.Count == 0)   { surfaceArray.Clear(); return; }
+            if (surfaceIndices.Count == 0)  { surfaceArray.Clear(); return; }
+
             stopwatch.Reset();
             stopwatch.Start();
 
@@ -312,6 +318,12 @@ namespace RAWVoxel
 
         private void GenerateMeshSurface()
         {
+            if (surfaceArray.Count == 0)
+            {
+                SetupSurfaceArray();
+                return;
+            }
+
             stopwatch.Reset();
             stopwatch.Start();
 
@@ -329,6 +341,8 @@ namespace RAWVoxel
 
         private void GenerateCollision()
         {
+            if (arrayMesh.GetSurfaceCount() == 0) return;
+
             stopwatch.Reset();
             stopwatch.Start();
 
