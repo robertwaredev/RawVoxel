@@ -22,7 +22,7 @@ namespace RAWVoxel
         [Export] public bool Regenerate
         {
             get { return regenerate; }
-            set { regenerate = false; if(worldGenerated) { RawTimer.Time(GenerateWorld); } }
+            set { regenerate = false; if(worldGenerated) { RawTimer.Time(GenerateWorld, RawTimer.AppendLine.Both); } }
         }
         private static bool regenerate = false;
 
@@ -212,12 +212,6 @@ namespace RAWVoxel
         private readonly Dictionary<Vector3I, Chunk> loadedChunks = new();
 
         #endregion Variables -> Queues
-        
-        #region Variables -> Utilities
-
-        private readonly Stopwatch stopwatch = new();
-
-        #endregion Variables -> Utilities
 
         #endregion Variables
 
@@ -227,7 +221,7 @@ namespace RAWVoxel
 
         public override void _Ready()
         {
-            RawTimer.Time(GenerateWorld);
+            GenerateWorld();
             
             if (useThreading)
             {
@@ -256,7 +250,7 @@ namespace RAWVoxel
             {
                 if (UpdateFocusNodeChunkPosition() == true)
                 {
-                    CallDeferred(nameof(UpdateWorld));
+                    UpdateWorld();
                 }
                 
                 Thread.Sleep(100);
@@ -314,20 +308,16 @@ namespace RAWVoxel
             UpdateFocusNodePosition();
             UpdateFocusNodeChunkPosition();
 
-            foreach (Chunk chunk in loadedChunks.Values) chunk.QueueFree();
-
-            loadedChunks.Clear();
-
-            RawTimer.Time(QueueChunkPositions, RawTimer.AppendLine.Pre);
-            RawTimer.Time(LoadQueuedChunks);
-            RawTimer.Time(FreeQueuedChunks, RawTimer.AppendLine.Post);
+            QueueChunkPositions();
+            LoadQueuedChunks();
+            FreeQueuedChunks();
 
             worldGenerated = true;
         }
         // Reposition chunks at freeableChunkPositions to loadableChunkPositions.
         private void UpdateWorld()
         {
-            RawTimer.Time(QueueChunkPositions, RawTimer.AppendLine.Pre);
+            QueueChunkPositions();
             RawTimer.Time(RecycleQueuedChunks, RawTimer.AppendLine.Post);
         }
         
@@ -408,9 +398,6 @@ namespace RAWVoxel
         {
             if (loadableChunkPositions.Count == 0) return;
             
-            stopwatch.Reset();
-            stopwatch.Start();
-
             foreach (Vector3I chunkPosition in loadableChunkPositions)
             {
                 Chunk chunk = new(this, chunkPosition);
@@ -418,20 +405,17 @@ namespace RAWVoxel
                 loadedChunks.Add(chunkPosition, chunk);
                 
                 CallDeferred(Node.MethodName.AddChild, chunk);
+                chunk.CallDeferred(nameof(Chunk.GenerateChunk));
+
+                Thread.Sleep(100);
             }
         
             loadableChunkPositions.Clear();
-
-            stopwatch.Stop();
-            Console.WriteLine(nameof(LoadQueuedChunks) + " completed in " + stopwatch.ElapsedMilliseconds + " ms.");
         }
         // Free a Chunk instance from the scene tree for each Vector3I in freeableChunkPositions. Called by GenerateWorld().
         private void FreeQueuedChunks()
         {
             if (freeableChunkPositions.Count == 0) return;
-
-            stopwatch.Reset();
-            stopwatch.Start();
 
             foreach (Vector3I chunkPosition in freeableChunkPositions)
             {
@@ -443,9 +427,6 @@ namespace RAWVoxel
             }
         
             freeableChunkPositions.Clear();
-
-            stopwatch.Stop();
-            Console.WriteLine(nameof(FreeQueuedChunks) + " completed in " + stopwatch.ElapsedMilliseconds + " ms.");
         }
         // Reposition Chunk instances from freeableChunkPositions to drawableChunkPositions. Called by UpdateWorld().
         private void RecycleQueuedChunks()
@@ -453,12 +434,9 @@ namespace RAWVoxel
             if (freeableChunkPositions.Count == 0) return;
             if (loadableChunkPositions.Count == 0) return;
 
-            stopwatch.Reset();
-            stopwatch.Start();
-
             foreach (Vector3I loadableChunkPosition in loadableChunkPositions)
             {
-                Vector3I freeableChunkPosition = freeableChunkPositions.Last();
+                Vector3I freeableChunkPosition = freeableChunkPositions.First();
                 Chunk chunk = loadedChunks[freeableChunkPosition];
                 
                 freeableChunkPositions.Remove(freeableChunkPosition);
@@ -466,14 +444,11 @@ namespace RAWVoxel
                 loadedChunks.Add(loadableChunkPosition, chunk);
 
                 chunk.CallDeferred(nameof(Chunk.UpdateChunk), loadableChunkPosition);
-                
-                Thread.Sleep(100);
+
+                Thread.Sleep(10);
             }
 
             loadableChunkPositions.Clear();
-
-            stopwatch.Stop();
-            Console.WriteLine(nameof(RecycleQueuedChunks) + " completed in " + stopwatch.ElapsedMilliseconds + " ms.");
         }
 
         #endregion Functions -> Queues

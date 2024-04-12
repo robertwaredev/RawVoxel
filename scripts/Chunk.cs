@@ -1,9 +1,7 @@
 using Godot;
-using System;
+using RAWUtils;
 using System.Diagnostics;
 using System.Collections.Generic;
-using System.Reflection.Metadata.Ecma335;
-using RAWUtils;
 
 namespace RAWVoxel
 {
@@ -44,8 +42,6 @@ namespace RAWVoxel
             SetOverrideMaterial(surfaceMaterial);
             SetupSurfaceArray();
             SetMesh();
-
-            GenerateChunk();
         }
         public void SetPosition(Vector3I chunkPosition)
         {
@@ -68,11 +64,11 @@ namespace RAWVoxel
 
         public void GenerateChunk()
         {
-            RawTimer.Time(GenerateVoxels, RawTimer.AppendLine.Pre);
-            RawTimer.Time(GenerateChunkMeshSurfaceData);
-            RawTimer.Time(GenerateMeshSurfaceArray);
-            RawTimer.Time(GenerateMeshSurface);
-            RawTimer.Time(GenerateCollision, RawTimer.AppendLine.Post);
+            RawTimer.Time(GenerateVoxels, RawTimer.AppendLine.Both);
+            GenerateChunkMeshSurfaceData();
+            GenerateMeshSurfaceArray();
+            GenerateMeshSurface();
+            GenerateCollision();
         }
         public void UpdateChunk(Vector3I chunkPosition)
         {
@@ -111,27 +107,26 @@ namespace RAWVoxel
             if (World.ShowChunkEdges == true && CheckVoxelOutOfBounds(voxelPosition) == true) return Voxel.Type.Air;
             
             Vector3I globalVoxelPosition = voxelPosition + (Vector3I)Position;
+            
             // Sample voxel density chance.
-            float densityNoise3D = World.DensityNoise.GetNoise3Dv(globalVoxelPosition);
-            float densityCurve3D = World.DensityCurve.Sample((densityNoise3D + 1) * 0.5f);
-            if (densityCurve3D < 0.5) return Voxel.Type.Air;
+            float densityNoise = World.DensityNoise.GetNoise3Dv(globalVoxelPosition);
+            float densityCurve = World.DensityCurve.Sample((densityNoise + 1) * 0.5f);
+            if (densityCurve < 0.5f) return Voxel.Type.Air;
 
             // Sample noise value for surface using the voxel's global position.
             float surfaceNoise = World.SurfaceNoise.GetNoise2D(voxelPosition.X + Position.X, voxelPosition.Z + Position.Z);
-            float surfaceCurve = World.SurfaceCurve.Sample((surfaceNoise + 1) * 0.5f);
-
+            float surfaceCurve = World.SurfaceCurve.Sample((surfaceNoise + 1) * 0.5f) * 2 - 1;
 
             // Switch voxel type based on the generated surface value.
             return globalVoxelPosition.Y switch
             {
-                (0) => Voxel.Type.Bedrock,
-                (> 0) when globalVoxelPosition.Y <  World.BedrockHeight + (int)(surfaceCurve * World.BedrockHeight) => Voxel.Type.Bedrock,
-                (> 0) when globalVoxelPosition.Y <  World.Layer2Height  + (int)(surfaceCurve * World.Layer2Height)  => Voxel.Type.Stone,
-                (> 0) when globalVoxelPosition.Y <  World.SurfaceHeight + (int)(surfaceCurve * World.SurfaceHeight) => Voxel.Type.Dirt,
-                (> 0) when globalVoxelPosition.Y == World.SurfaceHeight + (int)(surfaceCurve * World.SurfaceHeight) => Voxel.Type.Grass,
-                _ => Voxel.Type.Air,
+                  0 => Voxel.Type.Bedrock,
+                > 0 when globalVoxelPosition.Y <  World.BedrockHeight + (int)(surfaceCurve * World.BedrockHeight) => Voxel.Type.Bedrock,
+                > 0 when globalVoxelPosition.Y <  World.Layer2Height  + (int)(surfaceCurve * World.Layer2Height)  => Voxel.Type.Stone,
+                > 0 when globalVoxelPosition.Y <  World.SurfaceHeight + (int)(surfaceCurve * World.SurfaceHeight) => Voxel.Type.Dirt,
+                > 0 when globalVoxelPosition.Y == World.SurfaceHeight + (int)(surfaceCurve * World.SurfaceHeight) => Voxel.Type.Grass,
+                  _ => Voxel.Type.Air,
             };
-            
         }
         private void ClearVoxels()
         {
