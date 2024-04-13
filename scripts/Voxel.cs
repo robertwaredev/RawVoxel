@@ -17,17 +17,21 @@ namespace RAWVoxel
         
         #region Exports
         
-        [Export] Type VoxelType;
-        [Export] Godot.Color VoxelColor;
+        [Export] public Type VoxelType;
+        [Export] public Godot.Color VoxelColor;
         
         #endregion Exports
 
-        #region Variables
+        #region Enums
 
         public enum Type { Air, Bedrock, Stone, Dirt, Grass, Sand }
         public enum Vertex { FrontTopLeft, FrontBtmLeft, FrontTopRight, FrontBtmRight, BackTopLeft, BackBtmLeft, BackTopRight, BackBtmRight }
         public enum Face { Top, Btm, West, East, North, South }
         public enum UV { TopLeft, BtmLeft, TopRight, BtmRight }
+        
+        #endregion Enums
+
+        #region Variables
         
         public static readonly Dictionary<Type, KnownColor> Colors = new()
         {

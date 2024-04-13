@@ -1,7 +1,6 @@
-using System;
 using Godot;
 
-namespace RAWUtils
+namespace RawUtils
 {
     public static class XYZConvert
     {

@@ -1,0 +1,8 @@
+[gd_resource type="ShaderMaterial" load_steps=2 format=3 uid="uid://fuo8d8qsqq2t"]
+
+[ext_resource type="Shader" path="res://addons/RawVoxel/resources/shaders/chunk_shader.gdshader" id="1_34h04"]
+
+[resource]
+resource_local_to_scene = true
+render_priority = 0
+shader = ExtResource("1_34h04")

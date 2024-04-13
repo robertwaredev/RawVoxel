@@ -16,16 +16,14 @@ namespace RAWVoxel
 
         #endregion Constructor
         
-        #region Exports
-        
         #region Exports -> Tools
 
         [Export] public bool Regenerate
         {
-            get { return regenerate; }
-            set { regenerate = false; GenerateWorld(); }
+            get { return _regenerate; }
+            set { _regenerate = false; GenerateWorld(); }
         }
-        private bool regenerate = false;
+        private bool _regenerate = false;
 
         #endregion Exports -> Tools
 
@@ -35,10 +33,10 @@ namespace RAWVoxel
         
         [Export] public Node3D FocusNode
         {
-            get { return focusNode; }
-            set { focusNode = value; GenerateWorld(); }
+            get { return _focusNode; }
+            set { _focusNode = value; GenerateWorld(); }
         }
-        private Node3D focusNode;
+        private Node3D _focusNode;
         
         #endregion Exports -> FocusNode
 
@@ -47,17 +45,17 @@ namespace RAWVoxel
         
         [Export] public Vector3I DrawDistance
         {
-            get { return drawDistance; }
-            set { drawDistance = value; }
+            get { return _drawDistance; }
+            set { _drawDistance = value; }
         }
-        private Vector3I drawDistance = Vector3I.One;
+        private Vector3I _drawDistance = Vector3I.Zero;
         
         [Export] public bool ShowChunkEdges
         {
-            get { return showChunkEdges; }
-            set { showChunkEdges = value; }
+            get { return _showChunkEdges; }
+            set { _showChunkEdges = value; }
         }
-        private bool showChunkEdges = true;
+        private bool _showChunkEdges = true;
         
         #endregion Exports -> Rendering
 
@@ -66,17 +64,17 @@ namespace RAWVoxel
         
         [Export] public bool Threading
         {
-            get { return threading; }
-            set { threading = value; }
+            get { return _threading; }
+            set { _threading = value; }
         }
-        private bool threading = true;
+        private bool _threading = true;
         
-        [Export] public int UpdateFrequency
+        [Export] public int updateFrequency
         {
-            get { return updateFrequency; }
-            set { updateFrequency = value; }
+            get { return _updateFrequency; }
+            set { _updateFrequency = value; }
         }
-        private int updateFrequency = 100;
+        private int _updateFrequency = 100;
 
         #endregion Exports -> Threading
 
@@ -85,29 +83,41 @@ namespace RAWVoxel
         
         [Export] public Vector3I WorldDimension
         {
-            get { return worldDimension; }
-            set { worldDimension = value; }
+            get { return _worldDimension; }
+            set { _worldDimension = value; }
         }
-        private Vector3I worldDimension = new (128, 1, 128);
+        private Vector3I _worldDimension = new (128, 1, 128);
         
         [Export] public Vector3I ChunkDimension
         {
-            get { return chunkDimension; }
-            set { chunkDimension = value; }
+            get { return _chunkDimension; }
+            set { _chunkDimension = value; }
         }
-        private Vector3I chunkDimension = new (16, 256, 16);
+        private Vector3I _chunkDimension = new (16, 256, 16);
         
         [Export] public float VoxelDimension
         {
-            get { return voxelDimension; }
-            set { voxelDimension = value; }
+            get { return _voxelDimension; }
+            set { _voxelDimension = value; }
         }
-        private float voxelDimension = 1;
+        private float _voxelDimension = 1;
         
         #endregion Exports -> World
 
-        #region Exports -> Height
-        [ExportGroup("Layer Height")]
+        #region Exports -> Terrain Material
+        [ExportGroup("Terrain Material")]
+
+        [Export] public Material TerrainMaterial
+        {
+            get { return _terrainMaterial; }
+            set { _terrainMaterial = value; }
+        }
+        private Material _terrainMaterial = GD.Load<Material>("res://addons/RawVoxel/resources/materials/chunk_material.tres");
+
+        #endregion Exports -> Terrain Material
+        
+        #region Exports -> Terrain Height
+        [ExportGroup("Terrain Height")]
         
         [Export] public int SurfaceHeight
         {
@@ -137,42 +147,42 @@ namespace RAWVoxel
         }
         private int bedrockHeight = 0;
 
-        #endregion Exports -> Height
-        
+        #endregion Exports -> Terrain Height
+
         #region Exports -> Terrain Noise
         [ExportGroup("Terrain Noise")]
         
         // Noise map used for density generation. Controls y value for terrain generation.
         [Export] public FastNoiseLite DensityNoise
         {
-            get { return densityNoise; }
-            set { densityNoise = value; }
+            get { return _densityNoise; }
+            set { _densityNoise = value; }
         }
-        private FastNoiseLite densityNoise = GD.Load<FastNoiseLite>("res://addons/RawVoxel/resources/world/density_noise.tres");
+        private FastNoiseLite _densityNoise = GD.Load<FastNoiseLite>("res://addons/RawVoxel/resources/world/density_noise.tres");
         
         // Noise map used for height generation. Controls y value for terrain generation.
         [Export] public FastNoiseLite SurfaceNoise
         {
-            get { return surfaceNoise; }
-            set { surfaceNoise = value; }
+            get { return _surfaceNoise; }
+            set { _surfaceNoise = value; }
         }
-        private FastNoiseLite surfaceNoise = GD.Load<FastNoiseLite>("res://addons/RawVoxel/resources/world/surface_noise.tres");
+        private FastNoiseLite _surfaceNoise = GD.Load<FastNoiseLite>("res://addons/RawVoxel/resources/world/surface_noise.tres");
         
         // Noise map used for humidity generation. Controls x value for terrain generation.
         [Export] public FastNoiseLite HumidityNoise
         {
-            get { return humidityNoise; }
-            set { humidityNoise = value; }
+            get { return _humidityNoise; }
+            set { _humidityNoise = value; }
         }
-        private FastNoiseLite humidityNoise = GD.Load<FastNoiseLite>("res://addons/RawVoxel/resources/world/humidity_noise.tres");
+        private FastNoiseLite _humidityNoise = GD.Load<FastNoiseLite>("res://addons/RawVoxel/resources/world/humidity_noise.tres");
         
         // Noise map used for temperature generation. Controls z value for terrain generation.
         [Export] public FastNoiseLite TemperatureNoise
         {
-            get { return temperatureNoise; }
-            set { temperatureNoise = value; }
+            get { return _temperatureNoise; }
+            set { _temperatureNoise = value; }
         }
-        private FastNoiseLite temperatureNoise = GD.Load<FastNoiseLite>("res://addons/RawVoxel/resources/world/temperature_noise.tres");
+        private FastNoiseLite _temperatureNoise = GD.Load<FastNoiseLite>("res://addons/RawVoxel/resources/world/temperature_noise.tres");
 
         #endregion Exports -> Terrain Noise
         
@@ -181,59 +191,57 @@ namespace RAWVoxel
         // Controls density distribution.
         [Export] public Curve DensityCurve
         {
-            get { return densityCurve; }
-            set { densityCurve = value; }
+            get { return _densityCurve; }
+            set { _densityCurve = value; }
         }
-        private Curve densityCurve = GD.Load<Curve>("res://addons/RawVoxel/resources/world/density_curve.tres");
+        private Curve _densityCurve = GD.Load<Curve>("res://addons/RawVoxel/resources/world/density_curve.tres");
         // Controls surface distribution.
         [Export] public Curve SurfaceCurve
         {
-            get { return surfaceCurve; }
-            set { surfaceCurve = value; }
+            get { return _surfaceCurve; }
+            set { _surfaceCurve = value; }
         }
-        private Curve surfaceCurve = GD.Load<Curve>("res://addons/RawVoxel/resources/world/surface_curve.tres");
+        private Curve _surfaceCurve = GD.Load<Curve>("res://addons/RawVoxel/resources/world/surface_curve.tres");
         // Controls humidity distribution.
         [Export] public Curve HumidityCurve
         {
-            get { return humidityCurve; }
-            set { humidityCurve = value; }
+            get { return _humidityCurve; }
+            set { _humidityCurve = value; }
         }
-        private Curve humidityCurve = GD.Load<Curve>("res://addons/RawVoxel/resources/world/humidity_curve.tres");
+        private Curve _humidityCurve = GD.Load<Curve>("res://addons/RawVoxel/resources/world/humidity_curve.tres");
         // Controls temperature distribution.
         [Export] public Curve TemperatureCurve
         {
-            get { return temperatureCurve; }
-            set { temperatureCurve = value; }
+            get { return _temperatureCurve; }
+            set { _temperatureCurve = value; }
         }
-        private Curve temperatureCurve = GD.Load<Curve>("res://addons/RawVoxel/resources/world/temperature_curve.tres");
+        private Curve _temperatureCurve = GD.Load<Curve>("res://addons/RawVoxel/resources/world/temperature_curve.tres");
 
         #endregion Exports -> Terrain Curves
 
-        #endregion Exports
-        
-        #region Variables
-
         #region Variables -> FocusNode
         
-        private Vector3 focusNodePosition;
-        private Vector3I focusNodeChunkPosition = Vector3I.MinValue;
-        private readonly object focusNodeChunkPositionLock = new();
+        private Vector3 _focusNodePosition;
+        private Vector3I _focusNodeChunkPosition = Vector3I.MinValue;
+        private readonly object _focusNodeChunkPositionLock = new();
         
         #endregion Variables -> FocusNode
 
+        #region Variables -> World
+        
+        private readonly object _worldGenerationLock = new();
+        
+        #endregion Variables -> World
+
         #region Variables -> Queues
 
-        private bool worldGenerated = false;
-        private readonly List<Vector3I> drawableChunkPositions = new();
-        private readonly List<Vector3I> loadableChunkPositions = new();
-        private readonly List<Vector3I> freeableChunkPositions = new();
-        private readonly Dictionary<Vector3I, Chunk> loadedChunks = new();
+        private bool _worldGenerated = false;
+        private readonly List<Vector3I> _drawableChunkPositions = new();
+        private readonly List<Vector3I> _loadableChunkPositions = new();
+        private readonly List<Vector3I> _freeableChunkPositions = new();
+        private readonly Dictionary<Vector3I, Chunk> _loadedChunks = new();
 
         #endregion Variables -> Queues
-
-        #endregion Variables
-
-        #region Functions
 
         #region Functions -> Processes
 
@@ -241,19 +249,21 @@ namespace RAWVoxel
         {
             GenerateWorld();
             
-            if (threading)
+            if (_threading)
             {
-                ThreadStart UpdateWorldProcessStart = new ThreadStart(UpdateWorldProcess);
-                Thread UpdateWorldThread = new Thread(UpdateWorldProcessStart);
-                UpdateWorldThread.Name = "UpdateWorldThread";
+                ThreadStart UpdateWorldProcessStart = new(UpdateWorldProcess);
+                Thread UpdateWorldThread = new(UpdateWorldProcessStart)
+                {
+                    Name = "UpdateWorldThread"
+                };
                 UpdateWorldThread.Start();
             }
         }
         public override void _PhysicsProcess(double delta)
         {
-            if (worldGenerated) UpdateFocusNodePosition();
+            if (_worldGenerated) UpdateFocusNodePosition();
             
-            if (threading) return;
+            if (_threading) return;
             
             if (TryUpdateFocusNodeChunkPosition())
             {
@@ -262,7 +272,7 @@ namespace RAWVoxel
         }
         private void UpdateWorldProcess()
         {
-            while (IsInstanceValid(this) && worldGenerated)
+            while (IsInstanceValid(this) && _worldGenerated)
             {
                 if (TryUpdateFocusNodeChunkPosition())
                 {
@@ -277,34 +287,34 @@ namespace RAWVoxel
 
         #region Functions -> FocusNode
 
-        // Set focusNodeChunkPosition to focusNode.Position. Locked for thread access.
+        // Set _focusNodeChunkPosition to _focusNode.Position. Locked for thread access.
         private void UpdateFocusNodePosition()
         {
             // Lock for primary thread access.
-            lock (focusNodeChunkPositionLock)
+            lock (_focusNodeChunkPositionLock)
             {
-                focusNodePosition = focusNode.Position;
+                _focusNodePosition = _focusNode.Position;
             }
         }
-        // Set focusNodeChunkPosition when focusNode enters a new chunk. Locked for thread access.
+        // Set _focusNodeChunkPosition when _focusNode enters a new chunk. Locked for thread access.
         private bool TryUpdateFocusNodeChunkPosition()
         {
             Vector3I queriedFocusNodeChunkPosition;
             
             // Lock for secondary thread access.
-            lock (focusNodeChunkPositionLock)
+            lock (_focusNodeChunkPositionLock)
             {
                 // Calculate queriedFocusNodeChunkPosition for the current frame.
-                queriedFocusNodeChunkPosition = (Vector3I)(focusNodePosition / chunkDimension).Floor();
+                queriedFocusNodeChunkPosition = (Vector3I)(_focusNodePosition / _chunkDimension).Floor();
             }
             
-            // Check to see if focusNode has a new chunk position. If true, update focusNodeChunkPosition and return.
-            if (focusNodeChunkPosition != queriedFocusNodeChunkPosition)
+            // Check to see if _focusNode has a new chunk position. If true, update _focusNodeChunkPosition and return.
+            if (_focusNodeChunkPosition != queriedFocusNodeChunkPosition)
             {
-                focusNodeChunkPosition = queriedFocusNodeChunkPosition;
+                _focusNodeChunkPosition = queriedFocusNodeChunkPosition;
                 
-                GD.Print(focusNode.Name + " chunk position updated: " + focusNodeChunkPosition.ToString());
-                Console.WriteLine(focusNode.Name + " chunk position updated: " + focusNodeChunkPosition.ToString());
+                GD.Print(_focusNode.Name + " chunk position updated: " + _focusNodeChunkPosition.ToString());
+                Console.WriteLine(_focusNode.Name + " chunk position updated: " + _focusNodeChunkPosition.ToString());
                 
                 return true;
             }
@@ -319,29 +329,41 @@ namespace RAWVoxel
         // Queue, load, and free chunks to and from the scene tree.
         private void GenerateWorld()
         {   
-            worldGenerated = false;
+            // Ensure that this can't be called again while it's still running.
+            // Ensure that this can't be called if UpdateWorld() is running.
+            // This is to prevent crashes when making changes in the inspector that might cause overlap.
+            lock (_worldGenerationLock)
+            {
+                _worldGenerated = false;
             
-            UpdateFocusNodePosition();
-            TryUpdateFocusNodeChunkPosition();
+                UpdateFocusNodePosition();
+                TryUpdateFocusNodeChunkPosition();
 
-            QueueChunkPositions();
-            LoadQueuedChunks();
-            FreeQueuedChunks();
-
-            worldGenerated = true;
+                QueueChunkPositions();
+                LoadQueuedChunks();
+                FreeQueuedChunks();
+                
+                _worldGenerated = true;
+            }
         }
-        // Reposition chunks at freeableChunkPositions to loadableChunkPositions.
+        // Reposition chunks at _freeableChunkPositions to _loadableChunkPositions.
         private void UpdateWorld()
         {
-            QueueChunkPositions();
-            RawTimer.Time(RecycleQueuedChunks, RawTimer.AppendLine.Both);
+            // Ensure that this can't be called again while it's still running.
+            // Ensure that this can't be called if GenerateWorld() is running.
+            // This is to prevent crashes when making changes in the inspector that might cause overlap.
+            lock (_worldGenerationLock)
+            {
+                QueueChunkPositions();
+                RawTimer.Time(RecycleQueuedChunks, RawTimer.AppendLine.Both);
+            }
         }
         
         #endregion Functions -> World
 
         #region Functions -> Queues
 
-        // Call all chunk position queueing methods.
+        // Call all chunk position queueing methods. Called by GenerateWorld() and UpdateWorld().
         private void QueueChunkPositions()
         {
             QueueDrawableChunkPositions();
@@ -351,18 +373,18 @@ namespace RAWVoxel
         // Queue a new Vector3I into its respective List for each drawable chunk position. Called by QueueChunkPositions().
         private void QueueDrawableChunkPositions()
         {
-            drawableChunkPositions.Clear();
+            _drawableChunkPositions.Clear();
 
-            Vector3I drawableCenter = focusNodeChunkPosition;
+            Vector3I drawableCenter = _focusNodeChunkPosition;
             
-            int drawableXMin = drawableCenter.X - drawDistance.X;
-            int drawableXMax = drawableCenter.X + drawDistance.X;
+            int drawableXMin = drawableCenter.X - _drawDistance.X;
+            int drawableXMax = drawableCenter.X + _drawDistance.X;
             
-            int drawableYMin = drawableCenter.Y - drawDistance.Y;
-            int drawableYMax = drawableCenter.Y + drawDistance.Y;
+            int drawableYMin = drawableCenter.Y - _drawDistance.Y;
+            int drawableYMax = drawableCenter.Y + _drawDistance.Y;
 
-            int drawableZMin = drawableCenter.Z - drawDistance.Z;
-            int drawableZMax = drawableCenter.Z + drawDistance.Z;
+            int drawableZMin = drawableCenter.Z - _drawDistance.Z;
+            int drawableZMax = drawableCenter.Z + _drawDistance.Z;
             
             for (int x = drawableXMin; x <= drawableXMax; x++)
             {
@@ -370,106 +392,104 @@ namespace RAWVoxel
                 {
                     for (int z = drawableZMin; z <= drawableZMax; z++)
                     {
-                        drawableChunkPositions.Add(new(x, y, z));
+                        _drawableChunkPositions.Add(new(x, y, z));
                     }
                 }
             }
 
-            GD.Print("Drawable chunks: " + drawableChunkPositions.Count);
+            GD.Print("Drawable chunks: " + _drawableChunkPositions.Count);
         }
         // Queue a new Vector3I into its respective List for each loadable chunk position. Called by QueueChunkPositions().
         private void QueueLoadableChunkPositions()
         {
-            if (drawableChunkPositions.Count == 0) return;
+            if (_drawableChunkPositions.Count == 0) return;
             
-            loadableChunkPositions.Clear();
+            _loadableChunkPositions.Clear();
 
-            foreach (Vector3I chunkPosition in drawableChunkPositions)
+            foreach (Vector3I chunkPosition in _drawableChunkPositions)
             {
-                if (loadedChunks.ContainsKey(chunkPosition) == false)
+                if (_loadedChunks.ContainsKey(chunkPosition) == false)
                 {
-                    loadableChunkPositions.Add(chunkPosition);
+                    _loadableChunkPositions.Add(chunkPosition);
                 }
             }
 
-            GD.Print("Loadable chunks: " + loadableChunkPositions.Count);
+            GD.Print("Loadable chunks: " + _loadableChunkPositions.Count);
         }
         // Queue a new Vector3I into its respective List for each freeable chunk position. Called by QueueChunkPositions().
         private void QueueFreeableChunkPositions()
         {
-            if (loadedChunks.Count == 0) return;
+            if (_loadedChunks.Count == 0) return;
             
-            freeableChunkPositions.Clear();
+            _freeableChunkPositions.Clear();
 
-            foreach (Vector3I chunkPosition in loadedChunks.Keys)
+            foreach (Vector3I chunkPosition in _loadedChunks.Keys)
             {
-                if (drawableChunkPositions.Contains(chunkPosition) == false)
+                if (_drawableChunkPositions.Contains(chunkPosition) == false)
                 {
-                    freeableChunkPositions.Add(chunkPosition);
+                    _freeableChunkPositions.Add(chunkPosition);
                 }
             }
 
-            GD.Print("Freeable chunks: " + loadableChunkPositions.Count);
+            GD.Print("Freeable chunks: " + _loadableChunkPositions.Count);
         }
 
-        // Load a Chunk instance into the scene tree for each Vector3I in loadableChunkPositions. Called by GenerateWorld().
+        // Load a Chunk instance into the scene tree for each Vector3I in _loadableChunkPositions. Called by GenerateWorld().
         private void LoadQueuedChunks()
         {
-            if (loadableChunkPositions.Count == 0) return;
+            if (_loadableChunkPositions.Count == 0) return;
             
-            foreach (Vector3I chunkPosition in loadableChunkPositions)
+            foreach (Vector3I chunkPosition in _loadableChunkPositions)
             {
-                Chunk chunk = new(this, chunkPosition);
+                Chunk chunk = new(this, chunkPosition, _terrainMaterial);
                 
-                loadedChunks.Add(chunkPosition, chunk);
+                _loadedChunks.Add(chunkPosition, chunk);
                 
                 CallDeferred(Node.MethodName.AddChild, chunk);
                 chunk.CallDeferred(nameof(Chunk.GenerateChunk));
             }
         
-            loadableChunkPositions.Clear();
+            _loadableChunkPositions.Clear();
         }
-        // Free a Chunk instance from the scene tree for each Vector3I in freeableChunkPositions. Called by GenerateWorld().
+        // Free a Chunk instance from the scene tree for each Vector3I in _freeableChunkPositions. Called by GenerateWorld().
         private void FreeQueuedChunks()
         {
-            if (freeableChunkPositions.Count == 0) return;
+            if (_freeableChunkPositions.Count == 0) return;
 
-            foreach (Vector3I chunkPosition in freeableChunkPositions)
+            foreach (Vector3I chunkPosition in _freeableChunkPositions)
             {
-                Chunk chunk = loadedChunks[chunkPosition];
+                Chunk chunk = _loadedChunks[chunkPosition];
                 
-                loadedChunks.Remove(chunkPosition);
+                _loadedChunks.Remove(chunkPosition);
                 
                 chunk.QueueFree();
             }
         
-            freeableChunkPositions.Clear();
+            _freeableChunkPositions.Clear();
         }
-        // Reposition Chunk instances from freeableChunkPositions to drawableChunkPositions. Called by UpdateWorld().
+        // Reposition Chunk instances from _freeableChunkPositions to _drawableChunkPositions. Called by UpdateWorld().
         private void RecycleQueuedChunks()
         {
-            if (freeableChunkPositions.Count == 0) return;
-            if (loadableChunkPositions.Count == 0) return;
+            if (_freeableChunkPositions.Count == 0) return;
+            if (_loadableChunkPositions.Count == 0) return;
 
-            foreach (Vector3I loadableChunkPosition in loadableChunkPositions)
+            foreach (Vector3I loadableChunkPosition in _loadableChunkPositions)
             {
-                Vector3I freeableChunkPosition = freeableChunkPositions.First();
-                Chunk chunk = loadedChunks[freeableChunkPosition];
+                Vector3I freeableChunkPosition = _freeableChunkPositions.First();
+                Chunk chunk = _loadedChunks[freeableChunkPosition];
                 
-                freeableChunkPositions.Remove(freeableChunkPosition);
-                loadedChunks.Remove(freeableChunkPosition);
-                loadedChunks.Add(loadableChunkPosition, chunk);
+                _freeableChunkPositions.Remove(freeableChunkPosition);
+                _loadedChunks.Remove(freeableChunkPosition);
+                _loadedChunks.Add(loadableChunkPosition, chunk);
 
                 chunk.CallDeferred(nameof(Chunk.UpdateChunk), loadableChunkPosition);
 
-                Thread.Sleep(updateFrequency);
+                Thread.Sleep(_updateFrequency);
             }
 
-            loadableChunkPositions.Clear();
+            _loadableChunkPositions.Clear();
         }
 
         #endregion Functions -> Queues
-        
-        #endregion Functions
     }
 }
