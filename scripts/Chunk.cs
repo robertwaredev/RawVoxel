@@ -12,7 +12,7 @@ namespace RAWVoxel
     {
         #region Constructor
 
-        public Chunk(World world, Vector3I chunkPosition, Material terrainMaterial)
+        public Chunk(Vector3I chunkPosition, World world, Material terrainMaterial)
         {
             _world = world;
             SetPosition(chunkPosition);
@@ -21,12 +21,22 @@ namespace RAWVoxel
 
         #endregion Constructor
 
-        #region Variables
+        #region Variables -> Public
 
         public Dictionary<ushort, Voxel.Type> voxels = new();
         
-        private Vector3I _chunkPosition;
+        #endregion Variables -> Public
+        
+        #region Variables -> Setup
+
         private readonly World _world;
+        private Vector3I _chunkPosition;
+        private readonly StandardMaterial3D _terrainMaterial = new();
+        
+        #endregion Variables -> Setup
+
+        #region Variables -> Meshing
+
         private readonly ArrayMesh _arrayMesh = new();
         private readonly Godot.Collections.Array _surfaceArray = new();
         private readonly List<Vector3> _surfaceVertices = new();
@@ -34,9 +44,8 @@ namespace RAWVoxel
         private readonly List<Color> _surfaceColors = new();
         private readonly List<Vector2> _surfaceUVs = new();
         private readonly List<int> _surfaceIndices = new();
-        private readonly StandardMaterial3D _terrainMaterial = new();
 
-        #endregion Variables
+        #endregion Variables -> Meshing
 
         #region Functions -> Processes
 

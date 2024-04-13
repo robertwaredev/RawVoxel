@@ -324,7 +324,7 @@ namespace RAWVoxel
         
         #endregion Functions -> FocusNode
 
-        #region Functions -> World
+        #region Functions -> Generate & Update
 
         // Queue, load, and free chunks to and from the scene tree.
         private void GenerateWorld()
@@ -359,7 +359,7 @@ namespace RAWVoxel
             }
         }
         
-        #endregion Functions -> World
+        #endregion Functions -> Generate & Update
 
         #region Functions -> Queues
 
@@ -441,7 +441,7 @@ namespace RAWVoxel
             
             foreach (Vector3I chunkPosition in _loadableChunkPositions)
             {
-                Chunk chunk = new(this, chunkPosition, _terrainMaterial);
+                Chunk chunk = new(chunkPosition, this, _terrainMaterial);
                 
                 _loadedChunks.Add(chunkPosition, chunk);
                 
