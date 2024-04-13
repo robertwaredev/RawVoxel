@@ -21,12 +21,6 @@ namespace RAWVoxel
 
         #endregion Constructor
 
-        #region Variables -> Public
-
-        public Dictionary<ushort, Voxel.Type> voxels = new();
-        
-        #endregion Variables -> Public
-        
         #region Variables -> Setup
 
         private readonly World _world;
@@ -34,6 +28,12 @@ namespace RAWVoxel
         private readonly StandardMaterial3D _terrainMaterial = new();
         
         #endregion Variables -> Setup
+
+        #region Variables -> Generation
+
+        public List<Voxel.Type> voxels = new();
+        
+        #endregion Variables -> Generation
 
         #region Variables -> Meshing
 
@@ -132,8 +132,7 @@ namespace RAWVoxel
                 {
                     for (int z = 0; z < _world.ChunkDimension.Z; z++)
                     {
-                        ushort voxelPosition = XYZConvert.ToUShort(x, y, z, _world.ChunkDimension);
-                        voxels.Add(voxelPosition, GenerateVoxel(new(x, y, z)));
+                        voxels.Add(GenerateVoxel(new(x, y, z)));
                     }
                 }
             }
@@ -210,9 +209,9 @@ namespace RAWVoxel
 
         private void GenerateChunkMeshSurfaceData()
         {
-            foreach (ushort voxelPosition in voxels.Keys)
+            for (int i = 0; i < voxels.Count; i++)
             {
-                GenerateVoxelMeshSurfaceData(XYZConvert.ToVector3I(voxelPosition, _world.ChunkDimension));
+                GenerateVoxelMeshSurfaceData(XYZConvert.ToVector3I(i, _world.ChunkDimension));
             }
         }
         private void GenerateVoxelMeshSurfaceData(Vector3I voxelPosition)
