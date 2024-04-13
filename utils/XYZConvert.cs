@@ -18,6 +18,20 @@ namespace RawUtils
             return XYZUShort;
         }
         
+        // Convert XYZ coordinates in dimension space into a short.
+        public static short ToShort(int X, int Y, int Z, Vector3I dimension)
+        {
+            short XYZShort = (short)(X + (Y * dimension.X) + (Z * dimension.Y * dimension.X));
+
+            return XYZShort;
+        }
+        public static short ToShort(Vector3I XYZ, Vector3I dimension)
+        {
+            short XYZShort = (short)(XYZ.X + (XYZ.Y * dimension.X) + (XYZ.Z * dimension.Y * dimension.X));
+
+            return XYZShort;
+        }
+
         // Convert XYZ coordinates in dimension space into a uint.
         public static uint ToUInt(int X, int Y, int Z, Vector3I dimension)
         {
@@ -30,6 +44,20 @@ namespace RawUtils
             int XYZUInt = XYZ.X + (XYZ.Y * dimension.X) + (XYZ.Z * dimension.Y * dimension.X);
 
             return (uint)(XYZUInt);
+        }
+        
+        // Convert XYZ coordinates in dimension space into an int.
+        public static int ToInt(int X, int Y, int Z, Vector3I dimension)
+        {
+            int XYZInt = X + (Y * dimension.X) + (Z * dimension.Y * dimension.X);
+
+            return XYZInt;
+        }
+        public static int ToInt(Vector3I XYZ, Vector3I dimension)
+        {
+            int XYZInt = XYZ.X + (XYZ.Y * dimension.X) + (XYZ.Z * dimension.Y * dimension.X);
+
+            return XYZInt;
         }
         
         // Convert an integer into XYZ coordinates in dimension space.
