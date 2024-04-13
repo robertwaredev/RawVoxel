@@ -18,16 +18,21 @@ namespace RAWVoxel
         
         #region Exports
         
+        #region Exports -> Tools
+
         [Export] public bool Regenerate
         {
             get { return regenerate; }
             set { regenerate = false; GenerateWorld(); }
         }
-        private static bool regenerate = false;
+        private bool regenerate = false;
+
+        #endregion Exports -> Tools
 
         #region Exports -> FocusNode
 
-        [ExportCategory("World")]
+        [ExportCategory("Focus Node")]
+        
         [Export] public Node3D FocusNode
         {
             get { return focusNode; }
@@ -38,157 +43,171 @@ namespace RAWVoxel
         #endregion Exports -> FocusNode
 
         #region Exports -> Rendering
-
         [ExportGroup("Rendering")]
+        
         [Export] public Vector3I DrawDistance
         {
             get { return drawDistance; }
             set { drawDistance = value; }
         }
-        private static Vector3I drawDistance = Vector3I.One;
+        private Vector3I drawDistance = Vector3I.One;
+        
         [Export] public bool ShowChunkEdges
         {
             get { return showChunkEdges; }
             set { showChunkEdges = value; }
         }
-        private static bool showChunkEdges = true;
-        [Export] public bool UseThreading
+        private bool showChunkEdges = true;
+        
+        #endregion Exports -> Rendering
+
+        #region Exports -> Threading
+        [ExportGroup("Threading")]
+        
+        [Export] public bool Threading
         {
             get { return threading; }
             set { threading = value; }
         }
-        private static bool threading = true;
+        private bool threading = true;
         
-        #endregion Exports -> Rendering
+        [Export] public int UpdateFrequency
+        {
+            get { return updateFrequency; }
+            set { updateFrequency = value; }
+        }
+        private int updateFrequency = 100;
+
+        #endregion Exports -> Threading
 
         #region Exports -> World
-        
         [ExportGroup("World Settings")]
+        
         [Export] public Vector3I WorldDimension
         {
             get { return worldDimension; }
             set { worldDimension = value; }
         }
-        private static Vector3I worldDimension = new (128, 128, 128);
+        private Vector3I worldDimension = new (128, 1, 128);
         
-        #endregion Exports -> World
-
-        #region Exports -> Chunk
-
-        [ExportGroup("Chunk Settings")]
         [Export] public Vector3I ChunkDimension
         {
             get { return chunkDimension; }
             set { chunkDimension = value; }
         }
-        private static Vector3I chunkDimension = new (16, 256, 16);
-        [Export] public float VoxelSize
-        {
-            get { return voxelSize; }
-            set { voxelSize = value; }
-        }
-        private static float voxelSize = 1;
+        private Vector3I chunkDimension = new (16, 256, 16);
         
-        #endregion Exports -> Chunk
+        [Export] public float VoxelDimension
+        {
+            get { return voxelDimension; }
+            set { voxelDimension = value; }
+        }
+        private float voxelDimension = 1;
+        
+        #endregion Exports -> World
 
         #region Exports -> Height
-
-        // Heights used to offset surface terrain generation.
         [ExportGroup("Layer Height")]
+        
         [Export] public int SurfaceHeight
         {
             get { return surfaceHeight; }
             set { surfaceHeight = value; }
         }
-        private static int surfaceHeight = 128;
+        private int surfaceHeight = 128;
+        
         [Export] public int Layer2Height
         {
             get { return layer2Height; }
             set { layer2Height = value; }
         }
-        private static int layer2Height = 96;
+        private int layer2Height = 96;
+        
         [Export] public int Layer1Height
         {
             get { return layer1Height; }
             set { layer1Height = value; }
         }
-        private static int layer1Height = 64;
+        private int layer1Height = 64;
+        
         [Export] public int BedrockHeight
         {
             get { return bedrockHeight; }
             set { bedrockHeight = value; }
         }
-        private static int bedrockHeight = 0;
+        private int bedrockHeight = 0;
 
         #endregion Exports -> Height
         
-        #region Exports -> Noise
-
-        [ExportGroup("Noise Maps")]
-        // Noise map used for height generation. Controls y value for terrain generation.
+        #region Exports -> Terrain Noise
+        [ExportGroup("Terrain Noise")]
+        
+        // Noise map used for density generation. Controls y value for terrain generation.
         [Export] public FastNoiseLite DensityNoise
         {
             get { return densityNoise; }
             set { densityNoise = value; }
         }
-        private static FastNoiseLite densityNoise = GD.Load<FastNoiseLite>("res://addons/RawVoxel/resources/world/density_noise.tres");
+        private FastNoiseLite densityNoise = GD.Load<FastNoiseLite>("res://addons/RawVoxel/resources/world/density_noise.tres");
+        
+        // Noise map used for height generation. Controls y value for terrain generation.
         [Export] public FastNoiseLite SurfaceNoise
         {
             get { return surfaceNoise; }
             set { surfaceNoise = value; }
         }
-        private static FastNoiseLite surfaceNoise = GD.Load<FastNoiseLite>("res://addons/RawVoxel/resources/world/surface_noise.tres");
-        // Noise map used for density generation. Controls y value for terrain generation.
+        private FastNoiseLite surfaceNoise = GD.Load<FastNoiseLite>("res://addons/RawVoxel/resources/world/surface_noise.tres");
+        
         // Noise map used for humidity generation. Controls x value for terrain generation.
         [Export] public FastNoiseLite HumidityNoise
         {
             get { return humidityNoise; }
             set { humidityNoise = value; }
         }
-        private static FastNoiseLite humidityNoise = GD.Load<FastNoiseLite>("res://addons/RawVoxel/resources/world/humidity_noise.tres");
+        private FastNoiseLite humidityNoise = GD.Load<FastNoiseLite>("res://addons/RawVoxel/resources/world/humidity_noise.tres");
+        
         // Noise map used for temperature generation. Controls z value for terrain generation.
         [Export] public FastNoiseLite TemperatureNoise
         {
             get { return temperatureNoise; }
             set { temperatureNoise = value; }
         }
-        private static FastNoiseLite temperatureNoise = GD.Load<FastNoiseLite>("res://addons/RawVoxel/resources/world/temperature_noise.tres");
+        private FastNoiseLite temperatureNoise = GD.Load<FastNoiseLite>("res://addons/RawVoxel/resources/world/temperature_noise.tres");
 
-        #endregion Exports -> Noise
+        #endregion Exports -> Terrain Noise
         
-        #region Exports -> Curves
-
-        [ExportGroup("Noise Curves")]
-        // Controls surface distribution.
+        #region Exports -> Terrain Curves
+        [ExportGroup("Terrain Curves")]
+        // Controls density distribution.
         [Export] public Curve DensityCurve
         {
             get { return densityCurve; }
             set { densityCurve = value; }
         }
-        private static Curve densityCurve = GD.Load<Curve>("res://addons/RawVoxel/resources/world/density_curve.tres");
+        private Curve densityCurve = GD.Load<Curve>("res://addons/RawVoxel/resources/world/density_curve.tres");
+        // Controls surface distribution.
         [Export] public Curve SurfaceCurve
         {
             get { return surfaceCurve; }
             set { surfaceCurve = value; }
         }
-        private static Curve surfaceCurve = GD.Load<Curve>("res://addons/RawVoxel/resources/world/surface_curve.tres");
-        // Controls density distribution.
+        private Curve surfaceCurve = GD.Load<Curve>("res://addons/RawVoxel/resources/world/surface_curve.tres");
         // Controls humidity distribution.
         [Export] public Curve HumidityCurve
         {
             get { return humidityCurve; }
             set { humidityCurve = value; }
         }
-        private static Curve humidityCurve = GD.Load<Curve>("res://addons/RawVoxel/resources/world/humidity_curve.tres");
+        private Curve humidityCurve = GD.Load<Curve>("res://addons/RawVoxel/resources/world/humidity_curve.tres");
         // Controls temperature distribution.
         [Export] public Curve TemperatureCurve
         {
             get { return temperatureCurve; }
             set { temperatureCurve = value; }
         }
-        private static Curve temperatureCurve = GD.Load<Curve>("res://addons/RawVoxel/resources/world/temperature_curve.tres");
+        private Curve temperatureCurve = GD.Load<Curve>("res://addons/RawVoxel/resources/world/temperature_curve.tres");
 
-        #endregion Exports -> Curves
+        #endregion Exports -> Terrain Curves
 
         #endregion Exports
         
@@ -300,6 +319,8 @@ namespace RAWVoxel
         // Queue, load, and free chunks to and from the scene tree.
         private void GenerateWorld()
         {   
+            worldGenerated = false;
+            
             UpdateFocusNodePosition();
             TryUpdateFocusNodeChunkPosition();
 
@@ -313,7 +334,7 @@ namespace RAWVoxel
         private void UpdateWorld()
         {
             QueueChunkPositions();
-            RawTimer.Time(RecycleQueuedChunks, RawTimer.AppendLine.Post);
+            RawTimer.Time(RecycleQueuedChunks, RawTimer.AppendLine.Both);
         }
         
         #endregion Functions -> World
@@ -355,7 +376,6 @@ namespace RAWVoxel
             }
 
             GD.Print("Drawable chunks: " + drawableChunkPositions.Count);
-            Console.WriteLine("Drawable chunks: " + drawableChunkPositions.Count);
         }
         // Queue a new Vector3I into its respective List for each loadable chunk position. Called by QueueChunkPositions().
         private void QueueLoadableChunkPositions()
@@ -371,6 +391,8 @@ namespace RAWVoxel
                     loadableChunkPositions.Add(chunkPosition);
                 }
             }
+
+            GD.Print("Loadable chunks: " + loadableChunkPositions.Count);
         }
         // Queue a new Vector3I into its respective List for each freeable chunk position. Called by QueueChunkPositions().
         private void QueueFreeableChunkPositions()
@@ -386,6 +408,8 @@ namespace RAWVoxel
                     freeableChunkPositions.Add(chunkPosition);
                 }
             }
+
+            GD.Print("Freeable chunks: " + loadableChunkPositions.Count);
         }
 
         // Load a Chunk instance into the scene tree for each Vector3I in loadableChunkPositions. Called by GenerateWorld().
@@ -401,8 +425,6 @@ namespace RAWVoxel
                 
                 CallDeferred(Node.MethodName.AddChild, chunk);
                 chunk.CallDeferred(nameof(Chunk.GenerateChunk));
-
-                Thread.Sleep(100);
             }
         
             loadableChunkPositions.Clear();
@@ -440,7 +462,7 @@ namespace RAWVoxel
 
                 chunk.CallDeferred(nameof(Chunk.UpdateChunk), loadableChunkPosition);
 
-                Thread.Sleep(100);
+                Thread.Sleep(updateFrequency);
             }
 
             loadableChunkPositions.Clear();

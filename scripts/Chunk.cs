@@ -3,6 +3,8 @@ using RawUtils;
 using System.Collections.Generic;
 using RAWUtils;
 
+// TODO - Figure out why the bottom faces of chunks are rendering without showChunkEdges on.
+
 namespace RAWVoxel
 {
     [Tool]
@@ -20,7 +22,7 @@ namespace RAWVoxel
 
         #region Variables
 
-        private static World World;
+        private World World;
         public Vector3I ChunkPosition;
         private ArrayMesh arrayMesh = new();
         private Godot.Collections.Array surfaceArray = new();
@@ -64,8 +66,10 @@ namespace RAWVoxel
 
         public void GenerateChunk()
         {
-            RawTimer.Time(GenerateVoxels);
-            GenerateChunkMeshSurfaceData();
+            RawTimer.Time(GenerateVoxels, RawTimer.AppendLine.Pre);
+            RawTimer.Time(GenerateChunkMeshSurfaceData, RawTimer.AppendLine.Post);
+            
+            // These have negligable time consumption.
             GenerateMeshSurfaceArray();
             GenerateMeshSurface();
             GenerateCollision();
@@ -76,7 +80,7 @@ namespace RAWVoxel
             
             ClearChunk();
             
-            GenerateChunk();
+            RawTimer.Time(GenerateChunk, RawTimer.AppendLine.Both);
         }
         public void ClearChunk()
         {
@@ -103,20 +107,20 @@ namespace RAWVoxel
         }
         private Voxel.Type GenerateVoxel(Vector3I voxelPosition)
         {
-            // If the voxel being generated is not in this chunk and we want to show chunk edges, assume it's air and return early.
-            if (World.ShowChunkEdges == true && CheckVoxelOutOfBounds(voxelPosition) == true) return Voxel.Type.Air;
+            // Return air if we want to show chunk edges and the voxel being generated is not in this chunk.
+            if (World.ShowChunkEdges && IsVoxelOutOfBounds(voxelPosition)) return Voxel.Type.Air;
             
-            // Add this chunk's global position to the voxel positon to get its global position.
+            // Add this chunk's position to the voxel position to get the voxel's global position.
             Vector3I globalVoxelPosition = voxelPosition + (Vector3I)Position;
 
-            // Sample voxel density chance.
+            // Sample terrain density using the voxel's global position.
             float densityNoise = World.DensityNoise.GetNoise3Dv(globalVoxelPosition);
             float densityCurve = World.DensityCurve.Sample((densityNoise + 1) * 0.5f);
             
-            // Return early if voxel is not dense enough to be considered solid.
+            // Return air if voxel is not dense enough to be considered solid.
             if (densityCurve < 0.5f) return Voxel.Type.Air;
 
-            // Sample noise value for surface using the voxel's global position.
+            // Sample terrain surface using the voxel's global position.
             float surfaceNoise = World.SurfaceNoise.GetNoise2D(globalVoxelPosition.X, globalVoxelPosition.Z);
             float surfaceCurve = World.SurfaceCurve.Sample((surfaceNoise + 1) * 0.5f);
 
@@ -138,14 +142,14 @@ namespace RAWVoxel
         
         private Voxel.Type GetVoxel(Vector3I voxelPosition)
         {
-            if (CheckVoxelOutOfBounds(voxelPosition))
+            if (IsVoxelOutOfBounds(voxelPosition))
             {
                 return GenerateVoxel(voxelPosition);
             }
 
             return voxels[XYZConvert.ToUShort(voxelPosition, World.ChunkDimension)];
         }
-        private static bool CheckVoxelOutOfBounds(Vector3I voxelPosition)
+        private bool IsVoxelOutOfBounds(Vector3I voxelPosition)
         {
             if (voxelPosition.X < 0 || voxelPosition.X >= World.ChunkDimension.X)
             {

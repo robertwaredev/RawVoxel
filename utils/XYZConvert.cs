@@ -8,13 +8,13 @@ namespace RAWUtils
         // Convert XYZ coordinates in dimension space into a ushort.
         public static ushort ToUShort(int X, int Y, int Z, Vector3I dimension)
         {
-            ushort XYZUShort = (ushort)(X + (Y * dimension.X) + (Z * dimension.X * dimension.Y));
+            ushort XYZUShort = (ushort)(X + (Y * dimension.X) + (Z * dimension.Y * dimension.X));
 
             return XYZUShort;
         }
         public static ushort ToUShort(Vector3I XYZ, Vector3I dimension)
         {
-            ushort XYZUShort = (ushort)(XYZ.X + (XYZ.Y * dimension.X) + (XYZ.Z * dimension.X * dimension.Y));
+            ushort XYZUShort = (ushort)(XYZ.X + (XYZ.Y * dimension.X) + (XYZ.Z * dimension.Y * dimension.X));
 
             return XYZUShort;
         }
@@ -22,13 +22,13 @@ namespace RAWUtils
         // Convert XYZ coordinates in dimension space into a uint.
         public static uint ToUInt(int X, int Y, int Z, Vector3I dimension)
         {
-            int XYZUInt = X + (Y * dimension.X) + (Z * dimension.X * dimension.Y);
+            int XYZUInt = X + (Y * dimension.X) + (Z * dimension.Y * dimension.X);
 
-            return (ushort)(XYZUInt);
+            return (uint)(XYZUInt);
         }
         public static uint ToUInt(Vector3I XYZ, Vector3I dimension)
         {
-            int XYZUInt = XYZ.X + (XYZ.Y * dimension.X) + (XYZ.Z * dimension.X * dimension.Y);
+            int XYZUInt = XYZ.X + (XYZ.Y * dimension.X) + (XYZ.Z * dimension.Y * dimension.X);
 
             return (uint)(XYZUInt);
         }
