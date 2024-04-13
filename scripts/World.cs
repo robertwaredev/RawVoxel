@@ -1,10 +1,9 @@
 using Godot;
 using System;
+using RawUtils;
 using System.Linq;
 using System.Threading;
-using System.Diagnostics;
 using System.Collections.Generic;
-using RAWUtils;
 
 namespace RAWVoxel
 {
@@ -22,7 +21,7 @@ namespace RAWVoxel
         [Export] public bool Regenerate
         {
             get { return regenerate; }
-            set { regenerate = false; if(worldGenerated) { RawTimer.Time(GenerateWorld, RawTimer.AppendLine.Both); } }
+            set { regenerate = false; GenerateWorld(); }
         }
         private static bool regenerate = false;
 
@@ -55,10 +54,10 @@ namespace RAWVoxel
         private static bool showChunkEdges = true;
         [Export] public bool UseThreading
         {
-            get { return useThreading; }
-            set { useThreading = value; }
+            get { return threading; }
+            set { threading = value; }
         }
-        private static bool useThreading = true;
+        private static bool threading = true;
         
         #endregion Exports -> Rendering
 
@@ -223,7 +222,7 @@ namespace RAWVoxel
         {
             GenerateWorld();
             
-            if (useThreading)
+            if (threading)
             {
                 ThreadStart UpdateWorldProcessStart = new ThreadStart(UpdateWorldProcess);
                 Thread UpdateWorldThread = new Thread(UpdateWorldProcessStart);
@@ -233,22 +232,20 @@ namespace RAWVoxel
         }
         public override void _PhysicsProcess(double delta)
         {
-            if (worldGenerated == false) return;
+            if (worldGenerated) UpdateFocusNodePosition();
             
-            UpdateFocusNodePosition();
+            if (threading) return;
             
-            if (useThreading == true) return;
-            
-            if (UpdateFocusNodeChunkPosition() == true)
+            if (TryUpdateFocusNodeChunkPosition())
             {
                 UpdateWorld();
             }
         }
         private void UpdateWorldProcess()
         {
-            while (IsInstanceValid(this) == true)
+            while (IsInstanceValid(this) && worldGenerated)
             {
-                if (UpdateFocusNodeChunkPosition() == true)
+                if (TryUpdateFocusNodeChunkPosition())
                 {
                     UpdateWorld();
                 }
@@ -261,7 +258,7 @@ namespace RAWVoxel
 
         #region Functions -> FocusNode
 
-        // Set currentFocusNodeChunkPosition to queriedFocusNodeChunkPosition if not equal.
+        // Set focusNodeChunkPosition to focusNode.Position. Locked for thread access.
         private void UpdateFocusNodePosition()
         {
             // Lock for primary thread access.
@@ -270,11 +267,9 @@ namespace RAWVoxel
                 focusNodePosition = focusNode.Position;
             }
         }
-        // Set lastKnownFocusNodeChunkPosition to currentFocusNodeChunkPosition if not equal.
-        private bool UpdateFocusNodeChunkPosition()
+        // Set focusNodeChunkPosition when focusNode enters a new chunk. Locked for thread access.
+        private bool TryUpdateFocusNodeChunkPosition()
         {
-            bool updated = false;
-            
             Vector3I queriedFocusNodeChunkPosition;
             
             // Lock for secondary thread access.
@@ -289,13 +284,13 @@ namespace RAWVoxel
             {
                 focusNodeChunkPosition = queriedFocusNodeChunkPosition;
                 
-                GD.Print("Focus node chunk position updated: " + focusNodeChunkPosition.ToString());
-                Console.WriteLine("Focus node chunk position updated: " + focusNodeChunkPosition.ToString());
+                GD.Print(focusNode.Name + " chunk position updated: " + focusNodeChunkPosition.ToString());
+                Console.WriteLine(focusNode.Name + " chunk position updated: " + focusNodeChunkPosition.ToString());
                 
-                updated = true;
+                return true;
             }
 
-            return updated;
+            return false;
         }
         
         #endregion Functions -> FocusNode
@@ -306,7 +301,7 @@ namespace RAWVoxel
         private void GenerateWorld()
         {   
             UpdateFocusNodePosition();
-            UpdateFocusNodeChunkPosition();
+            TryUpdateFocusNodeChunkPosition();
 
             QueueChunkPositions();
             LoadQueuedChunks();

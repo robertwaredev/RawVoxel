@@ -1,7 +1,7 @@
 using Godot;
-using RAWUtils;
-using System.Diagnostics;
+using RawUtils;
 using System.Collections.Generic;
+using RAWUtils;
 
 namespace RAWVoxel
 {
@@ -30,8 +30,7 @@ namespace RAWVoxel
         private readonly List<Vector2> surfaceUVs = new();
         private readonly List<int> surfaceIndices = new();
         private StandardMaterial3D surfaceMaterial = new();
-        public Dictionary<Vector3I, Voxel.Type> voxels = new();
-        private readonly Stopwatch stopwatch = new();
+        public Dictionary<ushort, Voxel.Type> voxels = new();
 
         #endregion Variables
 
@@ -43,6 +42,7 @@ namespace RAWVoxel
             SetupSurfaceArray();
             SetMesh();
         }
+        
         public void SetPosition(Vector3I chunkPosition)
         {
             ChunkPosition = chunkPosition;
@@ -64,7 +64,7 @@ namespace RAWVoxel
 
         public void GenerateChunk()
         {
-            RawTimer.Time(GenerateVoxels, RawTimer.AppendLine.Both);
+            RawTimer.Time(GenerateVoxels);
             GenerateChunkMeshSurfaceData();
             GenerateMeshSurfaceArray();
             GenerateMeshSurface();
@@ -95,8 +95,8 @@ namespace RAWVoxel
                 {
                     for (int z = 0; z < World.ChunkDimension.Z; z++)
                     {
-                        Vector3I voxelPosition = new(x, y, z);
-                        voxels.Add(voxelPosition, GenerateVoxel(voxelPosition));
+                        ushort voxelPosition = XYZConvert.ToUShort(x, y, z, World.ChunkDimension);
+                        voxels.Add(voxelPosition, GenerateVoxel(new(x, y, z)));
                     }
                 }
             }
@@ -106,16 +106,19 @@ namespace RAWVoxel
             // If the voxel being generated is not in this chunk and we want to show chunk edges, assume it's air and return early.
             if (World.ShowChunkEdges == true && CheckVoxelOutOfBounds(voxelPosition) == true) return Voxel.Type.Air;
             
+            // Add this chunk's global position to the voxel positon to get its global position.
             Vector3I globalVoxelPosition = voxelPosition + (Vector3I)Position;
-            
+
             // Sample voxel density chance.
             float densityNoise = World.DensityNoise.GetNoise3Dv(globalVoxelPosition);
             float densityCurve = World.DensityCurve.Sample((densityNoise + 1) * 0.5f);
+            
+            // Return early if voxel is not dense enough to be considered solid.
             if (densityCurve < 0.5f) return Voxel.Type.Air;
 
             // Sample noise value for surface using the voxel's global position.
-            float surfaceNoise = World.SurfaceNoise.GetNoise2D(voxelPosition.X + Position.X, voxelPosition.Z + Position.Z);
-            float surfaceCurve = World.SurfaceCurve.Sample((surfaceNoise + 1) * 0.5f) * 2 - 1;
+            float surfaceNoise = World.SurfaceNoise.GetNoise2D(globalVoxelPosition.X, globalVoxelPosition.Z);
+            float surfaceCurve = World.SurfaceCurve.Sample((surfaceNoise + 1) * 0.5f);
 
             // Switch voxel type based on the generated surface value.
             return globalVoxelPosition.Y switch
@@ -140,7 +143,7 @@ namespace RAWVoxel
                 return GenerateVoxel(voxelPosition);
             }
 
-            return voxels[voxelPosition];
+            return voxels[XYZConvert.ToUShort(voxelPosition, World.ChunkDimension)];
         }
         private static bool CheckVoxelOutOfBounds(Vector3I voxelPosition)
         {
@@ -162,9 +165,9 @@ namespace RAWVoxel
         
         private void GenerateChunkMeshSurfaceData()
         {
-            foreach (Vector3I voxelPosition in voxels.Keys)
+            foreach (ushort voxelPosition in voxels.Keys)
             {
-                GenerateVoxelMeshSurfaceData(voxelPosition);
+                GenerateVoxelMeshSurfaceData(XYZConvert.ToVector3I(voxelPosition, World.ChunkDimension));
             }
         }
         private void GenerateVoxelMeshSurfaceData(Vector3I voxelPosition)
@@ -225,10 +228,10 @@ namespace RAWVoxel
             }
 
             // Assign UVs for the specified face.
-            // Vector2I uvA = Voxel.UVs[Voxel.UV.TopLeft];
-            // Vector2I uvB = Voxel.UVs[Voxel.UV.BtmLeft];
-            // Vector2I uvC = Voxel.UVs[Voxel.UV.BtmRight];
-            // Vector2I uvD = Voxel.UVs[Voxel.UV.TopRight];
+            Vector2I uvA = Voxel.UVs[Voxel.UV.TopLeft];
+            Vector2I uvB = Voxel.UVs[Voxel.UV.BtmLeft];
+            Vector2I uvC = Voxel.UVs[Voxel.UV.BtmRight];
+            Vector2I uvD = Voxel.UVs[Voxel.UV.TopRight];
 
             // Get the offset for indices pointers.
             int offset = surfaceVertices.Count;
@@ -237,22 +240,16 @@ namespace RAWVoxel
             surfaceVertices.AddRange(new List<Vector3> { vertexA, vertexB, vertexC, vertexD });
             surfaceNormals.AddRange(new List<Vector3> { normal, normal, normal, normal });
             surfaceColors.AddRange(new List<Color> { color, color, color, color });
-            // surfaceUVs.AddRange(new List<Vector2> {uvA, uvB, uvC, uvD});
+            surfaceUVs.AddRange(new List<Vector2> {uvA, uvB, uvC, uvD});
             surfaceIndices.AddRange(new List<int> { 0 + offset, 1 + offset, 2 + offset, 0 + offset, 2 + offset, 3 + offset });
         }
         private void ClearChunkMeshSurfaceData()
         {
-            if (surfaceVertices.Count == 0) return;
-            if (surfaceNormals.Count == 0)  return;
-            if (surfaceColors.Count == 0)   return;
-            //if (surfaceUVs.Count == 0)      return;
-            if (surfaceIndices.Count == 0)  return;
-            
-            surfaceVertices.Clear();
-            surfaceNormals.Clear();
-            surfaceColors.Clear();
-            //surfaceUVs.Clear();
-            surfaceIndices.Clear();
+            if (surfaceVertices.Count > 0) surfaceVertices.Clear();
+            if (surfaceNormals.Count > 0)  surfaceNormals.Clear();
+            if (surfaceColors.Count > 0)   surfaceColors.Clear();
+            if (surfaceUVs.Count > 0)      surfaceUVs.Clear();
+            if (surfaceIndices.Count > 0)  surfaceIndices.Clear();
         }
 
         private void GenerateMeshSurfaceArray()
@@ -265,7 +262,7 @@ namespace RAWVoxel
             surfaceArray[(int)Mesh.ArrayType.Vertex] = surfaceVertices.ToArray();
             surfaceArray[(int)Mesh.ArrayType.Normal] = surfaceNormals.ToArray();
             surfaceArray[(int)Mesh.ArrayType.Color] = surfaceColors.ToArray();
-            //surfaceArray[(int)Mesh.ArrayType.TexUV] = surfaceUVs.ToArray();
+            surfaceArray[(int)Mesh.ArrayType.TexUV] = surfaceUVs.ToArray();
             surfaceArray[(int)Mesh.ArrayType.Index] = surfaceIndices.ToArray();
         }
         private void ClearMeshSurfaceArray()

@@ -2,7 +2,7 @@ using Godot;
 using System;
 using System.Diagnostics;
 
-namespace RAWUtils
+namespace RawUtils
 {
     public static class RawTimer
     {
