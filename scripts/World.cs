@@ -31,7 +31,7 @@ namespace RAWVoxel
         [Export] public Node3D FocusNode
         {
             get { return focusNode; }
-            set { focusNode = value; /* GenerateWorld(); */ }
+            set { focusNode = value; GenerateWorld(); }
         }
         private Node3D focusNode;
         
@@ -440,7 +440,7 @@ namespace RAWVoxel
 
                 chunk.CallDeferred(nameof(Chunk.UpdateChunk), loadableChunkPosition);
 
-                Thread.Sleep(10);
+                Thread.Sleep(100);
             }
 
             loadableChunkPositions.Clear();
