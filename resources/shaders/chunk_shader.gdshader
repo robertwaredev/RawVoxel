@@ -1,6 +1,6 @@
 shader_type spatial;
 
-render_mode depth_prepass_alpha;
+render_mode world_vertex_coords, depth_prepass_alpha;
 
 uniform bool showChunkEdges = true;
 uniform ivec3 chunkDimension;
@@ -59,11 +59,16 @@ ivec3 IndexToVector3I(int XYZ, ivec3 dimension) {
 	return ivec3(X, Y, Z);
 }
 
+int Vector3IToUInt(ivec3 XYZ, ivec3 dimension)
+{
+    return XYZ.z + (XYZ.y * dimension.z) + (XYZ.x * dimension.y * dimension.z);
+}
+
 void vertex() {
-	ivec3 voxelPosition = IndexToVector3I(VERTEX_ID, chunkDimension);
-	int voxelType = GenerateVoxel(voxelPosition, ivec3(NODE_POSITION_WORLD));
+	int VertexIndex = Vector3IToUInt(ivec3(VERTEX), ivec3(1, 1, 1));
 	
-	VERTEX += float(10);
+	ivec3 voxelPosition = IndexToVector3I(VertexIndex % 24, chunkDimension);
+	int voxelType = GenerateVoxel(voxelPosition, ivec3(NODE_POSITION_WORLD));
 	
 	switch (voxelType)
 	{
