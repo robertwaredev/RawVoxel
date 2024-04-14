@@ -1,5 +1,7 @@
 using Godot;
 
+// TODO - Swap X and Z axes and test it, iterating in an XYZ loop breaks while a ZYX loop works.
+
 namespace RawUtils
 {
     public static class XYZConvert
@@ -77,7 +79,7 @@ namespace RawUtils
             {
                 Vector3I vectorOut = XYZConvert.ToVector3I(i, dimension);
                 ushort shortOut = XYZConvert.ToUShort(vectorOut, dimension);
-                GD.PrintS(vectorOut, shortOut);
+                GD.PrintT(vectorOut, shortOut);
             }
         }
     }

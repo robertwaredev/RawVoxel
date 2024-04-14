@@ -47,22 +47,12 @@ namespace RAWVoxel
 
         #endregion Variables -> Meshing
 
-        #region Functions -> Processes
-
-        public override void _Ready()
-        {
-            SetupSurfaceArray();
-            SetupMesh();
-        }
-        
-        #endregion Functions -> Processes
-
         #region Functions -> Setup
 
         private void SetPosition(Vector3I chunkPosition)
         {
             _chunkPosition = chunkPosition;
-            Position = chunkPosition * _world.ChunkDimension;
+            Position = _chunkPosition * _world.ChunkDimension;
         }
         private void SetTerrainMaterial(Material terrainMaterial)
         {
@@ -76,6 +66,8 @@ namespace RAWVoxel
                 
                 case ShaderMaterial:
                     ShaderMaterial chunkShaderMaterial = (ShaderMaterial)terrainMaterial;
+                    //chunkShaderMaterial.SetShaderParameter("chunkDimension", _world.ChunkDimension);
+                    //chunkShaderMaterial.SetShaderParameter("POSITION", Position);
                     MaterialOverride = chunkShaderMaterial;
                     break;
                 
@@ -94,6 +86,16 @@ namespace RAWVoxel
         }
 
         #endregion Functions -> Setup
+        
+        #region Functions -> Processes
+
+        public override void _Ready()
+        {
+            SetupSurfaceArray();
+            SetupMesh();
+        }
+        
+        #endregion Functions -> Processes
 
         #region Functions -> Generate & Update
 
@@ -126,15 +128,9 @@ namespace RAWVoxel
 
         private void GenerateVoxels()
         {
-            for (int x = 0; x < _world.ChunkDimension.X; x++)
+            for (int i = 0; i < _world.ChunkDimension.X * _world.ChunkDimension.Y * _world.ChunkDimension.Z; i ++)
             {
-                for (int y = 0; y < _world.ChunkDimension.Y; y++)
-                {
-                    for (int z = 0; z < _world.ChunkDimension.Z; z++)
-                    {
-                        voxels.Add(GenerateVoxel(new(x, y, z)));
-                    }
-                }
+                voxels.Add(GenerateVoxel(XYZConvert.ToVector3I(i, _world.ChunkDimension)));
             }
         }
         private Voxel.Type GenerateVoxel(Vector3I voxelPosition)
@@ -187,18 +183,9 @@ namespace RAWVoxel
         }
         private bool IsVoxelOutOfBounds(Vector3I voxelPosition)
         {
-            if (voxelPosition.X < 0 || voxelPosition.X >= _world.ChunkDimension.X)
-            {
-                return true;
-            }
-            if (voxelPosition.Y < 0 || voxelPosition.Y >= _world.ChunkDimension.Y)
-            {
-                return true;
-            }
-            if (voxelPosition.Z < 0 || voxelPosition.Z >= _world.ChunkDimension.Z)
-            {
-                return true;
-            }
+            if (voxelPosition.X < 0 || voxelPosition.X >= _world.ChunkDimension.X) return true;
+            if (voxelPosition.Y < 0 || voxelPosition.Y >= _world.ChunkDimension.Y) return true;
+            if (voxelPosition.Z < 0 || voxelPosition.Z >= _world.ChunkDimension.Z) return true;
 
             return false;
         }

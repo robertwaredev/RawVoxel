@@ -48,7 +48,7 @@ namespace RAWVoxel
             get { return _drawDistance; }
             set { _drawDistance = value; }
         }
-        private Vector3I _drawDistance = Vector3I.Zero;
+        private Vector3I _drawDistance = new(1, 0, 1);
         
         [Export] public bool ShowChunkEdges
         {
@@ -249,7 +249,7 @@ namespace RAWVoxel
         {
             GenerateWorld();
             
-            if (_threading)
+            if (_threading && _worldGenerated)
             {
                 ThreadStart UpdateWorldProcessStart = new(UpdateWorldProcess);
                 Thread UpdateWorldThread = new(UpdateWorldProcessStart)
@@ -272,7 +272,7 @@ namespace RAWVoxel
         }
         private void UpdateWorldProcess()
         {
-            while (IsInstanceValid(this) && _worldGenerated)
+            while (IsInstanceValid(this))
             {
                 if (TryUpdateFocusNodeChunkPosition())
                 {
@@ -355,7 +355,7 @@ namespace RAWVoxel
             lock (_worldGenerationLock)
             {
                 QueueChunkPositions();
-                RawTimer.Time(RecycleQueuedChunks, RawTimer.AppendLine.Both);
+                RawTimer.Time(RecycleQueuedChunks, RawTimer.AppendLine.Both);            
             }
         }
         
