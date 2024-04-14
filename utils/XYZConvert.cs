@@ -5,61 +5,15 @@ using Godot;
 namespace RawUtils
 {
     public static class XYZConvert
-    {
-        // Convert XYZ coordinates in dimension space into a ushort.
-        public static ushort ToUShort(int X, int Y, int Z, Vector3I dimension)
+    {   
+        // Convert XYZ coordinates in dimension space into a flat integer.
+        public static int ToIndex(int X, int Y, int Z, Vector3I dimension)
         {
-            ushort XYZUShort = (ushort)(X + (Y * dimension.X) + (Z * dimension.Y * dimension.X));
-
-            return XYZUShort;
+            return X + (Y * dimension.X) + (Z * dimension.Y * dimension.X);
         }
-        public static ushort ToUShort(Vector3I XYZ, Vector3I dimension)
+        public static int ToIndex(Vector3I XYZ, Vector3I dimension)
         {
-            ushort XYZUShort = (ushort)(XYZ.X + (XYZ.Y * dimension.X) + (XYZ.Z * dimension.Y * dimension.X));
-
-            return XYZUShort;
-        }
-        
-        // Convert XYZ coordinates in dimension space into a short.
-        public static short ToShort(int X, int Y, int Z, Vector3I dimension)
-        {
-            short XYZShort = (short)(X + (Y * dimension.X) + (Z * dimension.Y * dimension.X));
-
-            return XYZShort;
-        }
-        public static short ToShort(Vector3I XYZ, Vector3I dimension)
-        {
-            short XYZShort = (short)(XYZ.X + (XYZ.Y * dimension.X) + (XYZ.Z * dimension.Y * dimension.X));
-
-            return XYZShort;
-        }
-
-        // Convert XYZ coordinates in dimension space into a uint.
-        public static uint ToUInt(int X, int Y, int Z, Vector3I dimension)
-        {
-            int XYZUInt = X + (Y * dimension.X) + (Z * dimension.Y * dimension.X);
-
-            return (uint)(XYZUInt);
-        }
-        public static uint ToUInt(Vector3I XYZ, Vector3I dimension)
-        {
-            int XYZUInt = XYZ.X + (XYZ.Y * dimension.X) + (XYZ.Z * dimension.Y * dimension.X);
-
-            return (uint)(XYZUInt);
-        }
-        
-        // Convert XYZ coordinates in dimension space into an int.
-        public static int ToInt(int X, int Y, int Z, Vector3I dimension)
-        {
-            int XYZInt = X + (Y * dimension.X) + (Z * dimension.Y * dimension.X);
-
-            return XYZInt;
-        }
-        public static int ToInt(Vector3I XYZ, Vector3I dimension)
-        {
-            int XYZInt = XYZ.X + (XYZ.Y * dimension.X) + (XYZ.Z * dimension.Y * dimension.X);
-
-            return XYZInt;
+            return XYZ.X + (XYZ.Y * dimension.X) + (XYZ.Z * dimension.Y * dimension.X);
         }
         
         // Convert an integer into XYZ coordinates in dimension space.
@@ -75,11 +29,23 @@ namespace RawUtils
         // Print the ushort value and Vector3I value for every index in dimension.
         public static void TestDimension(Vector3I dimension)
         {
-            for (int i = 0; i < dimension.X * dimension.Y * dimension.Z; i++)
+            for (int i = 0; i < dimension.X * dimension.Y * dimension.Z; i ++)
             {
                 Vector3I vectorOut = XYZConvert.ToVector3I(i, dimension);
-                ushort shortOut = XYZConvert.ToUShort(vectorOut, dimension);
+                int shortOut = XYZConvert.ToIndex(vectorOut, dimension);
                 GD.PrintT(vectorOut, shortOut);
+            }
+
+            for (int x = 0; x < dimension.X; x ++)
+            {
+                for (int y = 0; y < dimension.X; y ++)
+                {            
+                    for (int z = 0; z < dimension.X; z ++)
+                    {            
+                        int indexOut = XYZConvert.ToIndex(new(x, y, z), dimension);
+                        GD.PrintT(indexOut);
+                    }
+                }  
             }
         }
     }

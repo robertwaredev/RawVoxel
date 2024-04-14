@@ -179,7 +179,7 @@ namespace RAWVoxel
                 return GenerateVoxel(voxelPosition);
             }
 
-            return voxels[XYZConvert.ToUShort(voxelPosition, _world.ChunkDimension)];
+            return voxels[XYZConvert.ToIndex(voxelPosition, _world.ChunkDimension)];
         }
         private bool IsVoxelOutOfBounds(Vector3I voxelPosition)
         {
