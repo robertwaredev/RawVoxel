@@ -10,12 +10,6 @@ namespace RAWVoxel
     [Tool]
     public partial class World : Node3D
     {
-        #region Constructor
-
-        public World() {}
-
-        #endregion Constructor
-        
         #region Exports -> Tools
 
         [Export] public bool Regenerate
@@ -79,7 +73,7 @@ namespace RAWVoxel
         #endregion Exports -> Threading
 
         #region Exports -> World
-        [ExportGroup("World Settings")]
+        [ExportGroup("World")]
         
         [Export] public Vector3I WorldDimension
         {
@@ -219,6 +213,7 @@ namespace RAWVoxel
 
         #endregion Exports -> Terrain Curves
 
+        
         #region Variables -> FocusNode
         
         private Vector3 _focusNodePosition;
@@ -229,21 +224,22 @@ namespace RAWVoxel
 
         #region Variables -> World
         
+        private bool _worldGenerated = false;
         private readonly object _worldGenerationLock = new();
         
         #endregion Variables -> World
 
-        #region Variables -> Queues
+        #region Variables -> Chunks
 
-        private bool _worldGenerated = false;
         private readonly List<Vector3I> _drawableChunkPositions = new();
         private readonly List<Vector3I> _loadableChunkPositions = new();
         private readonly List<Vector3I> _freeableChunkPositions = new();
         private readonly Dictionary<Vector3I, Chunk> _loadedChunks = new();
 
-        #endregion Variables -> Queues
+        #endregion Variables -> Chunks
 
-        #region Functions -> Processes
+        
+        #region Functions -> Ready
 
         public override void _Ready()
         {
@@ -252,13 +248,16 @@ namespace RAWVoxel
             if (_threading && _worldGenerated)
             {
                 ThreadStart UpdateWorldProcessStart = new(UpdateWorldProcess);
-                Thread UpdateWorldThread = new(UpdateWorldProcessStart)
-                {
-                    Name = "UpdateWorldThread"
-                };
+                Thread UpdateWorldThread = new(UpdateWorldProcessStart) { Name = "UpdateWorldThread" };
+                
                 UpdateWorldThread.Start();
             }
         }
+        
+        #endregion Functions -> Ready
+
+        #region Functions -> Processes
+
         public override void _PhysicsProcess(double delta)
         {
             if (_worldGenerated) UpdateFocusNodePosition();
@@ -324,7 +323,7 @@ namespace RAWVoxel
         
         #endregion Functions -> FocusNode
 
-        #region Functions -> Generate & Update
+        #region Functions -> World
 
         // Queue, load, and free chunks to and from the scene tree.
         private void GenerateWorld()
@@ -359,9 +358,9 @@ namespace RAWVoxel
             }
         }
         
-        #endregion Functions -> Generate & Update
+        #endregion Functions -> World
 
-        #region Functions -> Queues
+        #region Functions -> Chunks
 
         // Call all chunk position queueing methods. Called by GenerateWorld() and UpdateWorld().
         private void QueueChunkPositions()
@@ -490,6 +489,6 @@ namespace RAWVoxel
             _loadableChunkPositions.Clear();
         }
 
-        #endregion Functions -> Queues
+        #endregion Functions -> Chunks
     }
 }

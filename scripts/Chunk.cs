@@ -1,9 +1,7 @@
 using Godot;
 using RawUtils;
 using System.Collections.Generic;
-
-// TODO - Figure out why the bottom faces of chunks are rendering without showChunkEdges on.
-// TODO - Implement ToUInt as an automatic fallback if chunks are too big for ToUShort.
+using System.ComponentModel;
 
 namespace RAWVoxel
 {
@@ -16,96 +14,118 @@ namespace RAWVoxel
         {
             _world = world;
             SetPosition(chunkPosition);
-            SetTerrainMaterial(terrainMaterial);
+            SetupTerrainMaterial(terrainMaterial);
         }
 
         #endregion Constructor
 
-        #region Variables -> Setup
+        
+        #region Variables -> Constructor
 
         private readonly World _world;
         private Vector3I _chunkPosition;
-        private readonly StandardMaterial3D _terrainMaterial = new();
-        
-        #endregion Variables -> Setup
 
-        #region Variables -> Generation
+        #endregion Variables -> Constructor
+
+        #region Variables -> Voxels
 
         public List<Voxel.Type> voxels = new();
         
-        #endregion Variables -> Generation
+        #endregion Variables -> Voxels
 
         #region Variables -> Meshing
 
+        // Needed for this.Mesh.
         private readonly ArrayMesh _arrayMesh = new();
         private readonly Godot.Collections.Array _surfaceArray = new();
+        
+        // Needed for _surfaceArray.
         private readonly List<Vector3> _surfaceVertices = new();
-        private readonly List<Vector3> _surfaceNormals = new();
-        private readonly List<Color> _surfaceColors = new();
-        private readonly List<Vector2> _surfaceUVs = new();
         private readonly List<int> _surfaceIndices = new();
+        
+        // Needed for MaterialOverride if it's a ShaderMaterial.
+        private readonly List<int> _surfaceTypes = new();
 
         #endregion Variables -> Meshing
 
-        #region Functions -> Setup
+        
+        #region Functions -> Constructor
 
+        // Set global chunk position based on local chunk position and chunk dimensions.
         private void SetPosition(Vector3I chunkPosition)
         {
             _chunkPosition = chunkPosition;
             Position = _chunkPosition * _world.ChunkDimension;
         }
-        private void SetTerrainMaterial(Material terrainMaterial)
+        
+        // Setup material based on material type.
+        private void SetupTerrainMaterial(Material terrainMaterial)
         {
             switch (terrainMaterial)
             {
                 case StandardMaterial3D:
-                    StandardMaterial3D terrainStandardMaterial3D = (StandardMaterial3D)terrainMaterial;
-                    terrainStandardMaterial3D.VertexColorUseAsAlbedo = true;
-                    MaterialOverride = terrainStandardMaterial3D;
+                    MaterialOverride = SetupStandardMaterial3D(terrainMaterial);
                     break;
                 
                 case ShaderMaterial:
-                    ShaderMaterial chunkShaderMaterial = (ShaderMaterial)terrainMaterial;
-                    //chunkShaderMaterial.SetShaderParameter("chunkDimension", _world.ChunkDimension);
-                    //chunkShaderMaterial.SetShaderParameter("POSITION", Position);
-                    MaterialOverride = chunkShaderMaterial;
+                    MaterialOverride = SetupShaderMaterial(terrainMaterial);
                     break;
                 
-                default:
-                    MaterialOverride = _terrainMaterial;
-                    break;
+                default: break;
             }
         }
+        private StandardMaterial3D SetupStandardMaterial3D(Material terrainMaterial)
+        {
+            StandardMaterial3D terrainStandardMaterial3D = (StandardMaterial3D)terrainMaterial;
+            
+            terrainStandardMaterial3D.VertexColorUseAsAlbedo = true;
+
+            return terrainStandardMaterial3D;
+        }
+        private ShaderMaterial SetupShaderMaterial(Material terrainMaterial)
+        {
+            ShaderMaterial terrainShaderMaterial = (ShaderMaterial)terrainMaterial;
+            
+            terrainShaderMaterial.SetShaderParameter("chunkDimension", _world.ChunkDimension);
+
+            return terrainShaderMaterial;
+        }
+
+        #endregion Functions -> Constructor
+        
+        #region Functions -> Ready
+
+        // Resize _surfaceArray to the expected size.
         private void SetupSurfaceArray()
         {
             _surfaceArray.Resize((int)Mesh.ArrayType.Max);
         }
+        
+        // Assign this MeshInstance's mesh parameter to our _arrayMesh.
         private void SetupMesh()
         {
             Mesh = _arrayMesh;
         }
 
-        #endregion Functions -> Setup
-        
-        #region Functions -> Processes
-
+        // Enter the scene tree and call setup methods.
         public override void _Ready()
         {
             SetupSurfaceArray();
             SetupMesh();
         }
         
-        #endregion Functions -> Processes
+        #endregion Functions -> Ready
 
-        #region Functions -> Generate & Update
+        #region Functions -> Chunk
 
         public void GenerateChunk()
         {
-            RawTimer.Time(GenerateVoxels, RawTimer.AppendLine.Pre);
+            RawTimer.Time(GenerateVoxelTypes, RawTimer.AppendLine.Pre);
             RawTimer.Time(GenerateChunkMeshSurfaceData, RawTimer.AppendLine.Post);
             
             // These have negligable time consumption.
             GenerateMeshSurfaceArray();
+            GenerateShaderParameters();
             GenerateMeshSurface();
             GenerateCollision();
         }
@@ -119,21 +139,27 @@ namespace RAWVoxel
         }
         public void ClearChunk()
         {
-            ClearVoxels();
+            ClearVoxelTypes();
             ClearChunkMeshSurfaceData();
             ClearMeshSurfaceArray();
+            ClearShaderParameters();
             ClearMeshSurface();
             ClearCollision();
         }
 
-        private void GenerateVoxels()
+        #endregion Functions -> Chunk
+        
+        #region Functions -> Voxels
+
+        // Generate voxel types based on position.
+        private void GenerateVoxelTypes()
         {
             for (int i = 0; i < _world.ChunkDimension.X * _world.ChunkDimension.Y * _world.ChunkDimension.Z; i ++)
             {
-                voxels.Add(GenerateVoxel(XYZConvert.ToVector3I(i, _world.ChunkDimension)));
+                voxels.Add(GenerateVoxelType(XYZConvert.ToVector3I(i, _world.ChunkDimension)));
             }
         }
-        private Voxel.Type GenerateVoxel(Vector3I voxelPosition)
+        private Voxel.Type GenerateVoxelType(Vector3I voxelPosition)
         {
             // Return air if we want to show chunk edges and the voxel being generated is not in this chunk.
             if (_world.ShowChunkEdges && IsVoxelOutOfBounds(voxelPosition)) return Voxel.Type.Air;
@@ -163,21 +189,15 @@ namespace RAWVoxel
                   _ => Voxel.Type.Air,
             };
         }
-        private void ClearVoxels()
+        private void ClearVoxelTypes()
         {
             voxels.Clear();
         }
         
-        #endregion Functions -> Generate & Update
-
-        #region Functions -> Voxel Checking
-
-        private Voxel.Type GetVoxel(Vector3I voxelPosition)
+        // Returns a voxel type from voxels array or generates a new one if it's out of chunk bounds.
+        private Voxel.Type GetVoxelType(Vector3I voxelPosition)
         {
-            if (IsVoxelOutOfBounds(voxelPosition))
-            {
-                return GenerateVoxel(voxelPosition);
-            }
+            if (IsVoxelOutOfBounds(voxelPosition)) return GenerateVoxelType(voxelPosition);
 
             return voxels[XYZConvert.ToIndex(voxelPosition, _world.ChunkDimension)];
         }
@@ -190,10 +210,11 @@ namespace RAWVoxel
             return false;
         }
         
-        #endregion Functions -> Voxel Checking
+        #endregion Functions -> Voxels
 
         #region Functions -> Meshing
 
+        // Generate vertex and index arrays.
         private void GenerateChunkMeshSurfaceData()
         {
             for (int i = 0; i < voxels.Count; i++)
@@ -203,38 +224,40 @@ namespace RAWVoxel
         }
         private void GenerateVoxelMeshSurfaceData(Vector3I voxelPosition)
         {
-            Voxel.Type type = GetVoxel(voxelPosition);
-            System.Drawing.Color c = System.Drawing.Color.FromKnownColor(Voxel.Colors[type]);
-            Color color = new(c.R / 255f, c.G / 255f, c.B / 255f, c.A / 255f);
+            Voxel.Type type = GetVoxelType(voxelPosition);
+
+            #region Naive Meshing
 
             if (type == Voxel.Type.Air) { return; }
 
-            if (GetVoxel(voxelPosition + Vector3I.Up) == Voxel.Type.Air)
+            if (GetVoxelType(voxelPosition + Vector3I.Up) == Voxel.Type.Air)
             {
-                GenerateFaceMeshSurfaceData(Voxel.Face.Top, voxelPosition, color);
+                GenerateFaceMeshSurfaceData(Voxel.Face.Top, voxelPosition, type);
             }
-            if (GetVoxel(voxelPosition + Vector3I.Down) == Voxel.Type.Air)
+            if (GetVoxelType(voxelPosition + Vector3I.Down) == Voxel.Type.Air)
             {
-                GenerateFaceMeshSurfaceData(Voxel.Face.Btm, voxelPosition, color);
+                GenerateFaceMeshSurfaceData(Voxel.Face.Btm, voxelPosition, type);
             }
-            if (GetVoxel(voxelPosition + Vector3I.Left) == Voxel.Type.Air)
+            if (GetVoxelType(voxelPosition + Vector3I.Left) == Voxel.Type.Air)
             {
-                GenerateFaceMeshSurfaceData(Voxel.Face.West, voxelPosition, color);
+                GenerateFaceMeshSurfaceData(Voxel.Face.West, voxelPosition, type);
             }
-            if (GetVoxel(voxelPosition + Vector3I.Right) == Voxel.Type.Air)
+            if (GetVoxelType(voxelPosition + Vector3I.Right) == Voxel.Type.Air)
             {
-                GenerateFaceMeshSurfaceData(Voxel.Face.East, voxelPosition, color);
+                GenerateFaceMeshSurfaceData(Voxel.Face.East, voxelPosition, type);
             }
-            if (GetVoxel(voxelPosition + Vector3I.Forward) == Voxel.Type.Air)
+            if (GetVoxelType(voxelPosition + Vector3I.Forward) == Voxel.Type.Air)
             {
-                GenerateFaceMeshSurfaceData(Voxel.Face.North, voxelPosition, color);
+                GenerateFaceMeshSurfaceData(Voxel.Face.North, voxelPosition, type);
             }
-            if (GetVoxel(voxelPosition + Vector3I.Back) == Voxel.Type.Air)
+            if (GetVoxelType(voxelPosition + Vector3I.Back) == Voxel.Type.Air)
             {
-                GenerateFaceMeshSurfaceData(Voxel.Face.South, voxelPosition, color);
+                GenerateFaceMeshSurfaceData(Voxel.Face.South, voxelPosition, type);
             }
+            
+            #endregion Naive Meshing
         }
-        private void GenerateFaceMeshSurfaceData(Voxel.Face face, Vector3I voxelPosition, Color color)
+        private void GenerateFaceMeshSurfaceData(Voxel.Face face, Vector3I voxelPosition, Voxel.Type type)
         {
             // Assign vertices for the specified face.
             Vector3I vertexA = Voxel.Vertices[Voxel.Faces[face][0]] + voxelPosition;
@@ -242,58 +265,28 @@ namespace RAWVoxel
             Vector3I vertexC = Voxel.Vertices[Voxel.Faces[face][2]] + voxelPosition;
             Vector3I vertexD = Voxel.Vertices[Voxel.Faces[face][3]] + voxelPosition;
 
-            // Create normal direction placeholder.
-            Vector3I normal = new();
-
-            // Assign normal direction for the specified face.
-            switch (face)
-            {
-                case Voxel.Face.Top: normal = Vector3I.Up; break;
-                case Voxel.Face.Btm: normal = Vector3I.Down; break;
-                case Voxel.Face.West: normal = Vector3I.Left; break;
-                case Voxel.Face.East: normal = Vector3I.Right; break;
-                case Voxel.Face.North: normal = Vector3I.Forward; break;
-                case Voxel.Face.South: normal = Vector3I.Back; break;
-
-                default: break;
-            }
-
-            // Assign UVs for the specified face.
-            Vector2I uvA = Voxel.UVs[Voxel.UV.TopLeft];
-            Vector2I uvB = Voxel.UVs[Voxel.UV.BtmLeft];
-            Vector2I uvC = Voxel.UVs[Voxel.UV.BtmRight];
-            Vector2I uvD = Voxel.UVs[Voxel.UV.TopRight];
-
             // Get the offset for indices pointers.
             int offset = _surfaceVertices.Count;
 
-            // Add surface data to their respective lists.
+            // Add vertices and indices to their respective lists.
             _surfaceVertices.AddRange(new List<Vector3> { vertexA, vertexB, vertexC, vertexD });
-            _surfaceNormals.AddRange(new List<Vector3> { normal, normal, normal, normal });
-            _surfaceColors.AddRange(new List<Color> { color, color, color, color });
-            _surfaceUVs.AddRange(new List<Vector2> {uvA, uvB, uvC, uvD});
             _surfaceIndices.AddRange(new List<int> { 0 + offset, 1 + offset, 2 + offset, 0 + offset, 2 + offset, 3 + offset });
+            
+            // ShaderMaterial Parameters
         }
         private void ClearChunkMeshSurfaceData()
         {
             if (_surfaceVertices.Count > 0) _surfaceVertices.Clear();
-            if (_surfaceNormals.Count > 0)  _surfaceNormals.Clear();
-            if (_surfaceColors.Count > 0)   _surfaceColors.Clear();
-            if (_surfaceUVs.Count > 0)      _surfaceUVs.Clear();
             if (_surfaceIndices.Count > 0)  _surfaceIndices.Clear();
         }
-
+        
+        // Pack vertex and index arrays into one surface array.
         private void GenerateMeshSurfaceArray()
         {
             if (_surfaceVertices.Count == 0) { _surfaceArray.Clear(); return; }
-            if (_surfaceNormals.Count == 0)  { _surfaceArray.Clear(); return; }
-            if (_surfaceColors.Count == 0)   { _surfaceArray.Clear(); return; }
             if (_surfaceIndices.Count == 0)  { _surfaceArray.Clear(); return; }
-
+            
             _surfaceArray[(int)Mesh.ArrayType.Vertex] = _surfaceVertices.ToArray();
-            _surfaceArray[(int)Mesh.ArrayType.Normal] = _surfaceNormals.ToArray();
-            _surfaceArray[(int)Mesh.ArrayType.Color] = _surfaceColors.ToArray();
-            _surfaceArray[(int)Mesh.ArrayType.TexUV] = _surfaceUVs.ToArray();
             _surfaceArray[(int)Mesh.ArrayType.Index] = _surfaceIndices.ToArray();
         }
         private void ClearMeshSurfaceArray()
@@ -304,6 +297,21 @@ namespace RAWVoxel
             SetupSurfaceArray();
         }
 
+        // Send additional data arrays to the shader.
+        private void GenerateShaderParameters()
+        {
+            ShaderMaterial terrainShaderMaterial = (ShaderMaterial)MaterialOverride;
+            
+            // Add shader parameters here using terrainShaderMaterial.SetShaderParameter();
+        }
+        private void ClearShaderParameters()
+        {
+            // Clear shader parameters here.
+
+            return;
+        }
+
+        // Generate mesh surface using surface array.
         private void GenerateMeshSurface()
         {
             if (_surfaceArray.Count == 0)
@@ -321,6 +329,7 @@ namespace RAWVoxel
             _arrayMesh.ClearSurfaces();
         }
 
+        // Generate mesh collision using mesh surface.
         private void GenerateCollision()
         {
             if (_arrayMesh.GetSurfaceCount() == 0) return;
