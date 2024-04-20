@@ -1,0 +1,23 @@
+[gd_resource type="Resource" script_class="Biome" load_steps=6 format=3 uid="uid://dr48in2yja7pv"]
+
+[ext_resource type="Resource" uid="uid://xwvd5gxrm557" path="res://addons/RawVoxel/resources/biomes/types/mountains/MountainsTop.tres" id="1_tq06q"]
+[ext_resource type="Resource" uid="uid://ik5cbq6lxocm" path="res://addons/RawVoxel/resources/biomes/types/mountains/MountainsBtm.tres" id="2_766os"]
+[ext_resource type="Script" path="res://addons/RawVoxel/scripts/Biome.cs" id="4_s6vtb"]
+
+[sub_resource type="Curve" id="Curve_rkx2v"]
+_data = [Vector2(0, 0), 0.0, 0.0, 0, 0, Vector2(0.5, 1), 0.0, 0.0, 0, 0]
+point_count = 2
+metadata/_snap_enabled = true
+
+[sub_resource type="FastNoiseLite" id="FastNoiseLite_38kyd"]
+
+[resource]
+resource_name = "Mountains"
+script = ExtResource("4_s6vtb")
+Layers = [ExtResource("1_tq06q"), ExtResource("2_766os")]
+TemperatureMin = -100.0
+TemperatureMax = 0.0
+HumidityMin = 0.0
+HumidityMax = 100.0
+DensityNoise = SubResource("FastNoiseLite_38kyd")
+DensityCurve = SubResource("Curve_rkx2v")

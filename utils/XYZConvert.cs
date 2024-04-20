@@ -1,7 +1,5 @@
 using Godot;
 
-// TODO - Swap X and Z axes and test it, iterating in an XYZ loop breaks while a ZYX loop works.
-
 namespace RawUtils
 {
     public static class XYZConvert

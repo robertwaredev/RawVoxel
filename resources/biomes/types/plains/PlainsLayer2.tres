@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="BiomeLayer" load_steps=5 format=3 uid="uid://cc0ps0oqvfbsm"]
+
+[ext_resource type="Resource" uid="uid://vut30vnmog3w" path="res://addons/RawVoxel/resources/voxels/types/Stone.tres" id="1_m0mwe"]
+[ext_resource type="Script" path="res://addons/RawVoxel/scripts/BiomeLayer.cs" id="2_qwrx0"]
+
+[sub_resource type="Curve" id="Curve_lb73p"]
+_data = [Vector2(0, 0), 0.0, 0.0, 0, 0, Vector2(0, 0), 0.0, 0.0, 0, 0, Vector2(0, 0), 0.0, 0.0, 0, 0, Vector2(0, 0), 0.0, 0.0, 0, 0, Vector2(0, 0), 0.0, 0.0, 0, 0, Vector2(0, 0), 0.0, 0.0, 0, 0, Vector2(0, 0), 0.0, 0.0, 0, 0, Vector2(1, 1), 0.0, 0.0, 0, 0, Vector2(1, 1), 0.0, 0.0, 0, 0, Vector2(1, 1), 0.0, 0.0, 0, 0, Vector2(1, 1), 0.0, 0.0, 0, 0, Vector2(1, 1), 0.0, 0.0, 0, 0, Vector2(1, 1), 0.0, 0.0, 0, 0, Vector2(1, 1), 0.0, 0.0, 0, 0]
+point_count = 14
+
+[sub_resource type="FastNoiseLite" id="FastNoiseLite_27nvi"]
+
+[resource]
+resource_name = "Plains Layer 2"
+script = ExtResource("2_qwrx0")
+VoxelType = ExtResource("1_m0mwe")
+Height = 100
+HeightNoise = SubResource("FastNoiseLite_27nvi")
+HeightCurve = SubResource("Curve_lb73p")
+FillLayers = []

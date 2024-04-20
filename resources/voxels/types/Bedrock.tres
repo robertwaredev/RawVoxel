@@ -1,0 +1,9 @@
+[gd_resource type="Resource" script_class="Voxel" load_steps=2 format=3 uid="uid://b4w3wl1coeanw"]
+
+[ext_resource type="Script" path="res://addons/RawVoxel/scripts/Voxel.cs" id="1_kyena"]
+
+[resource]
+resource_name = "Bedrock"
+script = ExtResource("1_kyena")
+Name = &"Bedrock"
+Color = Color(0.05, 0.05, 0.05, 1)

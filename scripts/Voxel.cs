@@ -1,45 +1,55 @@
 using Godot;
-using System.Drawing;
 using System.Collections.Generic;
 
-namespace RAWVoxel
+namespace RawVoxel
 {
     [GlobalClass, Tool]
     public partial class Voxel : Resource
     {
         #region Constructor
 
-        // Godot will lose its shit if there's no constructor for resources that are marked as [Tool].
         public Voxel() {}
 
         #endregion Constructor
-        
-        #region Exports
-        
-        [Export] public Type VoxelType;
-        [Export] public Godot.Color VoxelColor;
-        
-        #endregion Exports
 
         #region Enums
 
+        // FIXME - Remove Type enum when this resource becomes stable.
         public enum Type { Air, Bedrock, Stone, Dirt, Grass, Sand }
         public enum Vertex { FrontTopLeft, FrontBtmLeft, FrontTopRight, FrontBtmRight, BackTopLeft, BackBtmLeft, BackTopRight, BackBtmRight }
         public enum Face { Top, Btm, West, East, North, South }
         public enum UV { TopLeft, BtmLeft, TopRight, BtmRight }
         
         #endregion Enums
-
-        #region Variables
         
-        public static readonly Dictionary<Type, KnownColor> Colors = new()
+        #region Exports -> Voxel
+        
+        [Export] public StringName Name
         {
-            {Voxel.Type.Air, KnownColor.Transparent},
-            {Voxel.Type.Bedrock, KnownColor.Black},
-            {Voxel.Type.Stone, KnownColor.DimGray},
-            {Voxel.Type.Dirt, KnownColor.SaddleBrown},
-            {Voxel.Type.Grass, KnownColor.DarkGreen},
-            {Voxel.Type.Sand, KnownColor.BurlyWood},
+            get { return ResourceName; }
+            set { _name = value; ResourceName = _name; }
+        }
+        private StringName _name = new();
+        [Export] public Color Color
+        {
+            get { return _color; }
+            set { _color = value; }
+        }
+        private Color _color;
+        
+        #endregion Exports -> Voxel
+
+        #region Variables -> Voxel
+        
+        // FIXME - Remove Colors dictionary when this resource becomes stable.
+        public static readonly Dictionary<Type, Color> Colors = new()
+        {
+            {Voxel.Type.Air,        Godot.Colors.Transparent},
+            {Voxel.Type.Bedrock,    Godot.Colors.Black},
+            {Voxel.Type.Stone,      Godot.Colors.DimGray},
+            {Voxel.Type.Dirt,       Godot.Colors.SaddleBrown},
+            {Voxel.Type.Grass,      Godot.Colors.DarkGreen},
+            {Voxel.Type.Sand,       Godot.Colors.Chocolate},
         };
         public static readonly Dictionary<Vertex, Vector3I> Vertices = new()
         {
@@ -69,6 +79,6 @@ namespace RAWVoxel
             {UV.TopRight,   new(1,  0)}
         };
     
-        #endregion Variables
+        #endregion Variables -> Voxel
     }
 }

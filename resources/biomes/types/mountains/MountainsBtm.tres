@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="BiomeLayer" load_steps=5 format=3 uid="uid://ik5cbq6lxocm"]
+
+[ext_resource type="Resource" uid="uid://b4w3wl1coeanw" path="res://addons/RawVoxel/resources/voxels/types/Bedrock.tres" id="1_68ukn"]
+[ext_resource type="Script" path="res://addons/RawVoxel/scripts/BiomeLayer.cs" id="2_c4jsx"]
+
+[sub_resource type="Curve" id="Curve_ququa"]
+_data = [Vector2(0, 0), 0.0, 0.0, 0, 0, Vector2(1, 1), 0.0, 0.0, 0, 0]
+point_count = 2
+
+[sub_resource type="FastNoiseLite" id="FastNoiseLite_mfdih"]
+
+[resource]
+resource_name = "Mountains Btm"
+script = ExtResource("2_c4jsx")
+VoxelType = ExtResource("1_68ukn")
+Height = 1
+HeightNoise = SubResource("FastNoiseLite_mfdih")
+HeightCurve = SubResource("Curve_ququa")
+Layers = []

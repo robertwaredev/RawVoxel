@@ -1,5 +1,0 @@
-[gd_resource type="FastNoiseLite" format=3 uid="uid://dkixnn0j0quiq"]
-
-[resource]
-resource_local_to_scene = true
-frequency = 0.003

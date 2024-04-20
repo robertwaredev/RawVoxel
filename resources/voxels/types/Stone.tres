@@ -1,0 +1,9 @@
+[gd_resource type="Resource" script_class="Voxel" load_steps=2 format=3 uid="uid://vut30vnmog3w"]
+
+[ext_resource type="Script" path="res://addons/RawVoxel/scripts/Voxel.cs" id="1_b3nuu"]
+
+[resource]
+resource_name = "Stone"
+script = ExtResource("1_b3nuu")
+Name = &"Stone"
+Color = Color(0, 0, 0, 0)

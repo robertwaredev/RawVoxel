@@ -1,7 +1,0 @@
-[gd_resource type="FastNoiseLite" format=3 uid="uid://ppf38rpowqct"]
-
-[resource]
-resource_local_to_scene = true
-seed = 1
-domain_warp_fractal_type = 0
-metadata/_preview_in_3d_space_ = true

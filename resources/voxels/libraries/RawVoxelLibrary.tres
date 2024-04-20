@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="VoxelLibrary" load_steps=9 format=3 uid="uid://dugptlqiqb162"]
+
+[ext_resource type="Resource" uid="uid://b4w3wl1coeanw" path="res://addons/RawVoxel/resources/voxels/types/Bedrock.tres" id="1_7s27e"]
+[ext_resource type="Script" path="res://addons/RawVoxel/scripts/Voxel.cs" id="1_h6mkr"]
+[ext_resource type="Resource" uid="uid://vut30vnmog3w" path="res://addons/RawVoxel/resources/voxels/types/Stone.tres" id="2_6vsya"]
+[ext_resource type="Resource" uid="uid://s81kyyqgj612" path="res://addons/RawVoxel/resources/voxels/types/Dirt.tres" id="3_kntf0"]
+[ext_resource type="Resource" uid="uid://d0j83ppg38n6t" path="res://addons/RawVoxel/resources/voxels/types/Grass.tres" id="4_bae3a"]
+[ext_resource type="Resource" uid="uid://cmem8hvku4jqv" path="res://addons/RawVoxel/resources/voxels/types/Sand.tres" id="5_lnq78"]
+[ext_resource type="Script" path="res://addons/RawVoxel/scripts/VoxelLibrary.cs" id="6_6s7os"]
+
+[sub_resource type="Resource" id="Resource_f83ri"]
+resource_name = "Air"
+script = ExtResource("1_h6mkr")
+Name = &"Air"
+Color = Color(0, 0, 0, 0)
+
+[resource]
+resource_name = "Raw Voxel Library"
+script = ExtResource("6_6s7os")
+Voxels = [SubResource("Resource_f83ri"), ExtResource("1_7s27e"), ExtResource("2_6vsya"), ExtResource("3_kntf0"), ExtResource("4_bae3a"), ExtResource("5_lnq78")]
