@@ -3,6 +3,7 @@ using RawUtils;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 
 namespace RawVoxel
 {
@@ -36,9 +37,9 @@ namespace RawVoxel
 
         #region Variables -> Voxels
 
-        public List<byte> VoxelTypes = new();
-        private ImageTexture typeMapYX;
-        private ImageTexture typeMapYZ;
+        public List<byte> VoxelIDs = new();
+        private ImageTexture _idMapYX;
+        private ImageTexture _idMapYZ;
         
         #endregion Variables -> Voxels
 
@@ -88,19 +89,13 @@ namespace RawVoxel
         }
         
         
-        // Clear all chunk parameters.
-        public void Clear()
-        {
-            ClearVoxelTypes();
-            ClearMesh();
-        }
         // Generate a new chunk at the specified position.
         public void Generate(Vector3I chunkPosition)
         {
             SetPosition(chunkPosition);
 
-            ClearVoxelTypes();
-            GenerateVoxelTypes();
+            ClearVoxelIDs();
+            GenerateVoxelIDs();
 
             Update();
         }
@@ -117,53 +112,97 @@ namespace RawVoxel
         
         #region Functions -> Voxels
 
-        // Clear VoxelTypes array. Only called in GenerateChunk().
-        private void ClearVoxelTypes()
+        // Clear VoxelIDs array. Only called in GenerateChunk().
+        private void ClearVoxelIDs()
         {
-            VoxelTypes.Clear();
+            VoxelIDs.Clear();
         }
-        // Generate VoxelTypes array. Only called in GenerateChunk().
-        private void GenerateVoxelTypes()
+        // Generate voxel IDs. Only called in GenerateChunk().
+        private void GenerateVoxelIDs()
         {
             for (int i = 0; i < _world.ChunkDimension.X * _world.ChunkDimension.Y * _world.ChunkDimension.Z; i ++)
             {
-                VoxelTypes.Add((byte)GenerateVoxelType(XYZConvert.ToVector3I(i, _world.ChunkDimension)));
+                VoxelIDs.Add((byte)GenerateVoxelID(XYZConvert.ToVector3I(i, _world.ChunkDimension)));
             }
         }
-        // Return a Voxel.Type based on voxel position.
-        private int GenerateVoxelType(Vector3I voxelPosition)
+        // Return a voxel ID from _world.VoxelLibrary based on voxel position.
+        private int GenerateVoxelID(Vector3I voxelPosition)
         {
             // Return air if we want to show chunk edges and the voxel being generated is not in this chunk.
             if (_world.ShowChunkEdges && IsVoxelOutOfBounds(voxelPosition)) return 0;
+
+            #region Positioning
+
+            // Get the radius of the chunk in voxel units.
+            Vector3I chunkRadiusAsVoxelUnits = new()
+            {
+                X = _world.ChunkDimension.X >> 1,
+                Y = _world.ChunkDimension.Y >> 1,
+                Z = _world.ChunkDimension.Z >> 1
+            };
+            // Get the radius of the world in voxel units.
+            Vector3I worldRadiusAsVoxelUnits = _world.ChunkDimension * _world.WorldRadius + chunkRadiusAsVoxelUnits;
+            // Get the diameter of the world in voxel units.
+            Vector3I worldDiameterAsVoxelUnits = new()
+            {
+                X = worldRadiusAsVoxelUnits.X << 1,
+                Y = worldRadiusAsVoxelUnits.Y << 1,
+                Z = worldRadiusAsVoxelUnits.Z << 1
+            };
+
+            // Get chunk world position as a signed value.
+            Vector3 chunkSignedWorldPosition = new()
+            {
+                X = _chunkGlobalPosition.X - chunkRadiusAsVoxelUnits.X,
+                Y = _chunkGlobalPosition.Y + chunkRadiusAsVoxelUnits.Y,
+                Z = _chunkGlobalPosition.Z - chunkRadiusAsVoxelUnits.Z
+            };       
+            // Get chunk world position as a signed value wrapped by the world radius.
+            Vector3 chunkSignedWorldPositionWrapped = new()
+            {
+                X = chunkSignedWorldPosition.X % worldRadiusAsVoxelUnits.X,
+                Y = chunkSignedWorldPosition.Y % worldRadiusAsVoxelUnits.Y,
+                Z = chunkSignedWorldPosition.Z % worldRadiusAsVoxelUnits.Z
+            };
+            // Get voxel world position as a signed value wrapped within signed world dimensions.
+            Vector3 voxelSignedWorldPositionWrapped = voxelPosition + chunkSignedWorldPositionWrapped;
             
-            // Get voxelGlobalPosition.
-            Vector3I voxelGlobalPosition = voxelPosition + _chunkGlobalPosition;
+            // Get chunk world position as an unsigned value.
+            Vector3 chunkUnsignedWorldPosition = new()
+            {
+                X = (int)(chunkSignedWorldPosition.X + worldRadiusAsVoxelUnits.X) >> 1,
+                Y = (int)(chunkSignedWorldPosition.Y + worldRadiusAsVoxelUnits.Y) >> 1,
+                Z = (int)(chunkSignedWorldPosition.Z + worldRadiusAsVoxelUnits.Z) >> 1
+            };
+            // Get chunk world position as an unsigned value wrapped by the world diameter.
+            Vector3 chunkUnsignedWorldPositionWrapped = new()
+            {
+                X = chunkUnsignedWorldPosition.X % worldDiameterAsVoxelUnits.X,
+                Y = chunkUnsignedWorldPosition.Y % worldDiameterAsVoxelUnits.Y,
+                Z = chunkUnsignedWorldPosition.Z % worldDiameterAsVoxelUnits.Z
+            };
+            // Get voxel world position as an unsigned value wrapped within unsigned world dimensions.
+            Vector3 voxelUnsignedWorldPositionWrapped = voxelPosition + chunkUnsignedWorldPositionWrapped;
+            // Normalize voxelUnsignedWorldPositionWrapped to a 0 - 1 range.
+            Vector3 voxelUnsignedWorldPositionWrappedNormalized = voxelUnsignedWorldPositionWrapped / worldDiameterAsVoxelUnits;
+
+            #endregion Positioning
 
             #region Temperature
-            
-            // Wrap voxelGlobalPosition.Z into world coordinates.
-            float voxelWorldPositionZ = Mathf.PosMod(voxelGlobalPosition.Z, _world.ChunkDimension.Z * _world.WorldDimension.Z);
-            // Convert voxelWorldPositionZ to a positive range.
-            float voxelAbsoluteWorldPositionZ = Mathf.Abs(voxelWorldPositionZ) * 2;
 
-            // Sample world temperature.
-            float temperatureNoise = _world.TemperatureNoise.GetNoise1D(voxelWorldPositionZ);
-            float temperatureDistribution = _world.TemperatureDistribution.Sample(1.0f / voxelAbsoluteWorldPositionZ);
-            float temperature = _world.TemperatureRange.Sample((temperatureNoise + 1) * 0.5f * temperatureDistribution);
+            float temperatureNoise = (_world.TemperatureNoise.GetNoise1D(voxelSignedWorldPositionWrapped.Z) + 1) * 0.5f;
+            float temperatureDistribution = _world.TemperatureDistribution.Sample(voxelUnsignedWorldPositionWrappedNormalized.Z);
+            float temperatureRange = _world.TemperatureRange.Sample(temperatureDistribution);
+            float voxelTemperature = temperatureRange;
 
             #endregion Temperature
 
             #region Humidity
             
-            // Wrap voxelGlobalPosition.X into world coordinates.
-            float voxelWorldPositionX = Mathf.PosMod(voxelGlobalPosition.X, _world.ChunkDimension.X * _world.WorldDimension.X);
-            // Convert voxelWorldPositionX to a positive range.
-            float voxelAbsoluteWorldPositionX = Mathf.Abs(voxelWorldPositionX) * 2;
-
-            // Sample world humidity.
-            float humidityNoise = _world.HumidityNoise.GetNoise1D(voxelWorldPositionX);
-            float humidityDistribution = _world.HumidityDistribution.Sample(1.0f / voxelAbsoluteWorldPositionX);
-            float humidity = _world.HumidityRange.Sample((humidityNoise + 1) * 0.5f * humidityDistribution);
+            float humidityNoise = (_world.HumidityNoise.GetNoise1D(voxelSignedWorldPositionWrapped.X) + 1) * 0.5f;
+            float humidityDistribution = _world.HumidityDistribution.Sample(voxelUnsignedWorldPositionWrappedNormalized.X);
+            float humidityRange = _world.HumidityRange.Sample(humidityDistribution);
+            float voxelHumidity = humidityRange;
 
             #endregion Humidity
 
@@ -172,11 +211,18 @@ namespace RawVoxel
             // Create a biome placeholder with a reasonable default.
             Biome voxelBiome = _world.BiomeLibrary.Biomes[0];
 
-            // Determine which biome type the voxel belongs to.
-            // TODO - This needs work to make it more forgiving / interpolate values.
+            // FIXME - This needs work to make it more forgiving / interpolate values.
+            // Determine which biome the voxel belongs to.
             foreach (Biome biome in _world.BiomeLibrary.Biomes)
             {
-                if (temperature <= biome.TemperatureMax && temperature >= biome.TemperatureMin)
+                if (
+                    voxelTemperature <= biome.TemperatureMax
+                    && voxelTemperature >= biome.TemperatureMin
+                    /*
+                    && voxelHumidity    <= biome.HumidityMax
+                    && voxelHumidity    >= biome.HumidityMin
+                    */
+                )
                 {
                     voxelBiome = biome;
                 }
@@ -186,61 +232,61 @@ namespace RawVoxel
 
             #region Density
 
-            // Sample biome density using voxelGlobalPosition.
-            // TODO - Figure out how to use bit shifting to do the 0.5f multiplication.
-            float   densitySample = voxelBiome.DensityNoise.GetNoise3Dv(voxelGlobalPosition);
-                    densitySample = voxelBiome.DensityCurve.Sample((densitySample + 1) * 0.5f);
+            // Sample biome density.
+            float densityNoise = voxelBiome.DensityNoise.GetNoise3Dv(voxelSignedWorldPositionWrapped);
+            float voxelDensity = voxelBiome.DensityCurve.Sample((densityNoise + 1) * 0.5f);
 
             // Return air if voxel is not dense enough to be considered solid.
-            if (densitySample < 0.5f) return 0;
+            if (voxelDensity < 0.5f) return 0;
 
             #endregion Density
 
-            #region Layers
+            #region Height
 
-            // Sample layers for height using voxelGlobalPosition.Y starting from the bottom layer moving up.
+            // TODO - Figure out a way to reduce the amount of bloat this can cause.
+            // Sample layers for height starting from the bottom layer moving up.
             foreach (BiomeLayer biomeLayer in voxelBiome.Layers.Reverse())
             {
-                // Sample layer for height using voxelGlobalPosition.Y.
-                // TODO - Figure out how to use bit shifting to do the 0.5f multiplication.
-                float   biomeLayerHeightSample = biomeLayer.HeightNoise.GetNoise2D(voxelGlobalPosition.X, voxelGlobalPosition.Z);
-                        // Offset biomeLayerHeightSample to expected biomeLayer.HeightCurve sample range.
-                        biomeLayerHeightSample = biomeLayer.HeightCurve.Sample((biomeLayerHeightSample + 1) * 0.5f);
+                // Sample layer for height.
+                float heightNoise = biomeLayer.HeightNoise.GetNoise2D(voxelSignedWorldPositionWrapped.X, voxelSignedWorldPositionWrapped.Z);
+                float voxelHeight = biomeLayer.HeightCurve.Sample((heightNoise + 1) * 0.5f);
 
-                // Determine layer type based on biomeLayerHeightSample.
-                if (voxelGlobalPosition.Y <= biomeLayer.Height + biomeLayerHeightSample)
+                // Check layer for height match.
+                if (voxelSignedWorldPositionWrapped.Y <= biomeLayer.Height + voxelHeight)
                 {
-                    // Return the index of the voxel type from the world's VoxelLibrary
+                    // Return the index of the matched layer's voxel ID in the world's voxel library.
                     return Array.IndexOf(_world.VoxelLibrary.Voxels, biomeLayer.VoxelType);
                 }
             }
             
-            #endregion Layers
+            #endregion Height
 
             return 0;
         }
         
 
-        // Replace an index in the VoxelTypes array with the specified type.
-        public void SetVoxelType(Vector3I voxelPosition, Voxel.Type voxelType)
+        // Returns a voxel type from VoxelIDs array or generates a new one if it's out of chunk bounds.
+        private int GetVoxelID(Vector3I voxelPosition)
+        {
+            // If voxel is out of bounds it's also not in VoxelIDs, so we generate the value.
+            // FIXME - Casting to a voxel type is not wanted long run, fin this chain of calls to support library lookups.
+            if (IsVoxelOutOfBounds(voxelPosition)) return GenerateVoxelID(voxelPosition);
+
+            // If voxel is in bounds, we check its value in VoxelIDs.
+            // Use XYZ convert to to voxelPosition into an index in the range of the chunk dimensions.
+            return VoxelIDs[XYZConvert.ToIndex(voxelPosition, _world.ChunkDimension)];
+        }
+        // Replace an index in the VoxelIDs array with the specified type.
+        public void SetVoxelID(Vector3I voxelPosition, Voxel.Type voxelType)
         {
             voxelPosition.X = Mathf.PosMod(voxelPosition.X, _world.ChunkDimension.X);
             voxelPosition.Y = Mathf.PosMod(voxelPosition.Y, _world.ChunkDimension.Y);
             voxelPosition.Z = Mathf.PosMod(voxelPosition.Z, _world.ChunkDimension.Z);
             
-            VoxelTypes[XYZConvert.ToIndex(voxelPosition, _world.ChunkDimension)] = (byte)voxelType;
+            VoxelIDs[XYZConvert.ToIndex(voxelPosition, _world.ChunkDimension)] = (byte)voxelType;
         }
-        // Returns a voxel type from VoxelTypes array or generates a new one if it's out of chunk bounds.
-        private Voxel.Type GetVoxelType(Vector3I voxelPosition)
-        {
-            // If voxel is out of bounds it's also not in VoxelTypes, so we generate the value.
-            // FIXME - Casting to a voxel type is not wanted long run, fin this chain of calls to support library lookups.
-            if (IsVoxelOutOfBounds(voxelPosition)) return (Voxel.Type)GenerateVoxelType(voxelPosition);
-
-            // If voxel is in bounds, we check its value in VoxelTypes.
-            // Use XYZ convert to to voxelPosition into an index in the range of the chunk dimensions.
-            return (Voxel.Type)VoxelTypes[XYZConvert.ToIndex(voxelPosition, _world.ChunkDimension)];
-        }
+        
+        
         // Returns true if a voxel is not within chunk dimensions.
         private bool IsVoxelOutOfBounds(Vector3I voxelPosition)
         {
@@ -255,28 +301,28 @@ namespace RawVoxel
 
         #region Functions -> Shader
 
-        // Send VoxelTypes to the shader.
+        // Send VoxelIDs to the shader.
         public void GenerateShaderParameters()
         {
             ShaderMaterial terrainShaderMaterial = MaterialOverride as ShaderMaterial;
 
             // Add shader parameters here using terrainShaderMaterial.SetShaderParameter("shaderArray", _listName.ToArray());
             terrainShaderMaterial.SetShaderParameter("chunkDimension", _world.ChunkDimension);
-            terrainShaderMaterial.SetShaderParameter("typeMapYX", GenerateVoxelTypeMap()[0]);
-            terrainShaderMaterial.SetShaderParameter("typeMapYZ", GenerateVoxelTypeMap()[1]);
+            terrainShaderMaterial.SetShaderParameter("_idMapYX", GenerateVoxelIDMaps()[0]);
+            terrainShaderMaterial.SetShaderParameter("_idMapYZ", GenerateVoxelIDMaps()[1]);
         }
-        // Convert VoxelTypes to an ImageTexture to be used in the shader.
-        private ImageTexture[] GenerateVoxelTypeMap()
+        // Convert VoxelIDs to an ImageTexture to be used in the shader.
+        private ImageTexture[] GenerateVoxelIDMaps()
         {
             // Create Images, this works fine.
             Image typeImageYX = Image.Create(_world.ChunkDimension.Y, _world.ChunkDimension.X, true, Image.Format.Rgba8);
             Image typeImageYZ = Image.Create(_world.ChunkDimension.Y, _world.ChunkDimension.Z, true, Image.Format.Rgba8);
             
-            // Loop through VoxelTypes.
-            for (int i = 0; i < VoxelTypes.Count; i ++)
+            // Loop through VoxelIDs.
+            for (int i = 0; i < VoxelIDs.Count; i ++)
             {
                 // Extract type, color, and position.
-                Voxel.Type voxelType = (Voxel.Type)VoxelTypes[i];
+                Voxel.Type voxelType = (Voxel.Type)VoxelIDs[i];
                 Color voxelColor = Voxel.Colors[voxelType];
                 Vector3I voxelPosition = XYZConvert.ToVector3I(i, _world.ChunkDimension);
                 
@@ -304,20 +350,20 @@ namespace RawVoxel
                 typeImageYZ.SetPixel(voxelPosition.Y, voxelPosition.Z, new Color(0.0f, rColorG / 2, rColorB));
             }
             
-            ImageTexture typeMapYX = ImageTexture.CreateFromImage(typeImageYX);
-            ImageTexture typeMapYZ = ImageTexture.CreateFromImage(typeImageYZ);
+            ImageTexture _idMapYX = ImageTexture.CreateFromImage(typeImageYX);
+            ImageTexture _idMapYZ = ImageTexture.CreateFromImage(typeImageYZ);
             
-            typeMapYX.ResourceLocalToScene = true;
-            typeMapYZ.ResourceLocalToScene = true;
+            _idMapYX.ResourceLocalToScene = true;
+            _idMapYZ.ResourceLocalToScene = true;
 
-            return new ImageTexture[] { typeMapYX, typeMapYZ };
+            return new ImageTexture[] { _idMapYX, _idMapYZ };
         }
 
         #endregion Functions -> Shader
         
         #region Functions -> Meshing
 
-        // Call all mesh clearing functions as listed below.
+        // Call all mesh clearing functions in the proper order.
         private void ClearMesh()
         {
             ClearChunkMeshSurfaceData();
@@ -325,7 +371,7 @@ namespace RawVoxel
             ClearMeshSurface();
             ClearCollision();
         }
-        // Call all mesh generation functions as listed below.
+        // Call all mesh generation functions in the proper order.
         private void GenerateMesh()
         {
             GenerateChunkMeshSurfaceData();
@@ -345,47 +391,49 @@ namespace RawVoxel
         // Generate _surfaceVertices, _surfaceNormals, and _surfaceIndices arrays.
         private void GenerateChunkMeshSurfaceData()
         {
-            for (int i = 0; i < VoxelTypes.Count; i++)
+            for (int i = 0; i < _world.ChunkDimension.X * _world.ChunkDimension.Y * _world.ChunkDimension.Z; i ++)
             {
                 GenerateVoxelMeshSurfaceData(XYZConvert.ToVector3I(i, _world.ChunkDimension));
             }
         }
         private void GenerateVoxelMeshSurfaceData(Vector3I voxelPosition)
         {
-            Voxel.Type type = GetVoxelType(voxelPosition);
+            int voxelID = GetVoxelID(voxelPosition);
 
             #region Naive Meshing
 
-            if (type == Voxel.Type.Air) { return; }
+            if (voxelID == 0) { return; }
 
-            if (GetVoxelType(voxelPosition + Vector3I.Up) == Voxel.Type.Air)
+            // TODO - Figure out how to index positions in list without vector math.
+
+            if (GetVoxelID(voxelPosition + Vector3I.Up) == 0)
             {
-                GenerateFaceMeshSurfaceData(Voxel.Face.Top, voxelPosition, type);
+                GenerateFaceMeshSurfaceData(Voxel.Face.Top, voxelPosition);
             }
-            if (GetVoxelType(voxelPosition + Vector3I.Down) == Voxel.Type.Air)
+            if (GetVoxelID(voxelPosition + Vector3I.Down) == 0)
             {
-                GenerateFaceMeshSurfaceData(Voxel.Face.Btm, voxelPosition, type);
+                GenerateFaceMeshSurfaceData(Voxel.Face.Btm, voxelPosition);
             }
-            if (GetVoxelType(voxelPosition + Vector3I.Left) == Voxel.Type.Air)
+            if (GetVoxelID(voxelPosition + Vector3I.Left) == 0)
             {
-                GenerateFaceMeshSurfaceData(Voxel.Face.West, voxelPosition, type);
+                GenerateFaceMeshSurfaceData(Voxel.Face.West, voxelPosition);
             }
-            if (GetVoxelType(voxelPosition + Vector3I.Right) == Voxel.Type.Air)
+            if (GetVoxelID(voxelPosition + Vector3I.Right) == 0)
             {
-                GenerateFaceMeshSurfaceData(Voxel.Face.East, voxelPosition, type);
+                GenerateFaceMeshSurfaceData(Voxel.Face.East, voxelPosition);
             }
-            if (GetVoxelType(voxelPosition + Vector3I.Forward) == Voxel.Type.Air)
+            if (GetVoxelID(voxelPosition + Vector3I.Forward) == 0)
             {
-                GenerateFaceMeshSurfaceData(Voxel.Face.North, voxelPosition, type);
+                GenerateFaceMeshSurfaceData(Voxel.Face.North, voxelPosition);
             }
-            if (GetVoxelType(voxelPosition + Vector3I.Back) == Voxel.Type.Air)
+            if (GetVoxelID(voxelPosition + Vector3I.Back) == 0)
             {
-                GenerateFaceMeshSurfaceData(Voxel.Face.South, voxelPosition, type);
+                GenerateFaceMeshSurfaceData(Voxel.Face.South, voxelPosition);
             }
             
             #endregion Naive Meshing
         }
-        private void GenerateFaceMeshSurfaceData(Voxel.Face face, Vector3I voxelPosition, Voxel.Type type)
+        private void GenerateFaceMeshSurfaceData(Voxel.Face face, Vector3I voxelPosition)
         {
             // Assign vertices for the specified face.
             Vector3I vertexA = Voxel.Vertices[Voxel.Faces[face][0]] + voxelPosition;
@@ -412,7 +460,8 @@ namespace RawVoxel
             // Get the offset for indices pointers.
             int offset = _surfaceVertices.Count;
 
-            // _surfaceArray Parameters // These need to be added in GenerateMeshSurfaceArray() and cleared in ClearMeshSurfaceArray().
+            // Add surface data for this face to their respective lists.
+            // These lists need to be converted to arrays in GenerateMeshSurfaceArray() and cleared in ClearMeshSurfaceArray().
             _surfaceVertices.AddRange(new List<Vector3> { vertexA, vertexB, vertexC, vertexD });
             _surfaceNormals.AddRange(new List<Vector3> { normal, normal, normal, normal });
             _surfaceIndices.AddRange(new List<int> { 0 + offset, 1 + offset, 2 + offset, 0 + offset, 2 + offset, 3 + offset });
@@ -428,7 +477,7 @@ namespace RawVoxel
         // Pack _surfaceVertices, _surfaceNormals, and _surfaceIndices arrays into _surfaceArray.
         private void GenerateMeshSurfaceArray()
         {   
-            // Early return if vertex or index arrays are empty.
+            // Early return if any of the data arrays are empty.
             if (_surfaceVertices.Count == 0) return;
             if (_surfaceNormals.Count == 0) return;
             if (_surfaceIndices.Count == 0)  return;
@@ -440,7 +489,7 @@ namespace RawVoxel
         }
         
 
-        // Clear mesh surfaces.
+        // Check the mesh for surfaces and clear them if any.
         private void ClearMeshSurface()
         {
             if (_arrayMesh.GetSurfaceCount() > 0) _arrayMesh.ClearSurfaces();
@@ -448,26 +497,30 @@ namespace RawVoxel
         // Generate mesh surface using surface array.
         private void GenerateMeshSurface()
         {
+            // Early return if any of the data arrays are empty.
             if (_surfaceVertices.Count == 0) return;
+            if (_surfaceNormals.Count == 0) return;
             if (_surfaceIndices.Count == 0)  return;
 
+            // Add surface to _arrayMesh using _surfaceArray to populate its data.
             _arrayMesh.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles, _surfaceArray);
         }
 
 
-        // Clear mesh collision.
+        // Clear mesh collision nodes.
         private void ClearCollision()
         {
             StaticBody3D collision = GetChildOrNull<StaticBody3D>(0);
             
             collision?.QueueFree();
         }
-        // Generate mesh collision using mesh surface.
+        // Generate mesh collision nodes using mesh surface.
         private void GenerateCollision()
         {
             if (_arrayMesh.GetSurfaceCount() == 0) return;
 
             CreateTrimeshCollision();
+            // TODO - Check if this really needs to be called every time the mesh is rebuilt.
             AddToGroup("NavSource");
         }
 

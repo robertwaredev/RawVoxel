@@ -26,7 +26,7 @@ namespace RawVoxel
         #endregion Exports -> Layers
         
         #region Exports -> Temperature
-        [ExportCategory("Temperature")]
+        [ExportGroup("Temperature")]
         
         [Export(PropertyHint.Range, "-200, 200")] public float TemperatureMin
         {
@@ -45,7 +45,7 @@ namespace RawVoxel
         #endregion Exports -> Temperature
     
         #region Exports -> Humidity
-        [ExportCategory("Humidity")]
+        [ExportGroup("Humidity")]
         
         [Export(PropertyHint.Range, "0, 100")] public float HumidityMin
         {
@@ -64,7 +64,7 @@ namespace RawVoxel
         #endregion Exports -> Temperature
 
         #region Exports -> Density
-        [ExportCategory("Density")]
+        [ExportGroup("Density")]
 
         // Controls density sampling across all layers. This sampled in 3D.
         [Export] public FastNoiseLite DensityNoise

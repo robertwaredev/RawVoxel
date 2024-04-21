@@ -61,19 +61,19 @@ namespace RawVoxel
         #region Exports -> Dimensions
         [ExportGroup("Dimensions")]
         
-        [Export] public Vector3I DrawDistance
+        [Export] public Vector3I DrawRadius
         {
-            get { return _drawDistance; }
-            set { _drawDistance = value; }
+            get { return _drawRadius; }
+            set { _drawRadius = value; }
         }
-        private Vector3I _drawDistance = new(1, 0, 1);
+        private Vector3I _drawRadius = new(1, 0, 1);
         
-        [Export] public Vector3I WorldDimension
+        [Export] public Vector3I WorldRadius
         {
-            get { return _worldDimension; }
-            set { _worldDimension = value; }
+            get { return _worldRadius; }
+            set { _worldRadius = value; }
         }
-        private Vector3I _worldDimension = new (128, 1, 128);
+        private Vector3I _worldRadius = new (128, 1, 128);
         
         [Export] public Vector3I ChunkDimension
         {
@@ -157,7 +157,7 @@ namespace RawVoxel
             get { return _terrainMaterial; }
             set { _terrainMaterial = value; }
         }
-        private Material _terrainMaterial = GD.Load<Material>("res://addons/RawVoxel/resources/materials/chunk_material.tres");
+        private Material _terrainMaterial = GD.Load<Material>("res://addons/RawVoxel/resources/materials/ChunkShaderMaterial.tres");
         
 
         #endregion Exports -> Material
@@ -394,14 +394,14 @@ namespace RawVoxel
 
             Vector3I drawableCenter = _focusNodeChunkPosition;
             
-            int drawableXMin = drawableCenter.X - _drawDistance.X;
-            int drawableXMax = drawableCenter.X + _drawDistance.X;
+            int drawableXMin = drawableCenter.X - _drawRadius.X;
+            int drawableXMax = drawableCenter.X + _drawRadius.X;
             
-            int drawableYMin = drawableCenter.Y - _drawDistance.Y;
-            int drawableYMax = drawableCenter.Y + _drawDistance.Y;
+            int drawableYMin = drawableCenter.Y - _drawRadius.Y;
+            int drawableYMax = drawableCenter.Y + _drawRadius.Y;
 
-            int drawableZMin = drawableCenter.Z - _drawDistance.Z;
-            int drawableZMax = drawableCenter.Z + _drawDistance.Z;
+            int drawableZMin = drawableCenter.Z - _drawRadius.Z;
+            int drawableZMax = drawableCenter.Z + _drawRadius.Z;
             
             for (int x = drawableXMin; x <= drawableXMax; x++)
             {

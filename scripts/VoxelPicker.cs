@@ -6,7 +6,7 @@ namespace RawVoxel
     {
         [Export] MeshInstance3D VoxelHighlight;
         
-        private readonly object voxelLock = new();
+        private readonly object voxelEditLock = new();
         
         public override void _Process(double delta)
         {
@@ -21,16 +21,16 @@ namespace RawVoxel
 
             Vector3 collisionPoint = GetCollisionPoint();
             Vector3 collisionNormal = GetCollisionNormal();
-            Vector3 voxelGlobalPosition = (collisionPoint + collisionNormal * -0.5f).Floor();
+            Vector3I voxelGlobalPosition = (Vector3I)(collisionPoint + collisionNormal * -0.5f).Floor();
             
             VoxelHighlight.Position = voxelGlobalPosition + new Vector3(0.5f, 0.5f, 0.5f);
             VoxelHighlight.Visible = true;
             
             if (Input.IsActionPressed("break_voxel"))
             {
-                lock (voxelLock)
+                lock (voxelEditLock)
                 {
-                    collidedChunk.SetVoxelType((Vector3I)voxelGlobalPosition, Voxel.Type.Air);
+                    collidedChunk.SetVoxelID(voxelGlobalPosition, Voxel.Type.Air);
                     collidedChunk.Update();
                     collidedChunk.GenerateShaderParameters();
                 }
@@ -38,9 +38,9 @@ namespace RawVoxel
             
             if (Input.IsActionPressed("place_voxel"))
             {
-                lock (voxelLock)
+                lock (voxelEditLock)
                 {
-                    collidedChunk.SetVoxelType((Vector3I)(voxelGlobalPosition + collisionNormal), Voxel.Type.Stone);
+                    collidedChunk.SetVoxelID(voxelGlobalPosition + (Vector3I)collisionNormal, Voxel.Type.Stone);
                     collidedChunk.Update();
                     collidedChunk.GenerateShaderParameters();
                 }

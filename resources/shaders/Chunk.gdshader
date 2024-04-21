@@ -17,6 +17,7 @@ uniform int bedrockHeight = 0;
 uniform sampler2D typeMapYX;
 uniform sampler2D typeMapYZ;
 
+
 varying vec4 color;
 varying vec3 normal;
 
@@ -43,24 +44,24 @@ int GenerateVoxel(ivec3 voxelPosition, ivec3 chunkPosition) {
 }
 
 void vertex() {
-	vec3 voxelPosition;
-	
-	normal = normals[VERTEX_ID / 4 % 6];
-	
-	voxelPosition = vec3(VERTEX + normal * -0.5);
-	voxelPosition.x = floor(voxelPosition.x);
-	voxelPosition.y = floor(voxelPosition.y);
-	voxelPosition.z = floor(voxelPosition.z);
-	voxelPosition = mod(voxelPosition, vec3(chunkDimension));
-	
-	vec4 typeYX = texelFetch(typeMapYX, ivec2(vec2(voxelPosition.y, voxelPosition.x)), 0);
-	vec4 typeYZ = texelFetch(typeMapYZ, ivec2(vec2(voxelPosition.y, voxelPosition.z)), 0);
-	
-	color = typeYX + typeYZ;
-	COLOR = color;
+	//vec3 voxelPosition;
+	//
+	//normal = normals[VERTEX_ID / 4 % 6];
+	//
+	//voxelPosition = vec3(VERTEX + normal * -0.5);
+	//voxelPosition.x = floor(voxelPosition.x);
+	//voxelPosition.y = floor(voxelPosition.y);
+	//voxelPosition.z = floor(voxelPosition.z);
+	//voxelPosition = mod(voxelPosition, vec3(chunkDimension));
+	//
+	//vec4 typeYX = texelFetch(typeMapYX, ivec2(vec2(voxelPosition.y, voxelPosition.x)), 0);
+	//vec4 typeYZ = texelFetch(typeMapYZ, ivec2(vec2(voxelPosition.y, voxelPosition.z)), 0);
+	//
+	//color = typeYX + typeYZ;
+	//COLOR = color;
 }
 
 void fragment() {
-	ALBEDO = color.rgb;
-	ALPHA = color.a;
+	//ALBEDO = color.rgb;
+	//ALPHA = color.a;
 }
