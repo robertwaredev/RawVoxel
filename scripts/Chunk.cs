@@ -212,8 +212,7 @@ namespace RawVoxel
             Vector3 voxelUnsignedWorldPositionWrappedNormalized = voxelUnsignedWorldPositionWrapped / worldDiameterAsVoxelUnits;
 
             #endregion Positioning
-// TODO
-/*
+
             #region Temperature
 
             //float temperatureNoise = (_world.TemperatureNoise.GetNoise1D(voxelUnsignedWorldPositionWrapped.Z) + 1) * 0.5f;
@@ -248,11 +247,11 @@ namespace RawVoxel
             }
 
             #endregion Biome
-*/
+
             #region Density
 
             // Sample biome density.
-            float densityNoise = voxelBiome.DensityNoise.GetNoise3Dv(voxelUnsignedWorldPosition);
+            float densityNoise = voxelBiome.DensityNoise.GetNoise3Dv(voxelSignedWorldPosition);
             float voxelDensity = voxelBiome.DensityCurve.Sample((densityNoise + 1) * 0.5f);
 
             // Return air if voxel is not dense enough to be considered solid.

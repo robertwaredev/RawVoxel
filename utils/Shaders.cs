@@ -14,7 +14,11 @@ namespace RawUtils
             
             return shader;
         }
-        public static RDUniform CreateStorageBufferUniform(RenderingDevice renderingDevice, uint byteArrayLength, byte[] byteArray, int binding)
+        public static Rid CreateStorageBuffer(RenderingDevice renderingDevice, uint byteArrayLength, byte[] byteArray)
+        {
+            return renderingDevice.StorageBufferCreate(byteArrayLength, byteArray);
+        }
+        public static RDUniform CreateStorageBufferUniform(RenderingDevice renderingDevice, Rid storageBuffer, int binding)
         {
             // Create a uniform to hold the buffer.
             RDUniform uniform = new()
@@ -24,7 +28,7 @@ namespace RawUtils
             };
 
             // Add storage buffer to the uniform.
-            uniform.AddId(renderingDevice.StorageBufferCreate(byteArrayLength, byteArray));
+            uniform.AddId(storageBuffer);
 
             return uniform;
         }
@@ -36,6 +40,7 @@ namespace RawUtils
             renderingDevice.ComputeListBindComputePipeline(computeList, pipeline);
             renderingDevice.ComputeListBindUniformSet(computeList, uniformSet, 0);
             renderingDevice.ComputeListDispatch(computeList, xGroups, yGroups, zGroups);
+            
             renderingDevice.ComputeListEnd();
         }
     }

@@ -31,7 +31,7 @@ namespace RawVoxel
         [Export] public Node3D FocusNode
         {
             get { return _focusNode; }
-            set { _focusNode = value; _worldGenerated = false; }
+            set { _focusNode = value; TryUpdateFocusNodePosition(); _worldGenerated = false; }
         }
         private Node3D _focusNode;
         
@@ -324,7 +324,6 @@ namespace RawVoxel
             // This is to prevent crashes when making changes in the inspector that might cause overlap.
             lock (_worldGenerationLock)
             {
-                TryUpdateFocusNodePosition();
                 TryUpdateFocusNodeChunkPosition();
 
                 GD.PrintS("--- Generating World at:", FocusNodeChunkPosition, "---");
@@ -361,6 +360,56 @@ namespace RawVoxel
         
         #endregion Functions -> World
 
+        #region Functions -> Compute Shader
+
+        public void SubmitComputeShader()
+        {
+            // Create local rendering device.
+            RenderingDevice renderingDevice = RenderingServer.CreateLocalRenderingDevice();
+            
+            // Attach shader to rendering device and get its RID back.
+            Rid shader = Shaders.CreateComputeShader(renderingDevice, "res://addons/RawVoxel/resources/shaders/WorldCompute.glsl");
+
+            // float[] chunkFloatsIn = new float[_loadableChunkIndices.Count];
+            // Buffer.BlockCopy(_loadableChunkIndices.ToArray(), 0, chunkFloatsIn, 0, _loadedChunkIndices.Count * sizeof(float));
+            
+            // Convert loadable chunk indices into a byte array.
+            byte[] chunkBytesIn = new byte[_loadableChunkIndices.Count * sizeof(int)];
+            Buffer.BlockCopy(_loadableChunkIndices.ToArray(), 0, chunkBytesIn, 0, chunkBytesIn.Length);
+
+            // Create a storage buffer object and attach the chunk bytes array.
+            Rid storageBuffer = Shaders.CreateStorageBuffer(renderingDevice, (uint)chunkBytesIn.Length, chunkBytesIn);            
+            // Create a uniform with a storage buffer object in it.
+            RDUniform storageBufferUniform = Shaders.CreateStorageBufferUniform(renderingDevice, storageBuffer, 0);
+            
+            // Create a array of RDUniforms and put the storage buffer uniform in it.
+            Godot.Collections.Array<RDUniform> uniformArray = new() { storageBufferUniform };           
+            // Attach array of RDUniforms as a uniform set on the rendering device.
+            Rid uniformSet = renderingDevice.UniformSetCreate(uniformArray, shader, 0);
+            
+            // Calculate work groups.
+            Vector3I Groups = _drawRadius * 2 + Vector3I.One;
+
+            // Set up compute pipeline.
+            Shaders.SetupComputePipeline(renderingDevice, shader, uniformSet, (uint)Groups.X, (uint)Groups.Y, (uint)Groups.Z);
+
+            // Submit the shader.
+            renderingDevice.Submit();
+            // Defer sychronizing the rendering device.
+            renderingDevice.Sync();
+
+            // Get the results.
+            byte[] chunkBytesOut = renderingDevice.BufferGetData(storageBuffer);
+            int[] processedChunkIndices = new int[_loadableChunkIndices.Count];
+            Buffer.BlockCopy(chunkBytesOut, 0, processedChunkIndices, 0, chunkBytesOut.Length);
+            
+            GD.Print("Input: ", string.Join(", ", _loadableChunkIndices));
+            GD.Print(" ");
+            GD.Print("Output: ", string.Join(", ", processedChunkIndices));
+        }
+
+        #endregion Functions -> Compute Shader
+        
         #region Functions -> Chunks (Index Based)
 
         // Queue, load, and free chunks to and from the scene tree using index handles.
@@ -370,6 +419,8 @@ namespace RawVoxel
             QueueLoadableChunkIndices();
             QueueFreeableChunkIndices();
                 
+            SubmitComputeShader();
+
             LoadQueuedChunkIndices();
             FreeQueuedChunkIndices();
         }
@@ -380,6 +431,8 @@ namespace RawVoxel
             QueueLoadableChunkIndices();
             QueueFreeableChunkIndices();
             
+            SubmitComputeShader();
+
             RecycleQueuedChunkIndices();
         }
         // Free all chunks from the scene tree using their index handles.
@@ -403,31 +456,33 @@ namespace RawVoxel
         {
             _drawableChunkIndices.Clear();
 
-            int drawableChunkCount = (_drawRadius.X * 2 + 1) * (_drawRadius.Y * 2 + 1) * (_drawRadius.Z * 2 + 1);
+            // Get the drawable diameter in chunk units.
+            Vector3I drawDiameter = _drawRadius * 2 + Vector3I.One;
+            // Get the number of drawable chunks.
+            int drawableChunkCount = drawDiameter.X * drawDiameter.Y * drawDiameter.Z;
 
             for (int drawableChunkIndex = 0; drawableChunkIndex < drawableChunkCount; drawableChunkIndex ++)
-            {
-                // Get the drawable diameter in chunk units.
-                Vector3I drawDiameter = _drawRadius * 2 + Vector3I.One;
-                
-                // Extract an unsigned chunk position using drawable chunk dimensions.
+            {   
+                // Extract an unsigned chunk position using world draw diameter.
                 Vector3I unsignedChunkDrawablePosition = XYZConvert.IndexToVector3I(drawableChunkIndex, drawDiameter);
-                // Offset to signed position using world radius.
+                // Offset to signed chunk position using draw radius.
                 Vector3I signedChunkDrawablePosition = unsignedChunkDrawablePosition - _drawRadius;
 
-                // Add signed drawable chunk position to focus node chunk position to get it's world position.
-                Vector3I signedChunkWorldPosition = FocusNodeChunkPosition + signedChunkDrawablePosition;
-                // Offset to signed position using world radius.
+                // Add focus node chunk position to signed drawable chunk position to get it's world position.
+                Vector3I signedChunkWorldPosition = signedChunkDrawablePosition + FocusNodeChunkPosition;
+                // Offset to unsigned position using world radius.
                 Vector3I unsignedChunkWorldPosition = signedChunkWorldPosition + _worldRadius;
+                // Wrap unsigned chunk world position within the world diam
+                Vector3I wrappedChunkWorldPosition = unsignedChunkWorldPosition % (_worldRadius * 2 + Vector3I.One);
                 
-                // Convert chunk world position into an index.
+                // Convert unsigned chunk world position into an index.
                 int chunkWorldIndex = XYZConvert.Vector3IToIndex(unsignedChunkWorldPosition, _worldRadius * 2 + Vector3I.One);
                 
                 // Off we go.
                 _drawableChunkIndices.Add(chunkWorldIndex);
             }
 
-            GD.PrintS("--> Drawable chunks:" + _drawableChunkIndices.Count);
+            GD.PrintS("--> Drawable chunks:", _drawableChunkIndices.Count);
         }
         // Add an index to its respective List for each loadable chunk index.
         private void QueueLoadableChunkIndices()
@@ -444,7 +499,7 @@ namespace RawVoxel
                 }
             }
 
-            GD.PrintS("--> Loadable chunks:" + _loadableChunkIndices.Count);
+            GD.PrintS("--> Loadable chunks:", _loadableChunkIndices.Count);
         }
         // Add an index to its respective List for each freeable chunk index.
         private void QueueFreeableChunkIndices()
@@ -461,7 +516,7 @@ namespace RawVoxel
                 }
             }
 
-            GD.PrintS("--> Freeable chunks:" + _freeableChunkIndices.Count);
+            GD.PrintS("--> Freeable chunks:", _freeableChunkIndices.Count);
         }
 
         
@@ -479,6 +534,7 @@ namespace RawVoxel
                 CallDeferred(Node.MethodName.AddChild, chunk);
 
                 Task generate = new(new Action(() => chunk.CallDeferred(nameof(Chunk.GenerateAtIndex), loadableChunkIndex)));
+                // Task generate = new(new Action(() => chunk.GenerateAtIndex(loadableChunkIndex)));
 
                 generate.Start();
                 generate.Wait();
@@ -520,6 +576,7 @@ namespace RawVoxel
                 _loadedChunkIndices.Add(loadableChunkIndex, chunk);
 
                 Task recycle = new(new Action(() => chunk.CallDeferred(nameof(Chunk.GenerateAtIndex), loadableChunkIndex)));
+                // Task recycle = new(new Action(() => chunk.GenerateAtIndex(loadableChunkIndex)));
 
                 recycle.Start();
                 recycle.Wait();
@@ -588,7 +645,7 @@ namespace RawVoxel
                 }
             }
 
-            GD.PrintS("--> Drawable chunks:" + _drawableChunkPositions.Count);
+            GD.PrintS("--> Drawable chunks:", _drawableChunkPositions.Count);
         }
         // Add a Vector3I to its respective List for each loadable chunk position.
         private void QueueLoadableChunkPositions()
@@ -605,7 +662,7 @@ namespace RawVoxel
                 }
             }
 
-            GD.PrintS("--> Loadable chunks:" + _loadableChunkPositions.Count);
+            GD.PrintS("--> Loadable chunks:", _loadableChunkPositions.Count);
         }
         // Add a Vector3I to its respective List for each freeable chunk position.
         private void QueueFreeableChunkPositions()
@@ -622,7 +679,7 @@ namespace RawVoxel
                 }
             }
 
-            GD.PrintS("--> Freeable chunks:" + _freeableChunkPositions.Count);
+            GD.PrintS("--> Freeable chunks:", _freeableChunkPositions.Count);
         }
 
 
@@ -692,25 +749,5 @@ namespace RawVoxel
         }
 
         #endregion Functions -> Chunks (Position Based)
-    
-        #region Functions -> Compute Shader
-
-        public static void SetupComputeShader()
-        {
-            RenderingDevice renderingDevice = RenderingServer.CreateLocalRenderingDevice();
-            
-            Rid shader = Shaders.CreateComputeShader(renderingDevice, "res://addons/RawVoxel/resources/shaders/WorldCompute.glsl");
-
-            // FIXME - not passing in any data yet.
-            RDUniform storageBufferUniform = Shaders.CreateStorageBufferUniform(renderingDevice, 0, Array.Empty<byte>(), 0);
-            
-            Godot.Collections.Array<RDUniform> uniformArray = new() { storageBufferUniform };
-            
-            Rid uniformSet = renderingDevice.UniformSetCreate(uniformArray, shader, 0);
-            
-            Shaders.SetupComputePipeline(renderingDevice, shader, uniformSet, 1, 1, 1);
-        }
-
-        #endregion Functions -> Compute Shader
     }
 }

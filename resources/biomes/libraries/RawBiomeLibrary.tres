@@ -7,4 +7,4 @@
 [resource]
 resource_name = "Raw Biome Library"
 script = ExtResource("1_ratbb")
-Biomes = [ExtResource("1_q0dhw"), ExtResource("2_it8is")]
+Biomes = [ExtResource("2_it8is"), ExtResource("1_q0dhw")]
