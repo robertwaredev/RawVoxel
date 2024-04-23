@@ -1,0 +1,14 @@
+[remap]
+
+importer="glsl"
+type="RDShaderFile"
+uid="uid://d1jqxplf3j1tp"
+path="res://.godot/imported/ChunkCompute.glsl-005de9a0194c4473fb487f44b8f9e4dc.res"
+
+[deps]
+
+source_file="res://addons/RawVoxel/resources/shaders/ChunkCompute.glsl"
+dest_files=["res://.godot/imported/ChunkCompute.glsl-005de9a0194c4473fb487f44b8f9e4dc.res"]
+
+[params]
+
