@@ -15,6 +15,8 @@ namespace RawVoxel
     [GlobalClass, Tool]
     public partial class World : Node3D
     {
+        #region Exports
+        
         #region Exports -> Tools
         [ExportCategory("Tools")]
 
@@ -187,7 +189,8 @@ namespace RawVoxel
 
         #endregion Exports -> Threading
 
-        
+        #endregion Exports
+
         #region Variables -> FocusNode
         
         private Vector3 _focusNodePosition;
@@ -226,10 +229,9 @@ namespace RawVoxel
 
         public override void _Ready()
         {
-            ThreadStart UpdateWorldProcessStart = new(WorldProcess);
-            Thread UpdateWorldThread = new(UpdateWorldProcessStart) { Name = "UpdateWorldThread" };
+            Thread WorldThread = new(new ThreadStart(WorldProcess)) { Name = "World Thread" };
             
-            UpdateWorldThread.Start();
+            WorldThread.Start();
         }
         public override string[] _GetConfigurationWarnings()
         {
@@ -360,56 +362,55 @@ namespace RawVoxel
         
         #endregion Functions -> World
 
-        #region Functions -> Compute Shader
+        #region Functions -> Biomes
 
-        public void SubmitComputeShader()
+        public Array[] GetBiomeBytes()
         {
-            // Create local rendering device.
-            RenderingDevice renderingDevice = RenderingServer.CreateLocalRenderingDevice();
+            int biomeCount = BiomeLibrary.Biomes.Length;
             
-            // Attach shader to rendering device and get its RID back.
-            Rid shader = Shaders.CreateComputeShader(renderingDevice, "res://addons/RawVoxel/resources/shaders/WorldCompute.glsl");
-
-            // float[] chunkFloatsIn = new float[_loadableChunkIndices.Count];
-            // Buffer.BlockCopy(_loadableChunkIndices.ToArray(), 0, chunkFloatsIn, 0, _loadedChunkIndices.Count * sizeof(float));
+            // Biome Temperature Min/Max values.
+            byte[] biomeTemperatureMinBytes =  new byte[biomeCount * sizeof(int)];
+            byte[] biomeTemperatureMaxBytes =  new byte[biomeCount * sizeof(int)];
             
-            // Convert loadable chunk indices into a byte array.
-            byte[] chunkBytesIn = new byte[_loadableChunkIndices.Count * sizeof(int)];
-            Buffer.BlockCopy(_loadableChunkIndices.ToArray(), 0, chunkBytesIn, 0, chunkBytesIn.Length);
-
-            // Create a storage buffer object and attach the chunk bytes array.
-            Rid storageBuffer = Shaders.CreateStorageBuffer(renderingDevice, (uint)chunkBytesIn.Length, chunkBytesIn);            
-            // Create a uniform with a storage buffer object in it.
-            RDUniform storageBufferUniform = Shaders.CreateStorageBufferUniform(renderingDevice, storageBuffer, 0);
+            // Biome Humidity Min/Max values.
+            byte[] biomeHumidityMinBytes = new byte[biomeCount * sizeof(int)];
+            byte[] biomeHumidityMaxBytes = new byte[biomeCount * sizeof(int)];
             
-            // Create a array of RDUniforms and put the storage buffer uniform in it.
-            Godot.Collections.Array<RDUniform> uniformArray = new() { storageBufferUniform };           
-            // Attach array of RDUniforms as a uniform set on the rendering device.
-            Rid uniformSet = renderingDevice.UniformSetCreate(uniformArray, shader, 0);
+            int biomeIndex = 0;
             
-            // Calculate work groups.
-            Vector3I Groups = _drawRadius * 2 + Vector3I.One;
+            foreach (Biome biome in BiomeLibrary.Biomes)
+            {
+                // Temperature Min
+                Buffer.BlockCopy(
+                    new int[]{ biome.TemperatureMin }, 0, biomeTemperatureMinBytes, biomeIndex * sizeof(int), sizeof(int)
+                );
+                // Temperature Max
+                Buffer.BlockCopy(
+                    new int[]{ biome.TemperatureMax }, 0, biomeTemperatureMaxBytes, biomeIndex * sizeof(int), sizeof(int)
+                );
+                // Humidity Min
+                Buffer.BlockCopy(
+                    new int[]{ biome.HumidityMin }, 0, biomeHumidityMinBytes, biomeIndex * sizeof(int), sizeof(int)
+                );
+                // Humidity Max
+                Buffer.BlockCopy(
+                    new int[]{ biome.HumidityMax }, 0, biomeHumidityMaxBytes, biomeIndex * sizeof(int), sizeof(int)
+                );
 
-            // Set up compute pipeline.
-            Shaders.SetupComputePipeline(renderingDevice, shader, uniformSet, (uint)Groups.X, (uint)Groups.Y, (uint)Groups.Z);
+                biomeIndex ++;
+            }
 
-            // Submit the shader.
-            renderingDevice.Submit();
-            // Defer sychronizing the rendering device.
-            renderingDevice.Sync();
-
-            // Get the results.
-            byte[] chunkBytesOut = renderingDevice.BufferGetData(storageBuffer);
-            int[] processedChunkIndices = new int[_loadableChunkIndices.Count];
-            Buffer.BlockCopy(chunkBytesOut, 0, processedChunkIndices, 0, chunkBytesOut.Length);
-            
-            GD.Print("Input: ", string.Join(", ", _loadableChunkIndices));
-            GD.Print(" ");
-            GD.Print("Output: ", string.Join(", ", processedChunkIndices));
+            return new[]
+            {
+                biomeTemperatureMinBytes,
+                biomeTemperatureMaxBytes,
+                biomeHumidityMinBytes,
+                biomeHumidityMaxBytes
+            };
         }
-
-        #endregion Functions -> Compute Shader
         
+        #endregion Functions -> Biomes
+
         #region Functions -> Chunks (Index Based)
 
         // Queue, load, and free chunks to and from the scene tree using index handles.
@@ -418,8 +419,6 @@ namespace RawVoxel
             QueueDrawableChunkIndices();
             QueueLoadableChunkIndices();
             QueueFreeableChunkIndices();
-                
-            SubmitComputeShader();
 
             LoadQueuedChunkIndices();
             FreeQueuedChunkIndices();
@@ -430,8 +429,6 @@ namespace RawVoxel
             QueueDrawableChunkIndices();
             QueueLoadableChunkIndices();
             QueueFreeableChunkIndices();
-            
-            SubmitComputeShader();
 
             RecycleQueuedChunkIndices();
         }

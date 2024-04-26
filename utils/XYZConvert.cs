@@ -25,5 +25,27 @@ namespace RawUtils
 
             return new Vector3I(X, Y, Z);
         }
+        
+        
+        // Convert XYZ coordinates in dimension space into a flat integer.
+        public static int XYToIndex(int X, int Y, Vector2I dimension)
+        {
+            return (X * dimension.Y) + (Y);
+        }
+        
+        // Convert Vector3I in dimension space into a flat integer.
+        public static int Vector2IToIndex(Vector2I XY, Vector2I dimension)
+        {
+            return XYToIndex(XY.X, XY.Y, dimension);
+        }
+        
+        // Convert a flat integer into a Vector3I in dimension space.
+        public static Vector2I IndexToVector2I(int XY, Vector2I dimension)
+        {
+            int X = XY / dimension.Y % dimension.X;
+            int Y = XY % dimension.Y;
+
+            return new Vector2I(X, Y);
+        }
     }
 }

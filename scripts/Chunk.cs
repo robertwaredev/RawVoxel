@@ -1,9 +1,8 @@
 using Godot;
-using RawUtils;
 using System;
-using System.Collections.Generic;
+using RawUtils;
 using System.Linq;
-using System.Threading;
+using System.Collections.Generic;
 
 namespace RawVoxel
 {
@@ -20,7 +19,6 @@ namespace RawVoxel
 
         #endregion Constructor
 
-
         #region Variables -> World
 
         private readonly World _world;
@@ -32,7 +30,6 @@ namespace RawVoxel
         private int _chunkIndex;
         private Vector3I _chunkPosition;
         private Vector3I _chunkGlobalPosition;
-        private bool _chunkGenerated;
 
         #endregion Variables -> Chunk
 
@@ -43,6 +40,13 @@ namespace RawVoxel
         private ImageTexture _idMapYZ;
         
         #endregion Variables -> Voxels
+
+        #region Variables -> Shader
+
+        private RenderingDevice _renderingDevice;
+        private Rid _shader;
+
+        #endregion Variables -> Shader
 
         #region Variables -> Meshing
 
@@ -65,6 +69,7 @@ namespace RawVoxel
         {
             SetupSurfaceArray();
             SetupMesh();
+            SetupComputeShader();
         }
         // Resize _surfaceArray to the expected size.
         private void SetupSurfaceArray()
@@ -110,6 +115,8 @@ namespace RawVoxel
 
             ClearVoxelIDs();
             GenerateVoxelIDs();
+
+            SubmitComputeShader();
 
             Update();
         }
@@ -317,19 +324,407 @@ namespace RawVoxel
         
         #endregion Functions -> Voxels
 
+        #region Functions -> Compute Shader
+
+        public void SetupComputeShader()
+        {
+            // Create local rendering device.
+            _renderingDevice = RenderingServer.CreateLocalRenderingDevice();
+            
+            // Attach _shader to rendering device and get its RID back.
+            _shader = Shaders.CreateComputeShader(_renderingDevice, "res://addons/RawVoxel/resources/shaders/ChunkCompute.glsl");
+        }
+
+        public void SubmitComputeShader()
+        {
+            #region Texture Formats
+
+            // Set image width and hieght for noise images.
+            int width = _world.ChunkDimension.X;
+            int height = _world.ChunkDimension.Z;
+
+            // Create image format for noise textures.
+            RDTextureFormat noiseFormat = new()
+            {
+                Width = (uint)width,
+                Height = (uint)height,
+                UsageBits = RenderingDevice.TextureUsageBits.CanUpdateBit | RenderingDevice.TextureUsageBits.SamplingBit,
+                Format = RenderingDevice.DataFormat.R8Srgb
+            };
+
+            #endregion Texture Formats
+
+            #region Data -> Voxels
+
+            int voxelCount = _world.ChunkDimension.X * _world.ChunkDimension.Y * _world.ChunkDimension.Z;
+            
+            // Set up voxel type byte array.
+            byte[] voxelIDBytes = new byte[voxelCount * sizeof(int)];
+
+            #endregion Data -> Voxels
+
+            #region Data -> Temperature
+
+            // World temperature noise.
+            FastNoiseLite temperatureNoise = _world.TemperatureNoise.Duplicate() as FastNoiseLite;
+            //temperatureNoise.Offset = new Vector3(Position.X, 0, Position.Z);
+            
+            // World temperature noise image data.
+            Image  temperatureImage = temperatureNoise.GetImage(width, height, normalize: false);
+            byte[]  temperatureBytes = temperatureImage.GetData();
+
+            // World temperature noise texture & sampler.
+            Rid temperatureTexture = _renderingDevice.TextureCreate(noiseFormat, new RDTextureView(), new Godot.Collections.Array<byte[]> { temperatureBytes });
+            Rid temperatureSampler = _renderingDevice.SamplerCreate(new() { UnnormalizedUvw = true });
+
+            // World temperature distribution and range curves.
+            CurveBytes TemperatureDistribution = Curves.GetCurveBytes(_world.TemperatureDistribution);
+            CurveBytes TemperatureRange = Curves.GetCurveBytes(_world.TemperatureRange);
+            
+            #endregion Data -> Temperature
+
+            #region Data -> Humidity
+
+            // World humidity noise.
+            FastNoiseLite humidityNoise = _world.HumidityNoise.Duplicate() as FastNoiseLite;
+            //humidityNoise.Offset = new Vector3(Position.X, 0, Position.Z);
+
+            // World humidity noise image data.
+            Image  humidityImage = humidityNoise.GetImage(width, height, normalize: false);
+            byte[]  humidityBytes = humidityImage.GetData();
+
+            // World humidity noise texture & sampler.
+            Rid humidityTexture = _renderingDevice.TextureCreate(noiseFormat, new RDTextureView(), new Godot.Collections.Array<byte[]> { humidityBytes });
+            Rid humiditySampler = _renderingDevice.SamplerCreate(new() { UnnormalizedUvw = true });
+            
+            // World humidity distribution and range curves.
+            CurveBytes HumidityDistribution = Curves.GetCurveBytes(_world.HumidityDistribution);
+            CurveBytes HumidityRange = Curves.GetCurveBytes(_world.HumidityRange);
+            
+            #endregion Data -> Humidity            
+            
+            #region Data -> Biomes
+
+            // Get biome data from world's biome library.
+            Array[] biomeBytes = _world.GetBiomeBytes();
+
+            #endregion Data -> Biomes
+
+            #region Buffers -> Voxels
+
+            // Create a storage buffer object for voxel IDs.
+            Rid voxelIDBuffer = _renderingDevice.StorageBufferCreate((uint)voxelIDBytes.Length, voxelIDBytes);
+            
+            #endregion Buffers -> Voxels
+            
+            #region Buffers -> Temperature
+
+            // Create storage buffer objects for world temperature distribution curve.
+            Rid temperatureDistributionPointsBuffer   = _renderingDevice.StorageBufferCreate((uint)TemperatureDistribution.Points.Length, TemperatureDistribution.Points as byte[]);
+            Rid temperatureDistributionTangentsBuffer = _renderingDevice.StorageBufferCreate((uint)TemperatureDistribution.Tangents.Length, TemperatureDistribution.Tangents as byte[]);
+            
+            // Create storage buffer objects for world temperature range curve.
+            Rid temperatureRangePointsBuffer   = _renderingDevice.StorageBufferCreate((uint)TemperatureRange.Points.Length, TemperatureRange.Points as byte[]);
+            Rid temperatureRangeTangentsBuffer = _renderingDevice.StorageBufferCreate((uint)TemperatureRange.Tangents.Length, TemperatureRange.Tangents as byte[]);
+            
+            // Create storage buffer objects for temperature min and max values for each biome.
+            Rid biomeTemperatureMinBuffer = _renderingDevice.StorageBufferCreate((uint)biomeBytes[0].Length, biomeBytes[0] as byte[]);
+            Rid biomeTemperatureMaxBuffer = _renderingDevice.StorageBufferCreate((uint)biomeBytes[1].Length, biomeBytes[1] as byte[]);
+            
+            #endregion Buffers -> Temperature
+
+            #region Buffers -> Humidity
+            
+            // Create storage buffer objects for humidity distribution curve.
+            Rid humidityDistributionPointsBuffer   = _renderingDevice.StorageBufferCreate((uint)HumidityDistribution.Points.Length, HumidityDistribution.Points as byte[]);
+            Rid humidityDistributionTangentsBuffer = _renderingDevice.StorageBufferCreate((uint)HumidityDistribution.Tangents.Length, HumidityDistribution.Tangents as byte[]);
+            
+            // Create storage buffer objects for humidity range curve.
+            Rid humidityRangePointsBuffer   = _renderingDevice.StorageBufferCreate((uint)HumidityRange.Points.Length, HumidityRange.Points as byte[]);
+            Rid humidityRangeTangentsBuffer = _renderingDevice.StorageBufferCreate((uint)HumidityRange.Tangents.Length, HumidityRange.Tangents as byte[]);
+            
+            // Create storage buffer objects for humidity min and max values for each biome.
+            Rid biomeHumidityMinBuffer = _renderingDevice.StorageBufferCreate((uint)biomeBytes[2].Length, biomeBytes[2] as byte[]);
+            Rid biomeHumidityMaxBuffer = _renderingDevice.StorageBufferCreate((uint)biomeBytes[3].Length, biomeBytes[3] as byte[]);
+            
+            #endregion Buffers -> Humidity
+
+            #region Uniforms -> Voxels
+
+            // Create uniform for voxel IDs.
+            RDUniform voxelIDsUniform = new()
+            {
+                UniformType = RenderingDevice.UniformType.StorageBuffer,
+                Binding = 0
+            };
+            voxelIDsUniform.AddId(voxelIDBuffer);
+            
+            #endregion Uniforms -> Voxels
+            
+            #region Uniforms -> Temperature
+            
+            // Create uniforms for temperature data.
+            RDUniform temperatureSamplerUniform = new()
+            {
+                UniformType = RenderingDevice.UniformType.SamplerWithTexture,
+                Binding = 0
+            };
+            temperatureSamplerUniform.AddId(temperatureSampler);
+            temperatureSamplerUniform.AddId(temperatureTexture);
+
+            RDUniform temperatureDistributionPointsUniform = new()
+            {
+                UniformType = RenderingDevice.UniformType.StorageBuffer,
+                Binding = 1
+            };
+            temperatureDistributionPointsUniform.AddId(temperatureDistributionPointsBuffer);
+
+            RDUniform temperatureDistributionTangentsUniform = new()
+            {
+                UniformType = RenderingDevice.UniformType.StorageBuffer,
+                Binding = 2
+            };
+            temperatureDistributionTangentsUniform.AddId(temperatureDistributionTangentsBuffer);
+            
+            RDUniform temperatureRangePointsUniform = new()
+            {
+                UniformType = RenderingDevice.UniformType.StorageBuffer,
+                Binding = 3
+            };
+            temperatureRangePointsUniform.AddId(temperatureRangePointsBuffer);
+            
+            RDUniform temperatureRangeTangentsUniform = new()
+            {
+                UniformType = RenderingDevice.UniformType.StorageBuffer,
+                Binding = 4
+            };
+            temperatureRangeTangentsUniform.AddId(temperatureRangeTangentsBuffer);
+            
+            RDUniform biomeTemperatureMinUniform = new()
+            {
+                UniformType = RenderingDevice.UniformType.StorageBuffer,
+                Binding = 5
+            };
+            biomeTemperatureMinUniform.AddId(biomeTemperatureMinBuffer);
+
+            RDUniform biomeTemperatureMaxUniform = new()
+            {
+                UniformType = RenderingDevice.UniformType.StorageBuffer,
+                Binding = 6
+            };
+            biomeTemperatureMaxUniform.AddId(biomeTemperatureMaxBuffer);
+
+            #endregion Uniforms -> Temperature
+
+            #region Uniforms -> Humidity
+
+            // Create uniforms for humidity data.
+            RDUniform humiditySamplerUniform = new()
+            {
+                UniformType = RenderingDevice.UniformType.SamplerWithTexture,
+                Binding = 0
+            };
+            humiditySamplerUniform.AddId(humiditySampler);
+            humiditySamplerUniform.AddId(humidityTexture);
+
+            RDUniform humidityDistributionPointsUniform = new()
+            {
+                UniformType = RenderingDevice.UniformType.StorageBuffer,
+                Binding = 1
+            };
+            humidityDistributionPointsUniform.AddId(humidityDistributionPointsBuffer);
+
+            RDUniform humidityDistributionTangentsUniform = new()
+            {
+                UniformType = RenderingDevice.UniformType.StorageBuffer,
+                Binding = 2
+            };
+            humidityDistributionTangentsUniform.AddId(humidityDistributionTangentsBuffer);
+            
+            RDUniform humidityRangePointsUniform = new()
+            {
+                UniformType = RenderingDevice.UniformType.StorageBuffer,
+                Binding = 3
+            };
+            humidityRangePointsUniform.AddId(humidityRangePointsBuffer);
+            
+            RDUniform humidityRangeTangentsUniform = new()
+            {
+                UniformType = RenderingDevice.UniformType.StorageBuffer,
+                Binding = 4
+            };
+            humidityRangeTangentsUniform.AddId(humidityRangeTangentsBuffer);
+            
+            RDUniform biomeHumidityMinUniform = new()
+            {
+                UniformType = RenderingDevice.UniformType.StorageBuffer,
+                Binding = 5
+            };
+            biomeHumidityMinUniform.AddId(biomeHumidityMinBuffer);
+
+            RDUniform biomeHumidityMaxUniform = new()
+            {
+                UniformType = RenderingDevice.UniformType.StorageBuffer,
+                Binding = 6
+            };
+            biomeHumidityMaxUniform.AddId(biomeHumidityMaxBuffer);
+
+            #endregion Uniforms -> Humidity
+
+            #region Uniform Sets
+
+            // Create voxel ID uniform array.
+            Godot.Collections.Array<RDUniform> voxelUniformArray = new()
+            {
+                voxelIDsUniform
+            };
+            Rid voxelUniformSet = _renderingDevice.UniformSetCreate(voxelUniformArray, _shader, 0);
+            
+            /// Create temperature uniform array.
+            Godot.Collections.Array<RDUniform> temperatureUniformArray = new()
+            {
+                temperatureSamplerUniform,
+                temperatureDistributionPointsUniform,
+                temperatureDistributionTangentsUniform,
+                temperatureRangePointsUniform,
+                temperatureRangeTangentsUniform,
+                biomeTemperatureMinUniform,
+                biomeTemperatureMaxUniform,
+            };
+            Rid temperatureUniformSet = _renderingDevice.UniformSetCreate(temperatureUniformArray, _shader, 1);
+
+            // Create humidity uniform array.
+            Godot.Collections.Array<RDUniform> humidityUniformArray = new()
+            {
+                humiditySamplerUniform,
+                humidityDistributionPointsUniform,
+                humidityDistributionTangentsUniform,
+                humidityRangePointsUniform,
+                humidityRangeTangentsUniform,
+                biomeHumidityMinUniform,
+                biomeHumidityMaxUniform
+            };
+            Rid humidityUniformSet = _renderingDevice.UniformSetCreate(humidityUniformArray, _shader, 2);
+            
+            #endregion Uniform Sets
+
+            #region Pipeline
+
+            // Setup compute pipeline.
+            Rid pipeline = _renderingDevice.ComputePipelineCreate(_shader);
+            long computeList = _renderingDevice.ComputeListBegin();
+            
+            _renderingDevice.ComputeListBindComputePipeline(computeList, pipeline);
+            _renderingDevice.ComputeListBindUniformSet(computeList, voxelUniformSet, 0);
+            _renderingDevice.ComputeListBindUniformSet(computeList, temperatureUniformSet, 1);
+            _renderingDevice.ComputeListBindUniformSet(computeList, humidityUniformSet, 2);
+            _renderingDevice.ComputeListDispatch(computeList, 4, 4, 4);
+            
+            _renderingDevice.ComputeListEnd();
+
+            // Submit the rendering device.
+            _renderingDevice.Submit();
+
+            // Sychronize the rendering device.
+            _renderingDevice.Sync();
+
+            #endregion Pipeline
+
+            #region Results
+
+            byte[] voxelIDBytesOut = _renderingDevice.BufferGetData(voxelIDBuffer);
+            int[] voxelIDsOut = new int[voxelCount];
+            Buffer.BlockCopy(voxelIDBytesOut, 0, voxelIDsOut, 0, voxelIDBytesOut.Length);
+            GD.PrintS("Voxel IDs:", string.Join(", ", voxelIDsOut));
+
+            byte[] tempDistPointsBytesOut = _renderingDevice.BufferGetData(temperatureDistributionPointsBuffer);
+            float[] tempDistPointsOut = new float[_world.TemperatureDistribution.PointCount * 2];
+            Buffer.BlockCopy(tempDistPointsBytesOut, 0, tempDistPointsOut, 0, tempDistPointsBytesOut.Length);
+            GD.PrintS("temperatureDistributionPointBuffer:", string.Join(", ", tempDistPointsOut));
+
+            byte[] tempDistTangentsBytesOut = _renderingDevice.BufferGetData(temperatureDistributionTangentsBuffer);
+            float[] tempDistTangentsOut = new float[_world.TemperatureDistribution.PointCount * 2];
+            Buffer.BlockCopy(tempDistTangentsBytesOut, 0, tempDistTangentsOut, 0, tempDistTangentsBytesOut.Length);
+            GD.PrintS("temperatureDistributionTangentBuffer:", string.Join(", ", tempDistTangentsOut));
+
+            byte[] humDistPointsBytesOut = _renderingDevice.BufferGetData(humidityDistributionPointsBuffer);
+            float[] humDistPointsOut = new float[_world.TemperatureDistribution.PointCount * 2];
+            Buffer.BlockCopy(humDistPointsBytesOut, 0, humDistPointsOut, 0, humDistPointsBytesOut.Length);
+            GD.PrintS("humidityDistributionPointBuffer:", string.Join(", ", humDistPointsOut));
+
+            byte[] humDistTangentsBytesOut = _renderingDevice.BufferGetData(humidityDistributionTangentsBuffer);
+            float[] humDistTangentsOut = new float[_world.TemperatureDistribution.PointCount * 2];
+            Buffer.BlockCopy(humDistTangentsBytesOut, 0, humDistTangentsOut, 0, humDistTangentsBytesOut.Length);
+            GD.PrintS("humidityDistributionTangentBuffer:", string.Join(", ", humDistTangentsOut));
+/*
+            byte[] tempMinBytesOut = _renderingDevice.BufferGetData(biomeTemperatureMinBuffer);
+            int[] tempMinOut = new int[_world.BiomeLibrary.Biomes.Length];
+            Buffer.BlockCopy(tempMinBytesOut, 0, tempMinOut, 0, tempMinBytesOut.Length);
+            GD.PrintS("biomeTemperatureMinBuffer:", string.Join(", ", tempMinOut));
+
+            byte[] tempMaxBytesOut = _renderingDevice.BufferGetData(biomeTemperatureMaxBuffer);
+            int[] tempMaxOut = new int[_world.BiomeLibrary.Biomes.Length];
+            Buffer.BlockCopy(tempMaxBytesOut, 0, tempMaxOut, 0, tempMaxBytesOut.Length);
+            GD.PrintS("biomeTemperatureMaxBuffer:", string.Join(", ", tempMaxOut));
+
+            byte[] humMinBytesOut = _renderingDevice.BufferGetData(biomeHumidityMinBuffer);
+            int[] humMinOut = new int[_world.BiomeLibrary.Biomes.Length];
+            Buffer.BlockCopy(humMinBytesOut, 0, humMinOut, 0, humMinBytesOut.Length);
+            GD.PrintS("biomeHumidityMinBuffer:", string.Join(", ", humMinOut));
+
+            byte[] humMaxBytesOut = _renderingDevice.BufferGetData(biomeHumidityMaxBuffer);
+            int[] humMaxOut = new int[_world.BiomeLibrary.Biomes.Length];
+            Buffer.BlockCopy(humMaxBytesOut, 0, humMaxOut, 0, humMaxBytesOut.Length);
+            GD.PrintS("biomeHumidityMaxBuffer:", string.Join(", ", humMaxOut));
+*/            
+            #endregion Results
+/*            
+            #region Cleanup
+            
+            _renderingDevice.FreeRid(voxelIDBuffer);
+            _renderingDevice.FreeRid(voxelIDUniformSet);
+            
+            _renderingDevice.FreeRid(temperatureTexture);
+            _renderingDevice.FreeRid(temperatureSampler);
+            _renderingDevice.FreeRid(temperatureDistributionPointBuffer);
+            _renderingDevice.FreeRid(temperatureDistributionTangentBuffer);
+            _renderingDevice.FreeRid(temperatureRangePointBuffer);
+            _renderingDevice.FreeRid(temperatureRangeTangentBuffer);
+            _renderingDevice.FreeRid(biomeTemperatureMinBuffer);
+            _renderingDevice.FreeRid(biomeTemperatureMaxBuffer);
+            _renderingDevice.FreeRid(temperatureUniformSet);
+            
+            _renderingDevice.FreeRid(humidityTexture);
+            _renderingDevice.FreeRid(humiditySampler);
+            _renderingDevice.FreeRid(humidityDistributionPointBuffer);
+            _renderingDevice.FreeRid(humidityDistributionTangentBuffer);
+            _renderingDevice.FreeRid(humidityRangePointBuffer);
+            _renderingDevice.FreeRid(humidityRangeTangentBuffer);
+            _renderingDevice.FreeRid(biomeHumidityMinBuffer);
+            _renderingDevice.FreeRid(biomeHumidityMaxBuffer);
+            _renderingDevice.FreeRid(humidityUniformSet);
+
+            _renderingDevice.FreeRid(pipeline);
+
+            #endregion Cleanup
+*/
+        }
+        
+        #endregion Functions -> Compute Shader
+
         #region Functions -> Spatial Shader
 
-        // Send VoxelIDs to the shader.
+        // Send VoxelIDs to the _shader.
         public void GenerateShaderParameters()
         {
             ShaderMaterial terrainShaderMaterial = MaterialOverride as ShaderMaterial;
 
-            // Add shader parameters here using terrainShaderMaterial.SetShaderParameter("shaderArray", _listName.ToArray());
+            // Add _shader parameters here using terrainShaderMaterial.SetShaderParameter("shaderArray", _listName.ToArray());
             terrainShaderMaterial.SetShaderParameter("chunkDimension", _world.ChunkDimension);
             terrainShaderMaterial.SetShaderParameter("_idMapYX", GenerateVoxelIDMaps()[0]);
             terrainShaderMaterial.SetShaderParameter("_idMapYZ", GenerateVoxelIDMaps()[1]);
         }
-        // Convert VoxelIDs to an ImageTexture to be used in the shader.
+        // Convert VoxelIDs to an ImageTexture to be used in the _shader.
         private ImageTexture[] GenerateVoxelIDMaps()
         {
             // Create Images, this works fine.
@@ -349,7 +744,7 @@ namespace RawVoxel
                 {}
 
                 // Create the colors as variables here for easier debugging.
-                // These are meant to be sampled and added together in the shader, hence the split G value.
+                // These are meant to be sampled and added together in the _shader, hence the split G value.
                 Color colorYX = new(voxelColor.R, voxelColor.G / 2, 0.0f);
                 Color colorYZ = new(0.0f, voxelColor.G / 2, voxelColor.B);
 

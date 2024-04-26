@@ -28,38 +28,38 @@ namespace RawVoxel
         #region Exports -> Temperature
         [ExportGroup("Temperature")]
         
-        [Export(PropertyHint.Range, "-200, 200")] public float TemperatureMin
+        [Export(PropertyHint.Range, "-200, 200")] public int TemperatureMin
         {
             get { return _temperatureMin; }
             set { _temperatureMin = value; }
         }
-        private float _temperatureMin = 60;
+        private int _temperatureMin = 60;
         
-        [Export(PropertyHint.Range, "-200, 200")] public float TemperatureMax
+        [Export(PropertyHint.Range, "-200, 200")] public int TemperatureMax
         {
             get { return _temperatureMax; }
             set { _temperatureMax = value; }
         }
-        private float _temperatureMax = 70;
+        private int _temperatureMax = 70;
 
         #endregion Exports -> Temperature
     
         #region Exports -> Humidity
         [ExportGroup("Humidity")]
         
-        [Export(PropertyHint.Range, "0, 100")] public float HumidityMin
+        [Export(PropertyHint.Range, "0, 100")] public int HumidityMin
         {
             get { return _humidityMin; }
             set { _humidityMin = value; }
         }
-        private float _humidityMin = 0;
+        private int _humidityMin = 0;
         
-        [Export(PropertyHint.Range, "0, 100")] public float HumidityMax
+        [Export(PropertyHint.Range, "0, 100")] public int HumidityMax
         {
             get { return _humidityMax; }
             set { _humidityMax = value; }
         }
-        private float _humidityMax = 100;
+        private int _humidityMax = 100;
 
         #endregion Exports -> Temperature
 
