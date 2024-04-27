@@ -17,7 +17,6 @@ uniform int bedrockHeight = 0;
 uniform sampler2D typeMapYX;
 uniform sampler2D typeMapYZ;
 
-
 varying vec4 color;
 varying vec3 normal;
 
@@ -62,6 +61,6 @@ void vertex() {
 }
 
 void fragment() {
-	//ALBEDO = color.rgb;
-	//ALPHA = color.a;
+	ALBEDO = COLOR.rgb;
+	ALPHA = COLOR.a;
 }

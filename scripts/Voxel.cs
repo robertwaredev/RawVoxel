@@ -6,11 +6,7 @@ namespace RawVoxel
     [GlobalClass, Tool]
     public partial class Voxel : Resource
     {
-        #region Constructor
-
         public Voxel() {}
-
-        #endregion Constructor
 
         #region Enums
 

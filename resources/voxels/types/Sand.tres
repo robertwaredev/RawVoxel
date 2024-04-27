@@ -6,4 +6,4 @@
 resource_name = "Sand"
 script = ExtResource("1_hatbv")
 Name = &"Sand"
-Color = Color(0, 0, 0, 0)
+Color = Color(0.75, 0.675, 0.375, 1)

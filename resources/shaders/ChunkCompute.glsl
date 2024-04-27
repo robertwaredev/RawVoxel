@@ -1,11 +1,11 @@
 #[compute]
 #version 450
 
-layout(local_size_x = 4, local_size_y = 4, local_size_z = 4) in;
+layout(local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
 
 
 layout(set = 0, binding = 0, std430) restrict buffer ChunkData {
-    int voxelIDs[];
+    int biomeIDs[];
 } chunkData;
 
 // --- TEMPERATURE --- 
@@ -185,7 +185,7 @@ void main() {
     {
         if (temperature <= biomeMaxTemperatures.values[i] && temperature >= biomeMinTemperatures.values[i])
         {
-            chunkData.voxelIDs[voxelIndex] = int(i);
+            chunkData.biomeIDs[voxelIndex] = int(i);
             break;
         }
     }

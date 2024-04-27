@@ -6,4 +6,4 @@
 resource_name = "Stone"
 script = ExtResource("1_b3nuu")
 Name = &"Stone"
-Color = Color(0, 0, 0, 0)
+Color = Color(0.375, 0.45, 0.5, 1)

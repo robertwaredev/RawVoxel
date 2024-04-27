@@ -7,7 +7,6 @@ using System.Threading.Tasks;
 using System.Collections.Generic;
 
 // TODO - Thread Pool
-// TODO - Convert RecycleChunks and GenerateChunks to threads.
 // TODO - Fix chunk loading to always load chunks closest to focus node at surface level first.
 
 namespace RawVoxel
@@ -15,29 +14,26 @@ namespace RawVoxel
     [GlobalClass, Tool]
     public partial class World : Node3D
     {
-        #region Exports
-        
         #region Exports -> Tools
-        [ExportCategory("Tools")]
 
         [Export] public bool Regenerate
         {
             get { return _regenerate; }
-            set { _regenerate = false; FreeChunks(); _worldGenerated = false; }
+            set { _regenerate = false; FreeChunksViaGridIndices(); _worldGenerated = false; }
         }
         private bool _regenerate = false;
 
         #endregion Exports -> Tools
 
-        #region Exports -> FocusNode
+        #region Exports -> Focus Node
         [Export] public Node3D FocusNode
         {
             get { return _focusNode; }
-            set { _focusNode = value; TryUpdateFocusNodePosition(); _worldGenerated = false; }
+            set { _focusNode = value; TryUpdateFocusNodeGlobalPosition(); _worldGenerated = false; }
         }
         private Node3D _focusNode;
         
-        #endregion Exports -> FocusNode
+        #endregion Exports -> Focus Node
 
         #region Exports -> Voxel Library
 
@@ -67,14 +63,14 @@ namespace RawVoxel
         [Export] public Vector3I DrawRadius
         {
             get { return _drawRadius; }
-            set { _drawRadius = value; }
+            set { _drawRadius = value; UpdateDrawDiameter(); }
         }
         private Vector3I _drawRadius = new(1, 0, 1);
         
         [Export] public Vector3I WorldRadius
         {
             get { return _worldRadius; }
-            set { _worldRadius = value; }
+            set { _worldRadius = value; UpdateWorldDiameter(); }
         }
         private Vector3I _worldRadius = new (128, 1, 128);
         
@@ -180,7 +176,7 @@ namespace RawVoxel
         #region Exports -> Threading
         [ExportGroup("Threading")]
         
-        [Export] public int updateFrequency
+        [Export] public int UpdateFrequency
         {
             get { return _updateFrequency; }
             set { _updateFrequency = value; }
@@ -189,40 +185,33 @@ namespace RawVoxel
 
         #endregion Exports -> Threading
 
-        #endregion Exports
-
+        
         #region Variables -> FocusNode
         
-        private Vector3 _focusNodePosition;
-        public Vector3I FocusNodeChunkPosition = Vector3I.MinValue;
-        private readonly object _focusNodeLock = new();
+        private Vector3 _focusNodeGlobalPosition;
+        private Vector3I _focusNodeChunkGridPosition = Vector3I.MinValue;
+        private readonly object _focusNodePositionLock = new();
         
         #endregion Variables -> FocusNode
 
         #region Variables -> World
         
-        private bool _worldGenerated = false;
+        public int ChunkVoxelCount;
+        public Vector3I DrawDiameter;
+        public Vector3I WorldDiameter;
+        private bool _worldGenerated;
         private readonly object _worldGenerationLock = new();
         
         #endregion Variables -> World
 
-        #region Variables -> Chunks (Index Based)
+        #region Variables -> Chunks
         
-        private readonly List<int> _drawableChunkIndices = new();
-        private readonly List<int> _loadableChunkIndices = new();
-        private readonly List<int> _freeableChunkIndices = new();
-        private readonly Dictionary<int, Chunk> _loadedChunkIndices = new();
+        private readonly List<int> _drawableChunkGridIndices = new();
+        private readonly List<int> _loadableChunkGridIndices = new();
+        private readonly List<int> _freeableChunkGridIndices = new();
+        private readonly Dictionary<int, Chunk> _loadedChunkGridIndices = new();
 
-        #endregion Variables -> Chunks (Index Based)
-
-        #region Variables -> Chunks (Position Based)
-
-        private readonly List<Vector3I> _drawableChunkPositions = new();
-        private readonly List<Vector3I> _loadableChunkPositions = new();
-        private readonly List<Vector3I> _freeableChunkPositions = new();
-        private readonly Dictionary<Vector3I, Chunk> _loadedChunkPositions = new();
-
-        #endregion Variables -> Chunks (Position Based)
+        #endregion Variables -> Chunks
 
         
         #region Functions -> Ready
@@ -253,7 +242,7 @@ namespace RawVoxel
 
         public override void _PhysicsProcess(double delta)
         {
-            TryUpdateFocusNodePosition();
+            TryUpdateFocusNodeGlobalPosition();
         }
         private void WorldProcess()
         {
@@ -261,12 +250,12 @@ namespace RawVoxel
             {
                 if (_worldGenerated == false)
                 {
-                    GenerateChunks();
+                    Generate();
                 }
                 
-                else if (TryUpdateFocusNodeChunkPosition())
+                else if (TryUpdateFocusNodeChunkGridPosition())
                 {
-                    RecycleChunks();
+                    Recycle();
                 }
                 
                 Thread.Sleep(100);
@@ -275,38 +264,38 @@ namespace RawVoxel
         
         #endregion Functions -> Processes
 
-        #region Functions -> FocusNode
+        #region Functions -> Focus Node
 
-        // Set FocusNodeChunkPosition to _focusNode.Position. Locked for thread access.
-        private void TryUpdateFocusNodePosition()
+        // Set _focusNodeGlobalPosition to _focusNode.Position. Locked for thread access.
+        private void TryUpdateFocusNodeGlobalPosition()
         {
             if (_focusNode == null) return;
             
-            // Lock access to _focusNodePosition for primary thread.
-            lock (_focusNodeLock)
+            // Lock access to _focusNodeGlobalPosition for primary thread.
+            lock (_focusNodePositionLock)
             {
-                // Copy _focusNode position to _focusNodePosition so it can be checked accessed in other threads.
-                _focusNodePosition = _focusNode.Position;
+                // Copy _focusNode position to _focusNodeGlobalPosition so it can be checked accessed in other threads.
+                _focusNodeGlobalPosition = _focusNode.Position;
             }
         }
-        // Set FocusNodeChunkPosition when _focusNodePosition points to a different chunk. Locked for thread access.
-        private bool TryUpdateFocusNodeChunkPosition()
+        // Set _focusNodeChunkGridPosition when _focusNodeGlobalPosition points to a different chunk. Locked for thread access.
+        private bool TryUpdateFocusNodeChunkGridPosition()
         {
             if (_focusNode == null) return false;
             
             Vector3I queriedFocusNodeChunkPosition;
             
-            // Lock acccess to _focusNodePosition for secondary thread.
-            lock (_focusNodeLock)
+            // Lock acccess to _focusNodeGlobalPosition for secondary thread.
+            lock (_focusNodePositionLock)
             {
                 // Calculate queriedFocusNodeChunkPosition for the current frame.
-                queriedFocusNodeChunkPosition = (Vector3I)(_focusNodePosition / _chunkDimension).Floor();
+                queriedFocusNodeChunkPosition = (Vector3I)(_focusNodeGlobalPosition / _chunkDimension).Floor();
             }
             
-            // Check to see if _focusNodePosition points to a different chunk. If true, update FocusNodeChunkPosition and return.
-            if (FocusNodeChunkPosition != queriedFocusNodeChunkPosition)
+            // Check to see if _focusNodeGlobalPosition points to a different chunk. If true, update _focusNodeChunkGridPosition and return.
+            if (_focusNodeChunkGridPosition != queriedFocusNodeChunkPosition)
             {
-                FocusNodeChunkPosition = queriedFocusNodeChunkPosition;
+                _focusNodeChunkGridPosition = queriedFocusNodeChunkPosition;
 
                 return true;
             }
@@ -314,386 +303,145 @@ namespace RawVoxel
             return false;
         }
         
-        #endregion Functions -> FocusNode
+        #endregion Functions -> Focus Node
 
         #region Functions -> World
 
-        // Queue, load, and free chunks to and from the scene tree.
-        private void GenerateChunks()
+        private void Generate()
         {   
-            // Ensure that this can't be called if RecycleChunks() is running.
+            // Ensure that this can't be called if Recycle() is running.
             // Ensure that this can't be called again while it's still running.
             // This is to prevent crashes when making changes in the inspector that might cause overlap.
             lock (_worldGenerationLock)
             {
-                TryUpdateFocusNodeChunkPosition();
+                TryUpdateFocusNodeChunkGridPosition();
 
-                GD.PrintS("--- Generating World at:", FocusNodeChunkPosition, "---");
+                GD.PrintS("--- Generating World at:", _focusNodeChunkGridPosition, "---");
 
-                GenerateChunksViaIndices();
+                QueueDrawableChunkGridIndices();
+                QueueLoadableChunkGridIndices();
+                QueueFreeableChunkGridIndices();
+
+                LoadQueuedChunkGridIndices();
+                FreeQueuedChunkGridIndices();
                 
-                GD.PrintS("--- World Generated at:", FocusNodeChunkPosition, "---");
-                GD.Print(" ");
+                GD.PrintS("--- World Generated at:", _focusNodeChunkGridPosition, "---");
 
                 _worldGenerated = true;
             }
         }
-        // Reposition chunks from _freeableChunkPositions to _loadableChunkPositions.
-        private void RecycleChunks()
+        private void Recycle()
         {   
-            // Ensure that this can't be called if GenerateChunks() is running.
+            // Ensure that this can't be called if Generate() is running.
             // Ensure that this can't be called again while it's still running.
             // This is to prevent crashes when making changes in the inspector that might cause overlap.
             lock (_worldGenerationLock)
             {
-                GD.PrintS("--- Updating World at:", FocusNodeChunkPosition, "---");
+                GD.PrintS("--- Updating World at:", _focusNodeChunkGridPosition, "---");
                 
-                RecycleChunksViaIndices();
+                QueueDrawableChunkGridIndices();
+                QueueLoadableChunkGridIndices();
+                QueueFreeableChunkGridIndices();
 
-                GD.PrintS("--- World Updated at:", FocusNodeChunkPosition, "---");
-                GD.Print(" ");
+                RecycleQueuedChunkGridIndices();
+
+                GD.PrintS("--- World Updated at:", _focusNodeChunkGridPosition, "---");
             }
         }
-        // Free all chunks from the scene tree.
-        private void FreeChunks()
+        private void UpdateWorldDiameter()
         {
-            FreeChunksViaIndices();
+            WorldDiameter.X = (_worldRadius.X << 1) + 1;
+            WorldDiameter.Y = (_worldRadius.Y << 1) + 1;
+            WorldDiameter.Z = (_worldRadius.Z << 1) + 1;
         }
-        
+        private void UpdateDrawDiameter()
+        {
+            DrawDiameter.X = (_drawRadius.X << 1) + 1;
+            DrawDiameter.Y = (_drawRadius.Y << 1) + 1;
+            DrawDiameter.Z = (_drawRadius.Z << 1) + 1;
+        }
+
         #endregion Functions -> World
 
-        #region Functions -> Biomes
-
-        public Array[] GetBiomeBytes()
-        {
-            int biomeCount = BiomeLibrary.Biomes.Length;
-            
-            // Biome Temperature Min/Max values.
-            byte[] biomeTemperatureMinBytes =  new byte[biomeCount * sizeof(int)];
-            byte[] biomeTemperatureMaxBytes =  new byte[biomeCount * sizeof(int)];
-            
-            // Biome Humidity Min/Max values.
-            byte[] biomeHumidityMinBytes = new byte[biomeCount * sizeof(int)];
-            byte[] biomeHumidityMaxBytes = new byte[biomeCount * sizeof(int)];
-            
-            int biomeIndex = 0;
-            
-            foreach (Biome biome in BiomeLibrary.Biomes)
-            {
-                // Temperature Min
-                Buffer.BlockCopy(
-                    new int[]{ biome.TemperatureMin }, 0, biomeTemperatureMinBytes, biomeIndex * sizeof(int), sizeof(int)
-                );
-                // Temperature Max
-                Buffer.BlockCopy(
-                    new int[]{ biome.TemperatureMax }, 0, biomeTemperatureMaxBytes, biomeIndex * sizeof(int), sizeof(int)
-                );
-                // Humidity Min
-                Buffer.BlockCopy(
-                    new int[]{ biome.HumidityMin }, 0, biomeHumidityMinBytes, biomeIndex * sizeof(int), sizeof(int)
-                );
-                // Humidity Max
-                Buffer.BlockCopy(
-                    new int[]{ biome.HumidityMax }, 0, biomeHumidityMaxBytes, biomeIndex * sizeof(int), sizeof(int)
-                );
-
-                biomeIndex ++;
-            }
-
-            return new[]
-            {
-                biomeTemperatureMinBytes,
-                biomeTemperatureMaxBytes,
-                biomeHumidityMinBytes,
-                biomeHumidityMaxBytes
-            };
-        }
-        
-        #endregion Functions -> Biomes
-
-        #region Functions -> Chunks (Index Based)
-
-        // Queue, load, and free chunks to and from the scene tree using index handles.
-        private void GenerateChunksViaIndices()
-        {   
-            QueueDrawableChunkIndices();
-            QueueLoadableChunkIndices();
-            QueueFreeableChunkIndices();
-
-            LoadQueuedChunkIndices();
-            FreeQueuedChunkIndices();
-        }
-        // Reposition chunks from _freeableChunkIndices to _loadableChunkIndices.
-        private void RecycleChunksViaIndices()
-        {
-            QueueDrawableChunkIndices();
-            QueueLoadableChunkIndices();
-            QueueFreeableChunkIndices();
-
-            RecycleQueuedChunkIndices();
-        }
-        // Free all chunks from the scene tree using their index handles.
-        private void FreeChunksViaIndices()
-        {
-            if (_loadedChunkIndices.Count == 0) return;
-
-            foreach (int chunkIndex in _loadedChunkIndices.Keys)
-            {
-                Chunk chunk = _loadedChunkIndices[chunkIndex];
-                
-                _loadedChunkIndices.Remove(chunkIndex);
-                
-                chunk.QueueFree();
-            }
-        }
-
+        #region Functions -> Chunks
         
         // Add an index to its respective List for each drawable chunk index.
-        private void QueueDrawableChunkIndices()
+        private void QueueDrawableChunkGridIndices()
         {
-            _drawableChunkIndices.Clear();
+            _drawableChunkGridIndices.Clear();
 
-            // Get the drawable diameter in chunk units.
-            Vector3I drawDiameter = _drawRadius * 2 + Vector3I.One;
-            // Get the number of drawable chunks.
-            int drawableChunkCount = drawDiameter.X * drawDiameter.Y * drawDiameter.Z;
-
-            for (int drawableChunkIndex = 0; drawableChunkIndex < drawableChunkCount; drawableChunkIndex ++)
-            {   
-                // Extract an unsigned chunk position using world draw diameter.
-                Vector3I unsignedChunkDrawablePosition = XYZConvert.IndexToVector3I(drawableChunkIndex, drawDiameter);
-                // Offset to signed chunk position using draw radius.
-                Vector3I signedChunkDrawablePosition = unsignedChunkDrawablePosition - _drawRadius;
-
-                // Add focus node chunk position to signed drawable chunk position to get it's world position.
-                Vector3I signedChunkWorldPosition = signedChunkDrawablePosition + FocusNodeChunkPosition;
-                // Offset to unsigned position using world radius.
-                Vector3I unsignedChunkWorldPosition = signedChunkWorldPosition + _worldRadius;
-                // Wrap unsigned chunk world position within the world diam
-                Vector3I wrappedChunkWorldPosition = unsignedChunkWorldPosition % (_worldRadius * 2 + Vector3I.One);
-                
-                // Convert unsigned chunk world position into an index.
-                int chunkWorldIndex = XYZConvert.Vector3IToIndex(unsignedChunkWorldPosition, _worldRadius * 2 + Vector3I.One);
-                
-                // Off we go.
-                _drawableChunkIndices.Add(chunkWorldIndex);
-            }
-
-            GD.PrintS("--> Drawable chunks:", _drawableChunkIndices.Count);
-        }
-        // Add an index to its respective List for each loadable chunk index.
-        private void QueueLoadableChunkIndices()
-        {
-            if (_drawableChunkIndices.Count == 0) return;
-            
-            _loadableChunkIndices.Clear();
-
-            foreach (int drawableChunkIndex in _drawableChunkIndices)
+            for (int x = 0; x < DrawDiameter.X; x ++)
             {
-                if (_loadedChunkIndices.ContainsKey(drawableChunkIndex) == false)
+                for (int y = 0; y < DrawDiameter.Y; y ++)
                 {
-                    _loadableChunkIndices.Add(drawableChunkIndex);
-                }
-            }
-
-            GD.PrintS("--> Loadable chunks:", _loadableChunkIndices.Count);
-        }
-        // Add an index to its respective List for each freeable chunk index.
-        private void QueueFreeableChunkIndices()
-        {
-            if (_loadedChunkIndices.Count == 0) return;
-            
-            _freeableChunkIndices.Clear();
-
-            foreach (int loadedChunkIndex in _loadedChunkIndices.Keys)
-            {
-                if (_drawableChunkIndices.Contains(loadedChunkIndex) == false)
-                {
-                    _freeableChunkIndices.Add(loadedChunkIndex);
-                }
-            }
-
-            GD.PrintS("--> Freeable chunks:", _freeableChunkIndices.Count);
-        }
-
-        
-        // Load a Chunk instance into the scene tree for each index in _loadableChunkIndices.
-        private void LoadQueuedChunkIndices()
-        {
-            if (_loadableChunkIndices.Count == 0) return;
-            
-            foreach (int loadableChunkIndex in _loadableChunkIndices)
-            {
-                Chunk chunk = new(this, (Material)_terrainMaterial.Duplicate(true));
-                
-                _loadedChunkIndices.Add(loadableChunkIndex, chunk);
-                
-                CallDeferred(Node.MethodName.AddChild, chunk);
-
-                Task generate = new(new Action(() => chunk.CallDeferred(nameof(Chunk.GenerateAtIndex), loadableChunkIndex)));
-                // Task generate = new(new Action(() => chunk.GenerateAtIndex(loadableChunkIndex)));
-
-                generate.Start();
-                generate.Wait();
-
-                Thread.Sleep(_updateFrequency);
-            }
-        
-            _loadableChunkIndices.Clear();
-        }
-        // Free a Chunk instance from the scene tree for each index in _freeableChunkIndices.
-        private void FreeQueuedChunkIndices()
-        {
-            if (_freeableChunkIndices.Count == 0) return;
-
-            foreach (int freeableChunkIndex in _freeableChunkIndices)
-            {
-                Chunk chunk = _loadedChunkIndices[freeableChunkIndex];
-
-                _loadedChunkIndices.Remove(freeableChunkIndex);
-
-                chunk.QueueFree();
-            }
-        
-            _freeableChunkIndices.Clear();
-        }
-        // Reposition Chunk instances from _freeableChunkIndices to _drawableChunkIndices.
-        private void RecycleQueuedChunkIndices()
-        {
-            if (_freeableChunkIndices.Count == 0) return;
-            if (_loadableChunkIndices.Count == 0) return;
-
-            foreach (int freeableChunkIndex in _freeableChunkIndices)
-            {
-                int loadableChunkIndex = _loadableChunkIndices.Last();
-                _loadableChunkIndices.Remove(loadableChunkIndex);
-                
-                Chunk chunk = _loadedChunkIndices[freeableChunkIndex];
-                _loadedChunkIndices.Remove(freeableChunkIndex);
-                _loadedChunkIndices.Add(loadableChunkIndex, chunk);
-
-                Task recycle = new(new Action(() => chunk.CallDeferred(nameof(Chunk.GenerateAtIndex), loadableChunkIndex)));
-                // Task recycle = new(new Action(() => chunk.GenerateAtIndex(loadableChunkIndex)));
-
-                recycle.Start();
-                recycle.Wait();
-
-                Thread.Sleep(_updateFrequency);
-            }
-            
-            _freeableChunkIndices.Clear();
-        }
-
-        #endregion Functions -> Chunks (Index Based)
-
-        #region Functions -> Chunks (Position Based)
-
-        // Queue, load, and free chunks to and from the scene tree position handles.
-        private void GenerateChunksViaPositions()
-        {   
-            QueueDrawableChunkPositions();
-            QueueLoadableChunkPositions();
-            QueueFreeableChunkPositions();
-                
-            LoadQueuedChunkPositions();
-            FreeQueuedChunkPositions();
-        }
-        // Reposition chunks from _freeableChunkPositions to _loadableChunkPositions.
-        private void RecycleChunksViaPositions()
-        {
-            QueueDrawableChunkPositions();
-            QueueLoadableChunkPositions();
-            QueueFreeableChunkPositions();
-            
-            RecycleQueuedChunkPositions();
-        }
-        // Free all chunks from the scene tree using their position handles.
-        private void FreeChunksViaPositions()
-        {
-            if (_loadedChunkPositions.Count == 0) return;
-
-            foreach (Vector3I chunkPosition in _loadedChunkPositions.Keys)
-            {
-                Chunk chunk = _loadedChunkPositions[chunkPosition];
-                
-                _loadedChunkPositions.Remove(chunkPosition);
-                
-                chunk.QueueFree();
-            }
-        }
-        
-        
-        // Add a Vector3I to its respective List for each drawable chunk position.
-        private void QueueDrawableChunkPositions()
-        {
-            _drawableChunkPositions.Clear();
-
-            Vector3I drawableMin = FocusNodeChunkPosition - _drawRadius;
-            Vector3I drawableMax = FocusNodeChunkPosition + _drawRadius;
-            
-            for (int x = drawableMin.X; x <= drawableMax.X; x++)
-            {
-                for (int y = drawableMin.Y; y <= drawableMax.Y; y++)
-                {
-                    for (int z = drawableMin.Z; z <= drawableMax.Z; z++)
+                    for (int z = 0; z < DrawDiameter.Z; z ++)
                     {
-                        _drawableChunkPositions.Add(new(x, y, z));
+                        // Center chunk grid position to Origin then add focus node grid position.
+                        Vector3I signedChunkGridPosition = new Vector3I(x, y, z) - _drawRadius + _focusNodeChunkGridPosition;
+                        
+                        // Offset back to unsigned chunk grid position using world radius.
+                        Vector3I unsignedChunkGridPosition = signedChunkGridPosition + _worldRadius;
+                        
+                        // Convert unsigned chunk grid position back into an index.
+                        int chunkGridIndex = XYZConvert.Vector3IToIndex(unsignedChunkGridPosition, WorldDiameter);
+                        
+                        // Off we go.
+                        _drawableChunkGridIndices.Add(chunkGridIndex);
                     }
                 }
             }
 
-            GD.PrintS("--> Drawable chunks:", _drawableChunkPositions.Count);
+            GD.PrintS("--> Drawable chunks:", _drawableChunkGridIndices.Count);
         }
-        // Add a Vector3I to its respective List for each loadable chunk position.
-        private void QueueLoadableChunkPositions()
+        // Add an index to its respective List for each loadable chunk index.
+        private void QueueLoadableChunkGridIndices()
         {
-            if (_drawableChunkPositions.Count == 0) return;
+            if (_drawableChunkGridIndices.Count == 0) return;
             
-            _loadableChunkPositions.Clear();
+            _loadableChunkGridIndices.Clear();
 
-            foreach (Vector3I chunkPosition in _drawableChunkPositions)
+            foreach (int drawableChunkGridIndex in _drawableChunkGridIndices)
             {
-                if (_loadedChunkPositions.ContainsKey(chunkPosition) == false)
+                if (_loadedChunkGridIndices.ContainsKey(drawableChunkGridIndex) == false)
                 {
-                    _loadableChunkPositions.Add(chunkPosition);
+                    _loadableChunkGridIndices.Add(drawableChunkGridIndex);
                 }
             }
 
-            GD.PrintS("--> Loadable chunks:", _loadableChunkPositions.Count);
+            GD.PrintS("--> Loadable chunks:", _loadableChunkGridIndices.Count);
         }
-        // Add a Vector3I to its respective List for each freeable chunk position.
-        private void QueueFreeableChunkPositions()
+        // Add an index to its respective List for each freeable chunk index.
+        private void QueueFreeableChunkGridIndices()
         {
-            if (_loadedChunkPositions.Count == 0) return;
+            if (_loadedChunkGridIndices.Count == 0) return;
             
-            _freeableChunkPositions.Clear();
+            _freeableChunkGridIndices.Clear();
 
-            foreach (Vector3I chunkPosition in _loadedChunkPositions.Keys)
+            foreach (int loadedChunkGridIndex in _loadedChunkGridIndices.Keys)
             {
-                if (_drawableChunkPositions.Contains(chunkPosition) == false)
+                if (_drawableChunkGridIndices.Contains(loadedChunkGridIndex) == false)
                 {
-                    _freeableChunkPositions.Add(chunkPosition);
+                    _freeableChunkGridIndices.Add(loadedChunkGridIndex);
                 }
             }
 
-            GD.PrintS("--> Freeable chunks:", _freeableChunkPositions.Count);
+            GD.PrintS("--> Freeable chunks:", _freeableChunkGridIndices.Count);
         }
 
-
-        // Load a Chunk instance into the scene tree for each Vector3I in _loadableChunkPositions.
-        private void LoadQueuedChunkPositions()
+        // Load a Chunk instance into the scene tree for each index in _loadableChunkGridIndices.
+        private void LoadQueuedChunkGridIndices()
         {
-            if (_loadableChunkPositions.Count == 0) return;
-            
-            foreach (Vector3I loadableChunkPosition in _loadableChunkPositions)
+            if (_loadableChunkGridIndices.Count == 0) return;
+
+            foreach (int loadableChunkGridIndex in _loadableChunkGridIndices)
             {
-                Chunk chunk = new(this, (Material)_terrainMaterial.Duplicate(true));
+                Chunk chunk = new(this, _terrainMaterial.Duplicate(true) as Material);
                 
-                _loadedChunkPositions.Add(loadableChunkPosition, chunk);
+                _loadedChunkGridIndices.Add(loadableChunkGridIndex, chunk);
                 
                 CallDeferred(Node.MethodName.AddChild, chunk);
 
-                Task generate = new(new Action(() => chunk.CallDeferred(nameof(Chunk.GenerateAtPosition), loadableChunkPosition)));
+                Task generate = new(new Action(() => chunk.CallDeferred(nameof(Chunk.Generate), loadableChunkGridIndex)));
 
                 generate.Start();
                 generate.Wait();
@@ -701,50 +449,67 @@ namespace RawVoxel
                 Thread.Sleep(_updateFrequency);
             }
         
-            _loadableChunkPositions.Clear();
+            _loadableChunkGridIndices.Clear();
         }
-        // Free a Chunk instance from the scene tree for each Vector3I in _freeableChunkPositions.
-        private void FreeQueuedChunkPositions()
+        // Free a Chunk instance from the scene tree for each index in _freeableChunkGridIndices.
+        private void FreeQueuedChunkGridIndices()
         {
-            if (_freeableChunkPositions.Count == 0) return;
+            if (_freeableChunkGridIndices.Count == 0) return;
 
-            foreach (Vector3I freeableChunkPosition in _freeableChunkPositions)
+            foreach (int freeableChunkGridIndex in _freeableChunkGridIndices)
             {
-                Chunk chunk = _loadedChunkPositions[freeableChunkPosition];
-                
-                _loadedChunkPositions.Remove(freeableChunkPosition);
-                
+                Chunk chunk = _loadedChunkGridIndices[freeableChunkGridIndex];
+
+                _loadedChunkGridIndices.Remove(freeableChunkGridIndex);
+
                 chunk.QueueFree();
             }
         
-            _freeableChunkPositions.Clear();
+            _freeableChunkGridIndices.Clear();
         }
-        // Reposition Chunk instances from _freeableChunkPositions to _drawableChunkPositions.
-        private void RecycleQueuedChunkPositions()
+        // Reposition Chunk instances from _freeableChunkGridIndices to _drawableChunkGridIndices.
+        private void RecycleQueuedChunkGridIndices()
         {
-            if (_loadableChunkPositions.Count == 0) return;
-            if (_freeableChunkPositions.Count == 0) return;
+            if (_freeableChunkGridIndices.Count == 0) return;
+            if (_loadableChunkGridIndices.Count == 0) return;
 
-            foreach (Vector3I loadableChunkPosition in _loadableChunkPositions)
+            foreach (int freeableChunkGridIndex in _freeableChunkGridIndices)
             {
-                Vector3I freeableChunkPosition = _freeableChunkPositions.First();
-                Chunk chunk = _loadedChunkPositions[freeableChunkPosition];
+                int loadableChunkGridIndex = _loadableChunkGridIndices.First();
                 
-                _freeableChunkPositions.Remove(freeableChunkPosition);
-                _loadedChunkPositions.Remove(freeableChunkPosition);
-                _loadedChunkPositions.Add(loadableChunkPosition, chunk);
+                _loadableChunkGridIndices.Remove(loadableChunkGridIndex);
+                
+                Chunk chunk = _loadedChunkGridIndices[freeableChunkGridIndex];
+                
+                _loadedChunkGridIndices.Remove(freeableChunkGridIndex);
+                _loadedChunkGridIndices.Add(loadableChunkGridIndex, chunk);
 
-                Task recycle = new(new Action(() => chunk.CallDeferred(nameof(Chunk.GenerateAtPosition), loadableChunkPosition)));
+                Task recycle = new(new Action(() => chunk.CallDeferred(nameof(Chunk.Generate), loadableChunkGridIndex)));
 
                 recycle.Start();
                 recycle.Wait();
 
                 Thread.Sleep(_updateFrequency);
             }
-
-            _loadableChunkPositions.Clear();
+            
+            _freeableChunkGridIndices.Clear();
         }
 
-        #endregion Functions -> Chunks (Position Based)
+        // Free all chunks from the scene tree using their index handles.
+        private void FreeChunksViaGridIndices()
+        {
+            if (_loadedChunkGridIndices.Count == 0) return;
+
+            foreach (int loadedChunkGridIndex in _loadedChunkGridIndices.Keys)
+            {
+                Chunk chunk = _loadedChunkGridIndices[loadedChunkGridIndex];
+                
+                _loadedChunkGridIndices.Remove(loadedChunkGridIndex);
+                
+                chunk.QueueFree();
+            }
+        }
+        
+        #endregion Functions -> Chunks
     }
 }

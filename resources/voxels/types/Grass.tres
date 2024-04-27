@@ -6,4 +6,4 @@
 resource_name = "Grass"
 script = ExtResource("1_iqjju")
 Name = &"Grass"
-Color = Color(0, 0, 0, 0)
+Color = Color(0.125, 0.5, 0.125, 1)

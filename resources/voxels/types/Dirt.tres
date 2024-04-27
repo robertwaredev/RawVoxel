@@ -6,4 +6,4 @@
 resource_name = "Dirt"
 script = ExtResource("1_cdgfh")
 Name = &"Dirt"
-Color = Color(0, 0, 0, 0)
+Color = Color(0.25, 0.171875, 0.0625, 1)

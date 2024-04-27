@@ -32,7 +32,6 @@ namespace RawVoxel
                 {
                     collidedChunk.SetVoxelID(voxelGlobalPosition, Voxel.Type.Air);
                     collidedChunk.Update();
-                    collidedChunk.GenerateShaderParameters();
                 }
             }
             
@@ -42,7 +41,6 @@ namespace RawVoxel
                 {
                     collidedChunk.SetVoxelID(voxelGlobalPosition + (Vector3I)collisionNormal, Voxel.Type.Stone);
                     collidedChunk.Update();
-                    collidedChunk.GenerateShaderParameters();
                 }
             }
         }
