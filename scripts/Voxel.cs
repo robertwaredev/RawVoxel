@@ -8,17 +8,7 @@ namespace RawVoxel
     {
         public Voxel() {}
 
-        #region Enums
-
-        // FIXME - Remove Type enum when this resource becomes stable.
-        public enum Type { Air, Bedrock, Stone, Dirt, Grass, Sand }
-        public enum Vertex { FrontTopLeft, FrontBtmLeft, FrontTopRight, FrontBtmRight, BackTopLeft, BackBtmLeft, BackTopRight, BackBtmRight }
-        public enum Face { Top, Btm, West, East, North, South }
-        public enum UV { TopLeft, BtmLeft, TopRight, BtmRight }
-        
-        #endregion Enums
-        
-        #region Exports -> Voxel
+        #region Exports
         
         [Export] public StringName Name
         {
@@ -26,6 +16,7 @@ namespace RawVoxel
             set { _name = value; ResourceName = _name; }
         }
         private StringName _name = new();
+        
         [Export] public Color Color
         {
             get { return _color; }
@@ -33,20 +24,18 @@ namespace RawVoxel
         }
         private Color _color;
         
-        #endregion Exports -> Voxel
+        #endregion Exports
 
-        #region Variables -> Voxel
+        #region Enums
+
+        public enum Vertex { FrontTopLeft, FrontBtmLeft, FrontTopRight, FrontBtmRight, BackTopLeft, BackBtmLeft, BackTopRight, BackBtmRight }
+        public enum Face { Top, Btm, West, East, North, South }
+        public enum UV { TopLeft, BtmLeft, TopRight, BtmRight }
         
-        // FIXME - Remove Colors dictionary when this resource becomes stable.
-        public static readonly Dictionary<Type, Color> Colors = new()
-        {
-            {Voxel.Type.Air,        Godot.Colors.Transparent},
-            {Voxel.Type.Bedrock,    Godot.Colors.Black},
-            {Voxel.Type.Stone,      Godot.Colors.DimGray},
-            {Voxel.Type.Dirt,       Godot.Colors.SaddleBrown},
-            {Voxel.Type.Grass,      Godot.Colors.DarkGreen},
-            {Voxel.Type.Sand,       Godot.Colors.Chocolate},
-        };
+        #endregion Enums
+
+        #region Variables
+        
         public static readonly Dictionary<Vertex, Vector3I> Vertices = new()
         {
             {Vertex.FrontTopLeft,    new(0, 1, 1)},
@@ -75,6 +64,6 @@ namespace RawVoxel
             {UV.TopRight,   new(1,  0)}
         };
     
-        #endregion Variables -> Voxel
+        #endregion Variables
     }
 }

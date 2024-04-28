@@ -6,12 +6,7 @@ namespace RawVoxel
     [GlobalClass, Tool]
     public partial class Biome : Resource
     {
-        #region Constructor
-
         public Biome() {}
-        
-        #endregion Constructor
-
         
         #region Exports -> Layers
         [ExportCategory("Layers")]
@@ -62,6 +57,18 @@ namespace RawVoxel
         private int _humidityMax = 100;
 
         #endregion Exports -> Temperature
+
+        #region Exports -> Height
+        [ExportGroup("Height")]
+        // Controls height sampling for this layer. This sampled in 2D.
+        [Export] public FastNoiseLite HeightNoise
+        {
+            get { return _heightNoise; }
+            set { _heightNoise = value; }
+        }
+        private FastNoiseLite _heightNoise = new();
+        
+        #endregion Exports -> Height
 
         #region Exports -> Density
         [ExportGroup("Density")]

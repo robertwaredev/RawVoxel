@@ -1,10 +1,10 @@
 [gd_resource type="Resource" script_class="BiomeLibrary" load_steps=4 format=3 uid="uid://dhp2vpg0buv7r"]
 
-[ext_resource type="Resource" uid="uid://b60p7ir6ohe2d" path="res://addons/RawVoxel/resources/biomes/types/plains/PlainsBiome.tres" id="1_q0dhw"]
+[ext_resource type="Resource" uid="uid://b60p7ir6ohe2d" path="res://addons/RawVoxel/resources/biomes/types/PlainsBiome.tres" id="1_hjiyp"]
 [ext_resource type="Script" path="res://addons/RawVoxel/scripts/BiomeLibrary.cs" id="1_ratbb"]
-[ext_resource type="Resource" uid="uid://dr48in2yja7pv" path="res://addons/RawVoxel/resources/biomes/types/mountains/MountainsBiome.tres" id="2_it8is"]
+[ext_resource type="Resource" uid="uid://dr48in2yja7pv" path="res://addons/RawVoxel/resources/biomes/types/MountainsBiome.tres" id="2_pv4o7"]
 
 [resource]
 resource_name = "Raw Biome Library"
 script = ExtResource("1_ratbb")
-Biomes = [ExtResource("1_q0dhw"), ExtResource("2_it8is")]
+Biomes = [ExtResource("1_hjiyp"), ExtResource("2_pv4o7")]

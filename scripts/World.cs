@@ -19,7 +19,7 @@ namespace RawVoxel
         [Export] public bool Regenerate
         {
             get { return _regenerate; }
-            set { _regenerate = false; FreeChunksViaGridIndices(); _worldGenerated = false; }
+            set { _regenerate = false; FreeChunks(); _chunksGenerated = false; }
         }
         private bool _regenerate = false;
 
@@ -29,7 +29,7 @@ namespace RawVoxel
         [Export] public Node3D FocusNode
         {
             get { return _focusNode; }
-            set { _focusNode = value; TryUpdateFocusNodeGlobalPosition(); _worldGenerated = false; }
+            set { _focusNode = value; TryUpdateFocusNodeGlobalPosition(); _chunksGenerated = false; }
         }
         private Node3D _focusNode;
         
@@ -63,16 +63,16 @@ namespace RawVoxel
         [Export] public Vector3I DrawRadius
         {
             get { return _drawRadius; }
-            set { _drawRadius = value; UpdateDrawDiameter(); }
+            set { _drawRadius = value; UpdateDrawDiameter(); _chunksGenerated = false; }
         }
-        private Vector3I _drawRadius = new(1, 0, 1);
+        private Vector3I _drawRadius = new(1, 1, 1);
         
         [Export] public Vector3I WorldRadius
         {
             get { return _worldRadius; }
             set { _worldRadius = value; UpdateWorldDiameter(); }
         }
-        private Vector3I _worldRadius = new (128, 1, 128);
+        private Vector3I _worldRadius = new (128, 128, 128);
         
         [Export] public Vector3I ChunkDimension
         {
@@ -181,30 +181,30 @@ namespace RawVoxel
             get { return _updateFrequency; }
             set { _updateFrequency = value; }
         }
-        private int _updateFrequency = 100;
+        private int _updateFrequency = 10;
 
         #endregion Exports -> Threading
 
         
-        #region Variables -> FocusNode
+        #region Variables -> Focus Node
         
         private Vector3 _focusNodeGlobalPosition;
         private Vector3I _focusNodeChunkGridPosition = Vector3I.MinValue;
         private readonly object _focusNodePositionLock = new();
         
-        #endregion Variables -> FocusNode
+        #endregion Variables -> Focus Node
 
         #region Variables -> World
         
-        public int ChunkVoxelCount;
         public Vector3I DrawDiameter;
         public Vector3I WorldDiameter;
-        private bool _worldGenerated;
-        private readonly object _worldGenerationLock = new();
         
         #endregion Variables -> World
 
         #region Variables -> Chunks
+        
+        private bool _chunksGenerated;
+        private readonly object _chunkGenerationLock = new();
         
         private readonly List<int> _drawableChunkGridIndices = new();
         private readonly List<int> _loadableChunkGridIndices = new();
@@ -214,12 +214,13 @@ namespace RawVoxel
         #endregion Variables -> Chunks
 
         
-        #region Functions -> Ready
+        #region Functions -> Processes
 
         public override void _Ready()
         {
-            Thread WorldThread = new(new ThreadStart(WorldProcess)) { Name = "World Thread" };
+            GenerateChunks();
             
+            Thread WorldThread = new(new ThreadStart(WorldProcess)) { Name = "World Thread" };
             WorldThread.Start();
         }
         public override string[] _GetConfigurationWarnings()
@@ -235,11 +236,6 @@ namespace RawVoxel
 
             return new string[]{};
         }
-
-        #endregion Functions -> Ready
-
-        #region Functions -> Processes
-
         public override void _PhysicsProcess(double delta)
         {
             TryUpdateFocusNodeGlobalPosition();
@@ -248,14 +244,14 @@ namespace RawVoxel
         {
             while (IsInstanceValid(this))
             {
-                if (_worldGenerated == false)
+                if (_chunksGenerated == false)
                 {
-                    Generate();
+                    GenerateChunks();
                 }
                 
                 else if (TryUpdateFocusNodeChunkGridPosition())
                 {
-                    Recycle();
+                    WrapChunks();
                 }
                 
                 Thread.Sleep(100);
@@ -266,7 +262,6 @@ namespace RawVoxel
 
         #region Functions -> Focus Node
 
-        // Set _focusNodeGlobalPosition to _focusNode.Position. Locked for thread access.
         private void TryUpdateFocusNodeGlobalPosition()
         {
             if (_focusNode == null) return;
@@ -278,7 +273,6 @@ namespace RawVoxel
                 _focusNodeGlobalPosition = _focusNode.Position;
             }
         }
-        // Set _focusNodeChunkGridPosition when _focusNodeGlobalPosition points to a different chunk. Locked for thread access.
         private bool TryUpdateFocusNodeChunkGridPosition()
         {
             if (_focusNode == null) return false;
@@ -307,12 +301,9 @@ namespace RawVoxel
 
         #region Functions -> World
 
-        private void Generate()
+        private void GenerateChunks()
         {   
-            // Ensure that this can't be called if Recycle() is running.
-            // Ensure that this can't be called again while it's still running.
-            // This is to prevent crashes when making changes in the inspector that might cause overlap.
-            lock (_worldGenerationLock)
+            lock (_chunkGenerationLock)
             {
                 TryUpdateFocusNodeChunkGridPosition();
 
@@ -327,15 +318,12 @@ namespace RawVoxel
                 
                 GD.PrintS("--- World Generated at:", _focusNodeChunkGridPosition, "---");
 
-                _worldGenerated = true;
+                _chunksGenerated = true;
             }
         }
-        private void Recycle()
+        private void WrapChunks()
         {   
-            // Ensure that this can't be called if Generate() is running.
-            // Ensure that this can't be called again while it's still running.
-            // This is to prevent crashes when making changes in the inspector that might cause overlap.
-            lock (_worldGenerationLock)
+            lock (_chunkGenerationLock)
             {
                 GD.PrintS("--- Updating World at:", _focusNodeChunkGridPosition, "---");
                 
@@ -343,11 +331,25 @@ namespace RawVoxel
                 QueueLoadableChunkGridIndices();
                 QueueFreeableChunkGridIndices();
 
-                RecycleQueuedChunkGridIndices();
+                WrapQueuedChunkGridIndices();
 
                 GD.PrintS("--- World Updated at:", _focusNodeChunkGridPosition, "---");
             }
         }
+        private void FreeChunks()
+        {
+            if (_loadedChunkGridIndices.Count == 0) return;
+
+            foreach (int loadedChunkGridIndex in _loadedChunkGridIndices.Keys)
+            {
+                Chunk chunk = _loadedChunkGridIndices[loadedChunkGridIndex];
+                
+                _loadedChunkGridIndices.Remove(loadedChunkGridIndex);
+                
+                chunk.QueueFree();
+            }
+        }
+
         private void UpdateWorldDiameter()
         {
             WorldDiameter.X = (_worldRadius.X << 1) + 1;
@@ -365,7 +367,6 @@ namespace RawVoxel
 
         #region Functions -> Chunks
         
-        // Add an index to its respective List for each drawable chunk index.
         private void QueueDrawableChunkGridIndices()
         {
             _drawableChunkGridIndices.Clear();
@@ -393,7 +394,6 @@ namespace RawVoxel
 
             GD.PrintS("--> Drawable chunks:", _drawableChunkGridIndices.Count);
         }
-        // Add an index to its respective List for each loadable chunk index.
         private void QueueLoadableChunkGridIndices()
         {
             if (_drawableChunkGridIndices.Count == 0) return;
@@ -410,7 +410,6 @@ namespace RawVoxel
 
             GD.PrintS("--> Loadable chunks:", _loadableChunkGridIndices.Count);
         }
-        // Add an index to its respective List for each freeable chunk index.
         private void QueueFreeableChunkGridIndices()
         {
             if (_loadedChunkGridIndices.Count == 0) return;
@@ -428,7 +427,6 @@ namespace RawVoxel
             GD.PrintS("--> Freeable chunks:", _freeableChunkGridIndices.Count);
         }
 
-        // Load a Chunk instance into the scene tree for each index in _loadableChunkGridIndices.
         private void LoadQueuedChunkGridIndices()
         {
             if (_loadableChunkGridIndices.Count == 0) return;
@@ -451,7 +449,6 @@ namespace RawVoxel
         
             _loadableChunkGridIndices.Clear();
         }
-        // Free a Chunk instance from the scene tree for each index in _freeableChunkGridIndices.
         private void FreeQueuedChunkGridIndices()
         {
             if (_freeableChunkGridIndices.Count == 0) return;
@@ -467,8 +464,7 @@ namespace RawVoxel
         
             _freeableChunkGridIndices.Clear();
         }
-        // Reposition Chunk instances from _freeableChunkGridIndices to _drawableChunkGridIndices.
-        private void RecycleQueuedChunkGridIndices()
+        private void WrapQueuedChunkGridIndices()
         {
             if (_freeableChunkGridIndices.Count == 0) return;
             if (_loadableChunkGridIndices.Count == 0) return;
@@ -495,21 +491,6 @@ namespace RawVoxel
             _freeableChunkGridIndices.Clear();
         }
 
-        // Free all chunks from the scene tree using their index handles.
-        private void FreeChunksViaGridIndices()
-        {
-            if (_loadedChunkGridIndices.Count == 0) return;
-
-            foreach (int loadedChunkGridIndex in _loadedChunkGridIndices.Keys)
-            {
-                Chunk chunk = _loadedChunkGridIndices[loadedChunkGridIndex];
-                
-                _loadedChunkGridIndices.Remove(loadedChunkGridIndex);
-                
-                chunk.QueueFree();
-            }
-        }
-        
         #endregion Functions -> Chunks
     }
 }

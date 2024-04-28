@@ -1,8 +1,9 @@
-[gd_resource type="Resource" script_class="Biome" load_steps=6 format=3 uid="uid://b60p7ir6ohe2d"]
+[gd_resource type="Resource" script_class="Biome" load_steps=12 format=3 uid="uid://b60p7ir6ohe2d"]
 
-[ext_resource type="Resource" uid="uid://4o7ay81iuntl" path="res://addons/RawVoxel/resources/biomes/types/plains/PlainsTop.tres" id="1_pisxa"]
-[ext_resource type="Resource" uid="uid://d0xmvexl14nje" path="res://addons/RawVoxel/resources/biomes/types/plains/PlainsBtm.tres" id="5_nesia"]
-[ext_resource type="Script" path="res://addons/RawVoxel/scripts/Biome.cs" id="6_o16ph"]
+[ext_resource type="Resource" uid="uid://d0j83ppg38n6t" path="res://addons/RawVoxel/resources/voxels/types/Grass.tres" id="1_4k0b2"]
+[ext_resource type="Script" path="res://addons/RawVoxel/scripts/BiomeLayer.cs" id="2_e68d4"]
+[ext_resource type="Resource" uid="uid://b4w3wl1coeanw" path="res://addons/RawVoxel/resources/voxels/types/Bedrock.tres" id="3_aci8d"]
+[ext_resource type="Script" path="res://addons/RawVoxel/scripts/Biome.cs" id="4_sjf56"]
 
 [sub_resource type="Curve" id="Curve_jxc0h"]
 _data = [Vector2(0, 0), 0.0, 0.0, 0, 0, Vector2(0, 0), 0.0, 0.0, 0, 0, Vector2(0, 0), 0.0, 0.0, 0, 0, Vector2(0, 0), 0.0, 0.0, 0, 0, Vector2(0, 0), 0.0, 0.0, 0, 0, Vector2(0, 0), 0.0, 0.0, 0, 0, Vector2(0, 0), 0.0, 0.0, 0, 0, Vector2(0, 0), 0.0, 0.0, 0, 0, Vector2(0, 0), 0.0, 0.0, 0, 0, Vector2(0, 0), 0.0, 0.0, 0, 0, Vector2(0, 0), 0.0, 0.0, 0, 0, Vector2(0, 0), 0.0, 0.0, 0, 0, Vector2(0, 0), 0.0, 0.0, 0, 0, Vector2(0, 0), 0.0, 0.0, 0, 0, Vector2(0, 0), 0.0, 0.0, 0, 0, Vector2(0, 0), 0.0, 0.0, 0, 0, Vector2(0, 0), 0.0, 0.0, 0, 0, Vector2(0, 0), 0.0, 0.0, 0, 0, Vector2(0, 0), 0.0, 0.0, 0, 0, Vector2(0, 0), 0.0, 0.0, 0, 0, Vector2(0, 0), 0.0, 0.0, 0, 0, Vector2(0, 0), 0.0, 0.0, 0, 0, Vector2(0, 0), 0.0, 0.0, 0, 0, Vector2(0.5, 1), 0.0, 0.0, 0, 0, Vector2(1, 1), 0.0, 0.0, 0, 0, Vector2(1, 1), 0.0, 0.0, 0, 0, Vector2(1, 1), 0.0, 0.0, 0, 0, Vector2(1, 1), 0.0, 0.0, 0, 0, Vector2(1, 1), 0.0, 0.0, 0, 0, Vector2(1, 1), 0.0, 0.0, 0, 0, Vector2(1, 1), 0.0, 0.0, 0, 0, Vector2(1, 1), 0.0, 0.0, 0, 0, Vector2(1, 1), 0.0, 0.0, 0, 0, Vector2(1, 1), 0.0, 0.0, 0, 0, Vector2(1, 1), 0.0, 0.0, 0, 0, Vector2(1, 1), 0.0, 0.0, 0, 0, Vector2(1, 1), 0.0, 0.0, 0, 0, Vector2(1, 1), 0.0, 0.0, 0, 0, Vector2(1, 1), 0.0, 0.0, 0, 0, Vector2(1, 1), 0.0, 0.0, 0, 0, Vector2(1, 1), 0.0, 0.0, 0, 0, Vector2(1, 1), 0.0, 0.0, 0, 0, Vector2(1, 1), 0.0, 0.0, 0, 0, Vector2(1, 1), 0.0, 0.0, 0, 0, Vector2(1, 1), 0.0, 0.0, 0, 0, Vector2(1, 1), 0.0, 0.0, 0, 0]
@@ -14,13 +15,43 @@ metadata/_snap_count = 8
 frequency = 0.003
 metadata/_preview_in_3d_space_ = true
 
+[sub_resource type="FastNoiseLite" id="FastNoiseLite_ub3bu"]
+
+[sub_resource type="Curve" id="Curve_65kmv"]
+min_value = -3.0
+max_value = 0.0
+_data = [Vector2(0, -3), 0.0, 0.0, 0, 0, Vector2(1, 0), 0.0, 0.0, 0, 0]
+point_count = 2
+metadata/_snap_enabled = true
+metadata/_snap_count = 16
+
+[sub_resource type="Resource" id="Resource_gumvy"]
+resource_name = "Grass"
+script = ExtResource("2_e68d4")
+VoxelType = ExtResource("1_4k0b2")
+Height = 0
+HeightCurve = SubResource("Curve_65kmv")
+
+[sub_resource type="Curve" id="Curve_wremd"]
+max_value = 3.0
+_data = [Vector2(0, 0), 0.0, 3.0, 0, 1, Vector2(1, 3), 3.0, 0.0, 1, 0]
+point_count = 2
+
+[sub_resource type="Resource" id="Resource_2htbq"]
+resource_name = "Bedrock"
+script = ExtResource("2_e68d4")
+VoxelType = ExtResource("3_aci8d")
+Height = -128
+HeightCurve = SubResource("Curve_wremd")
+
 [resource]
 resource_name = "Plains"
-script = ExtResource("6_o16ph")
-Layers = [ExtResource("1_pisxa"), ExtResource("5_nesia")]
+script = ExtResource("4_sjf56")
+Layers = [SubResource("Resource_gumvy"), SubResource("Resource_2htbq")]
 TemperatureMin = 0
 TemperatureMax = 100
 HumidityMin = 50
 HumidityMax = 100
+HeightNoise = SubResource("FastNoiseLite_ub3bu")
 DensityNoise = SubResource("FastNoiseLite_qoo5e")
 DensityCurve = SubResource("Curve_jxc0h")

@@ -4,6 +4,8 @@ namespace RawVoxel
 {
     public partial class VoxelPicker : RayCast3D
     {
+        public VoxelPicker() {}
+        
         [Export] MeshInstance3D VoxelHighlight;
         
         private readonly object voxelEditLock = new();
@@ -30,7 +32,7 @@ namespace RawVoxel
             {
                 lock (voxelEditLock)
                 {
-                    collidedChunk.SetVoxelID(voxelGlobalPosition, Voxel.Type.Air);
+                    collidedChunk.SetVoxelID(voxelGlobalPosition, 0);
                     collidedChunk.Update();
                 }
             }
@@ -39,7 +41,7 @@ namespace RawVoxel
             {
                 lock (voxelEditLock)
                 {
-                    collidedChunk.SetVoxelID(voxelGlobalPosition + (Vector3I)collisionNormal, Voxel.Type.Stone);
+                    collidedChunk.SetVoxelID(voxelGlobalPosition + (Vector3I)collisionNormal, 1);
                     collidedChunk.Update();
                 }
             }
