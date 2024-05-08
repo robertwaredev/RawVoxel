@@ -6,14 +6,14 @@ using System.Collections.Generic;
 namespace RawVoxel
 {
     [GlobalClass, Tool]
-    public partial class Chunk : MeshInstance3D
+    public partial class Chunk : MeshInstance3D, IVoxelContainer
     {
         #region Variables
 
-        public World World;
-        public Biome Biome;
-        public BitArray VoxelBits;
-        public byte[] VoxelIDs;
+        public World World { get; set; }
+        public Biome Biome { get; set; }
+        public BitArray VoxelBits { get; set; }
+        public byte[] VoxelIDs { get; set; }
         
         private readonly List<Vector3> _surfaceVertices = new();
         private readonly List<Vector3> _surfaceNormals = new();
@@ -28,30 +28,14 @@ namespace RawVoxel
             MaterialOverride = world.TerrainMaterial;
         }
 
-        // Chunk generation.
-        public void GenerateChunkData(Vector3I chunkGridPosition)
+        // Voxel generation.
+        public void GenerateVoxels(Vector3I chunkGridPosition)
         {
             Position = chunkGridPosition * World.ChunkDiameter;
             Biome = Biome.Generate(World, chunkGridPosition);
             
-            RawTimer.Time(GenerateVoxels, RawTimer.AppendLine.Pre);
-            
-            GenerateChunkMesh();
-        }
-        public void GenerateChunkMesh()
-        {
-            RawTimer.Time(GenerateChunkMeshData);
-            RawTimer.Time(GenerateChunkMeshSurface);
-            RawTimer.Time(GenerateChunkMeshCollision, RawTimer.AppendLine.Post);
-        }
-
-        // Voxel generation.
-        private void GenerateVoxels()
-        {
             int voxelCount = World.ChunkDiameter.X * World.ChunkDiameter.Y * World.ChunkDiameter.Z;
-            
             VoxelBits = new BitArray(voxelCount);
-            
             VoxelIDs = new byte[voxelCount];
 
             for (int voxelGridIndex = 0; voxelGridIndex < VoxelIDs.Length; voxelGridIndex ++)
@@ -68,10 +52,19 @@ namespace RawVoxel
                     VoxelBits.Set(voxelGridIndex, true);
                 }
             }
+        
+            GenerateMesh();
+        }
+        // Mesh generation.
+        public void GenerateMesh()
+        {
+            RawTimer.Time(GenerateMeshData);
+            RawTimer.Time(GenerateMeshSurface);
+            RawTimer.Time(GenerateMeshCollision, RawTimer.AppendLine.Post);
         }
 
         // Chunk mesh data generation.
-        private void GenerateChunkMeshData()
+        public void GenerateMeshData()
         {
             // Prevent mesh creation with no voxel IDs.
             if (VoxelIDs.Length == 0) return;
@@ -120,7 +113,7 @@ namespace RawVoxel
         }
         
         // Chunk mesh surface generation.
-        private void GenerateChunkMeshSurface()
+        public void GenerateMeshSurface()
         {
             // Clear existing mesh.
             if (IsInstanceValid(Mesh)) Mesh = null;
@@ -161,7 +154,7 @@ namespace RawVoxel
         }
         
         // Chunk mesh collision generation.
-        private void GenerateChunkMeshCollision()
+        public void GenerateMeshCollision()
         {
             if (Mesh == null) return;
 

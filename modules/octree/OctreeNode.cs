@@ -8,21 +8,17 @@ using System.Collections.Generic;
 
 namespace RawVoxel
 {
-    public partial class OctreeNode : MeshInstance3D
+    public partial class OctreeNode : MeshInstance3D, IVoxelContainer
     {
         #region Variables
         
-        public readonly World World;
+        public World World { get; set; }
+        public Biome Biome { get; set; }
+        public BitArray VoxelBits { get; set; } = new(1);
+        public byte[] VoxelIDs { get; set; } = new byte[1];
         
         public readonly byte Branch;
-
-        public Biome Biome;
-        
         public OctreeNode[] Leaves;
-
-        public BitArray VoxelBits = new(1);
-        
-        public byte[] VoxelIDs = new byte[1];
 
         private readonly List<Vector3> _vertices = new();
         private readonly List<Vector3> _normals = new();
@@ -37,10 +33,10 @@ namespace RawVoxel
             Branch = branch;
         }
 
-        public void Generate(Vector3I globalPosition, Biome biome)
+        public void GenerateVoxels(Vector3I globalPosition)
         {
             Position = globalPosition;
-            Biome = biome;
+            Biome = Biome.Generate(World, globalPosition);
             
             if (Branch == 0)
             {
@@ -63,9 +59,13 @@ namespace RawVoxel
                 }
             }
 */
-            GenerateMeshData();
             GenerateMesh();
-            GenerateCollision();
+        }
+        public void GenerateMesh()
+        {
+            GenerateMeshData();
+            GenerateMeshSurface();
+            GenerateMeshCollision();
         }
 
         // Voxel generation.
@@ -181,7 +181,7 @@ namespace RawVoxel
                 CallDeferred(Node.MethodName.AddChild, leaf);
 
                 // Generate leaf task.
-                Task generate = new(new Action(() => leaf.CallDeferred(nameof(Generate), nestedLeafPosition, Biome)));
+                Task generate = new(new Action(() => leaf.CallDeferred(nameof(GenerateVoxels), nestedLeafPosition, Biome)));
 
                 // Start task and await its completion.
                 generate.Start();
@@ -192,7 +192,7 @@ namespace RawVoxel
         }
 
         // Mesh generation.
-        private void GenerateMeshData()
+        public void GenerateMeshData()
         {
             //Color color = _root.VoxelLibrary.Voxels[VoxelIDs[0]].Color;
             Color color = Colors.OrangeRed;
@@ -227,7 +227,7 @@ namespace RawVoxel
         }
 
         // Chunk mesh surface generation.
-        private void GenerateMesh()
+        public void GenerateMeshSurface()
         {
             if (IsInstanceValid(Mesh)) Mesh = null;
             
@@ -244,10 +244,10 @@ namespace RawVoxel
             surfaceArray[(int)Mesh.ArrayType.Color]  = _colors.ToArray();
             surfaceArray[(int)Mesh.ArrayType.Index]  = _indices.ToArray();
             
-            /* _vertices.Clear();
+            _vertices.Clear();
             _normals.Clear();
             _colors.Clear();
-            _indices.Clear(); */
+            _indices.Clear();
 
             ArrayMesh arrayMesh = new();
 
@@ -259,7 +259,7 @@ namespace RawVoxel
         }
 
         // Collision generation.
-        private void GenerateCollision()
+        public void GenerateMeshCollision()
         {
             // Prevent collision generation with no mesh.
             if (Mesh == null) return;

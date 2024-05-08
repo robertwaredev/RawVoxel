@@ -249,7 +249,7 @@ namespace RawVoxel
                 
             Biome biome = Biome.Generate(World, gridPosition);
 
-            Task generate = new(new Action(() => octreeNode.CallDeferred(nameof(OctreeNode.Generate), globalPosition, biome)));
+            Task generate = new(new Action(() => octreeNode.CallDeferred(nameof(OctreeNode.GenerateVoxels), globalPosition, biome)));
 
             generate.Start();
             generate.Wait();

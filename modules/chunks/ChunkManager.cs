@@ -270,7 +270,7 @@ namespace RawVoxel
                 Vector3I loadablePosition = XYZConvert.IndexToVector3I(loadableIndex, WorldDiameter) - _world.Radius;
                 
                 // Create a new task to generate the chunk during idle time.
-                Task generate = new(new Action(() => chunk.CallDeferred(nameof(Chunk.GenerateChunkData), loadablePosition)));
+                Task generate = new(new Action(() => chunk.CallDeferred(nameof(Chunk.GenerateVoxels), loadablePosition)));
 
                 generate.Start();
                 generate.Wait();
@@ -327,7 +327,7 @@ namespace RawVoxel
                 Vector3I loadablePosition = XYZConvert.IndexToVector3I(loadableIndex, WorldDiameter) - _world.Radius;
                 
                 // Create a new task to generate the chunk during idle time.
-                Task generate = new(new Action(() => chunk.CallDeferred(nameof(Chunk.GenerateChunkData), loadablePosition)));
+                Task generate = new(new Action(() => chunk.CallDeferred(nameof(Chunk.GenerateVoxels), loadablePosition)));
 
                 generate.Start();
                 generate.Wait();
