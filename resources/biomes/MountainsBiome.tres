@@ -1,0 +1,62 @@
+[gd_resource type="Resource" script_class="Biome" load_steps=15 format=3 uid="uid://dr48in2yja7pv"]
+
+[ext_resource type="Resource" uid="uid://bncsgv1yauy85" path="res://addons/RawVoxel/resources/voxels/Grass.tres" id="1_iml8r"]
+[ext_resource type="Script" path="res://addons/RawVoxel/resources/biomes/BiomeLayer.cs" id="2_1c6rp"]
+[ext_resource type="Resource" uid="uid://dle7im5f8jvv7" path="res://addons/RawVoxel/resources/voxels/Dirt.tres" id="3_dk8kt"]
+[ext_resource type="Resource" uid="uid://dmyx04guxsghu" path="res://addons/RawVoxel/resources/voxels/Stone.tres" id="4_bp1mj"]
+[ext_resource type="Script" path="res://addons/RawVoxel/resources/biomes/Biome.cs" id="5_b1yxo"]
+
+[sub_resource type="Curve" id="Curve_rkx2v"]
+_data = [Vector2(0, 0.3), 0.0, 0.0, 0, 0, Vector2(1, 1), 0.0, 0.0, 0, 0]
+point_count = 2
+metadata/_snap_enabled = true
+
+[sub_resource type="FastNoiseLite" id="FastNoiseLite_i1dle"]
+
+[sub_resource type="FastNoiseLite" id="FastNoiseLite_eglk0"]
+
+[sub_resource type="Curve" id="Curve_8cp61"]
+max_value = 3.0
+_data = [Vector2(0, 0), 0.0, 0.0, 0, 0, Vector2(1, 3), 0.0, 0.0, 0, 0]
+point_count = 2
+
+[sub_resource type="Resource" id="Resource_vups2"]
+script = ExtResource("2_1c6rp")
+Voxel = ExtResource("1_iml8r")
+HeightCurve = SubResource("Curve_8cp61")
+
+[sub_resource type="Curve" id="Curve_el8wi"]
+min_value = -10.0
+max_value = 0.0
+_data = [Vector2(0, -10), 0.0, 0.0, 0, 0, Vector2(1, 0), 0.0, 0.0, 0, 0]
+point_count = 2
+
+[sub_resource type="Resource" id="Resource_ljrba"]
+script = ExtResource("2_1c6rp")
+Voxel = ExtResource("3_dk8kt")
+HeightCurve = SubResource("Curve_el8wi")
+
+[sub_resource type="Curve" id="Curve_d7tjk"]
+min_value = -128.0
+max_value = 128.0
+_data = [Vector2(0, -128), 0.0, 0.0, 0, 0, Vector2(0.5, 0), 0.0, 0.0, 0, 0, Vector2(1, 128), 256.0, 0.0, 1, 0]
+point_count = 3
+metadata/_snap_enabled = true
+metadata/_snap_count = 16
+
+[sub_resource type="Resource" id="Resource_pmfwk"]
+script = ExtResource("2_1c6rp")
+Voxel = ExtResource("4_bp1mj")
+HeightCurve = SubResource("Curve_d7tjk")
+
+[resource]
+resource_name = "Mountains"
+script = ExtResource("5_b1yxo")
+Layers = [SubResource("Resource_vups2"), SubResource("Resource_ljrba"), SubResource("Resource_pmfwk")]
+TemperatureMin = -100
+TemperatureMax = 0
+HumidityMin = 0
+HumidityMax = 50
+HeightNoise = SubResource("FastNoiseLite_eglk0")
+DensityNoise = SubResource("FastNoiseLite_i1dle")
+DensityCurve = SubResource("Curve_rkx2v")

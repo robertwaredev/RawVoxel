@@ -1,9 +1,9 @@
 [gd_resource type="Resource" script_class="Biome" load_steps=12 format=3 uid="uid://b60p7ir6ohe2d"]
 
-[ext_resource type="Resource" uid="uid://d0j83ppg38n6t" path="res://addons/RawVoxel/resources/voxels/types/Grass.tres" id="1_4k0b2"]
-[ext_resource type="Script" path="res://addons/RawVoxel/scripts/BiomeLayer.cs" id="2_e68d4"]
-[ext_resource type="Resource" uid="uid://b4w3wl1coeanw" path="res://addons/RawVoxel/resources/voxels/types/Bedrock.tres" id="3_aci8d"]
-[ext_resource type="Script" path="res://addons/RawVoxel/scripts/Biome.cs" id="4_sjf56"]
+[ext_resource type="Resource" uid="uid://bncsgv1yauy85" path="res://addons/RawVoxel/resources/voxels/Grass.tres" id="1_bsoum"]
+[ext_resource type="Script" path="res://addons/RawVoxel/resources/biomes/BiomeLayer.cs" id="2_oxfyi"]
+[ext_resource type="Resource" uid="uid://dle7im5f8jvv7" path="res://addons/RawVoxel/resources/voxels/Dirt.tres" id="3_a72er"]
+[ext_resource type="Script" path="res://addons/RawVoxel/resources/biomes/Biome.cs" id="4_8xel6"]
 
 [sub_resource type="Curve" id="Curve_jxc0h"]
 _data = [Vector2(0, 0), 0.0, 0.0, 0, 0, Vector2(0, 0), 0.0, 0.0, 0, 0, Vector2(0, 0), 0.0, 0.0, 0, 0, Vector2(0, 0), 0.0, 0.0, 0, 0, Vector2(0, 0), 0.0, 0.0, 0, 0, Vector2(0, 0), 0.0, 0.0, 0, 0, Vector2(0, 0), 0.0, 0.0, 0, 0, Vector2(0, 0), 0.0, 0.0, 0, 0, Vector2(0, 0), 0.0, 0.0, 0, 0, Vector2(0, 0), 0.0, 0.0, 0, 0, Vector2(0, 0), 0.0, 0.0, 0, 0, Vector2(0, 0), 0.0, 0.0, 0, 0, Vector2(0, 0), 0.0, 0.0, 0, 0, Vector2(0, 0), 0.0, 0.0, 0, 0, Vector2(0, 0), 0.0, 0.0, 0, 0, Vector2(0, 0), 0.0, 0.0, 0, 0, Vector2(0, 0), 0.0, 0.0, 0, 0, Vector2(0, 0), 0.0, 0.0, 0, 0, Vector2(0, 0), 0.0, 0.0, 0, 0, Vector2(0, 0), 0.0, 0.0, 0, 0, Vector2(0, 0), 0.0, 0.0, 0, 0, Vector2(0, 0), 0.0, 0.0, 0, 0, Vector2(0, 0), 0.0, 0.0, 0, 0, Vector2(0.5, 1), 0.0, 0.0, 0, 0, Vector2(1, 1), 0.0, 0.0, 0, 0, Vector2(1, 1), 0.0, 0.0, 0, 0, Vector2(1, 1), 0.0, 0.0, 0, 0, Vector2(1, 1), 0.0, 0.0, 0, 0, Vector2(1, 1), 0.0, 0.0, 0, 0, Vector2(1, 1), 0.0, 0.0, 0, 0, Vector2(1, 1), 0.0, 0.0, 0, 0, Vector2(1, 1), 0.0, 0.0, 0, 0, Vector2(1, 1), 0.0, 0.0, 0, 0, Vector2(1, 1), 0.0, 0.0, 0, 0, Vector2(1, 1), 0.0, 0.0, 0, 0, Vector2(1, 1), 0.0, 0.0, 0, 0, Vector2(1, 1), 0.0, 0.0, 0, 0, Vector2(1, 1), 0.0, 0.0, 0, 0, Vector2(1, 1), 0.0, 0.0, 0, 0, Vector2(1, 1), 0.0, 0.0, 0, 0, Vector2(1, 1), 0.0, 0.0, 0, 0, Vector2(1, 1), 0.0, 0.0, 0, 0, Vector2(1, 1), 0.0, 0.0, 0, 0, Vector2(1, 1), 0.0, 0.0, 0, 0, Vector2(1, 1), 0.0, 0.0, 0, 0, Vector2(1, 1), 0.0, 0.0, 0, 0]
@@ -26,9 +26,8 @@ metadata/_snap_enabled = true
 metadata/_snap_count = 16
 
 [sub_resource type="Resource" id="Resource_gumvy"]
-resource_name = "Grass"
-script = ExtResource("2_e68d4")
-VoxelType = ExtResource("1_4k0b2")
+script = ExtResource("2_oxfyi")
+Voxel = ExtResource("1_bsoum")
 Height = 0
 HeightCurve = SubResource("Curve_65kmv")
 
@@ -38,15 +37,14 @@ _data = [Vector2(0, 0), 0.0, 3.0, 0, 1, Vector2(1, 3), 3.0, 0.0, 1, 0]
 point_count = 2
 
 [sub_resource type="Resource" id="Resource_2htbq"]
-resource_name = "Bedrock"
-script = ExtResource("2_e68d4")
-VoxelType = ExtResource("3_aci8d")
+script = ExtResource("2_oxfyi")
+Voxel = ExtResource("3_a72er")
 Height = -128
 HeightCurve = SubResource("Curve_wremd")
 
 [resource]
 resource_name = "Plains"
-script = ExtResource("4_sjf56")
+script = ExtResource("4_8xel6")
 Layers = [SubResource("Resource_gumvy"), SubResource("Resource_2htbq")]
 TemperatureMin = 0
 TemperatureMax = 100

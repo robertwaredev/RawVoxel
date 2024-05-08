@@ -1,0 +1,50 @@
+[gd_resource type="Resource" script_class="World" load_steps=16 format=3 uid="uid://c7lrdyml3qram"]
+
+[ext_resource type="Material" uid="uid://fuo8d8qsqq2t" path="res://addons/RawVoxel/resources/materials/ChunkShaderMaterial.tres" id="1_h5fk4"]
+[ext_resource type="Resource" uid="uid://dr48in2yja7pv" path="res://addons/RawVoxel/resources/biomes/MountainsBiome.tres" id="1_n3txv"]
+[ext_resource type="Script" path="res://addons/RawVoxel/resources/worlds/World.cs" id="2_od4l8"]
+[ext_resource type="Script" path="res://addons/RawVoxel/resources/worlds/WorldAttribute.cs" id="3_4jtgp"]
+[ext_resource type="Resource" uid="uid://bdnxmvftm0qou" path="res://addons/RawVoxel/resources/voxels/Air.tres" id="5_6anfm"]
+[ext_resource type="Resource" uid="uid://d15wxuv113hrr" path="res://addons/RawVoxel/resources/voxels/Bedrock.tres" id="6_u1t8x"]
+[ext_resource type="Resource" uid="uid://dmyx04guxsghu" path="res://addons/RawVoxel/resources/voxels/Stone.tres" id="7_1eo1y"]
+[ext_resource type="Resource" uid="uid://dle7im5f8jvv7" path="res://addons/RawVoxel/resources/voxels/Dirt.tres" id="8_bjamf"]
+[ext_resource type="Resource" uid="uid://bncsgv1yauy85" path="res://addons/RawVoxel/resources/voxels/Grass.tres" id="9_tp6vk"]
+
+[sub_resource type="Curve" id="Curve_3s8et"]
+
+[sub_resource type="Curve" id="Curve_aqyex"]
+max_value = 100.0
+_data = [Vector2(0, 0), 0.0, 100.0, 0, 1, Vector2(1, 100), 100.0, 0.0, 1, 0]
+point_count = 2
+
+[sub_resource type="Resource" id="Resource_gsmj2"]
+script = ExtResource("3_4jtgp")
+Distribution = SubResource("Curve_3s8et")
+Range = SubResource("Curve_aqyex")
+
+[sub_resource type="Curve" id="Curve_h8uip"]
+
+[sub_resource type="Curve" id="Curve_5cwxg"]
+min_value = -100.0
+max_value = 100.0
+_data = [Vector2(0, -100), 0.0, 200.0, 0, 1, Vector2(1, 100), 200.0, 0.0, 1, 0]
+point_count = 2
+
+[sub_resource type="Resource" id="Resource_lhfc1"]
+script = ExtResource("3_4jtgp")
+Distribution = SubResource("Curve_h8uip")
+Range = SubResource("Curve_5cwxg")
+
+[resource]
+script = ExtResource("2_od4l8")
+Voxels = [ExtResource("5_6anfm"), ExtResource("6_u1t8x"), ExtResource("7_1eo1y"), ExtResource("8_bjamf"), ExtResource("9_tp6vk")]
+Biomes = [ExtResource("1_n3txv")]
+Temperature = SubResource("Resource_lhfc1")
+Humidity = SubResource("Resource_gsmj2")
+CenterChunk = true
+Draw = Vector3i(1, 1, 1)
+Radius = Vector3i(128, 128, 128)
+ChunkDiameter = Vector3i(16, 16, 16)
+TerrainMaterial = ExtResource("1_h5fk4")
+ShowChunkEdges = false
+GenerateFrequency = 15

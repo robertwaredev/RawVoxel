@@ -32,8 +32,8 @@ namespace RawVoxel
             {
                 lock (voxelEditLock)
                 {
-                    collidedChunk.SetVoxelID(voxelGlobalPosition, 0);
-                    collidedChunk.Update();
+                    Voxel.SetID(collidedChunk, voxelGlobalPosition, 0);
+                    collidedChunk.GenerateChunkMesh();
                 }
             }
             
@@ -41,8 +41,8 @@ namespace RawVoxel
             {
                 lock (voxelEditLock)
                 {
-                    collidedChunk.SetVoxelID(voxelGlobalPosition + (Vector3I)collisionNormal, 1);
-                    collidedChunk.Update();
+                    Voxel.SetID(collidedChunk, voxelGlobalPosition + (Vector3I)collisionNormal, 1);
+                    collidedChunk.GenerateChunkMesh();
                 }
             }
         }
