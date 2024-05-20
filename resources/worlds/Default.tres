@@ -1,6 +1,5 @@
 [gd_resource type="Resource" script_class="World" load_steps=16 format=3 uid="uid://c7lrdyml3qram"]
 
-[ext_resource type="Material" uid="uid://fuo8d8qsqq2t" path="res://addons/RawVoxel/resources/materials/ChunkShaderMaterial.tres" id="1_h5fk4"]
 [ext_resource type="Resource" uid="uid://dr48in2yja7pv" path="res://addons/RawVoxel/resources/biomes/MountainsBiome.tres" id="1_n3txv"]
 [ext_resource type="Script" path="res://addons/RawVoxel/resources/worlds/World.cs" id="2_od4l8"]
 [ext_resource type="Script" path="res://addons/RawVoxel/resources/worlds/WorldAttribute.cs" id="3_4jtgp"]
@@ -35,16 +34,19 @@ script = ExtResource("3_4jtgp")
 Distribution = SubResource("Curve_h8uip")
 Range = SubResource("Curve_5cwxg")
 
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_yv1ih"]
+vertex_color_use_as_albedo = true
+
 [resource]
 script = ExtResource("2_od4l8")
 Voxels = [ExtResource("5_6anfm"), ExtResource("6_u1t8x"), ExtResource("7_1eo1y"), ExtResource("8_bjamf"), ExtResource("9_tp6vk")]
 Biomes = [ExtResource("1_n3txv")]
 Temperature = SubResource("Resource_lhfc1")
 Humidity = SubResource("Resource_gsmj2")
-CenterChunk = true
-Draw = Vector3i(1, 1, 1)
+CenterChunk = false
+DrawRadius = Vector3i(1, 1, 1)
 Radius = Vector3i(128, 128, 128)
 ChunkDiameter = Vector3i(16, 16, 16)
-TerrainMaterial = ExtResource("1_h5fk4")
+TerrainMaterial = SubResource("StandardMaterial3D_yv1ih")
 ShowChunkEdges = false
 GenerateFrequency = 15

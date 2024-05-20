@@ -23,103 +23,94 @@ namespace RawVoxel
         
         #endregion Enums
 
-        #region Dictionaries
+        #region Constants
         
-        public static readonly Dictionary<Vertex, Vector3I> Vertices = new()
+        public static readonly Vector3I[] Vertices = new Vector3I[]
         {
-            {Vertex.FrontTopLeft,    new(0, 1, 1)},
-            {Vertex.FrontBtmLeft,    new(0, 0, 1)},
-            {Vertex.FrontTopRight,   new(1, 1, 1)},
-            {Vertex.FrontBtmRight,   new(1, 0, 1)},
-            {Vertex.BackTopLeft,     new(0, 1, 0)},
-            {Vertex.BackBtmLeft,     new(0, 0, 0)},
-            {Vertex.BackTopRight,    new(1, 1, 0)},
-            {Vertex.BackBtmRight,    new(1, 0, 0)}
+            new(0, 1, 1),
+            new(0, 0, 1),
+            new(1, 1, 1),
+            new(1, 0, 1),
+            new(0, 1, 0),
+            new(0, 0, 0),
+            new(1, 1, 0),
+            new(1, 0, 0)
         };
-        public static readonly Dictionary<Face, Vertex[]> Faces = new()
+        public static readonly int[][] Faces = new int[][]
         {
-            {Face.Top,      new Vertex[] {Vertex.BackTopLeft,      Vertex.BackTopRight,     Vertex.FrontTopRight,   Vertex.FrontTopLeft}},
-            {Face.Btm,      new Vertex[] {Vertex.FrontBtmLeft,     Vertex.FrontBtmRight,    Vertex.BackBtmRight,    Vertex.BackBtmLeft}},
-            {Face.West,     new Vertex[] {Vertex.BackTopLeft,      Vertex.FrontTopLeft,     Vertex.FrontBtmLeft,    Vertex.BackBtmLeft}},
-            {Face.East,     new Vertex[] {Vertex.FrontTopRight,    Vertex.BackTopRight,     Vertex.BackBtmRight,    Vertex.FrontBtmRight}},
-            {Face.North,    new Vertex[] {Vertex.BackTopRight,     Vertex.BackTopLeft,      Vertex.BackBtmLeft,     Vertex.BackBtmRight}},
-            {Face.South,    new Vertex[] {Vertex.FrontTopLeft,     Vertex.FrontTopRight,     Vertex.FrontBtmRight,   Vertex.FrontBtmLeft}}
+            new int[]{4, 6, 2, 0},
+            new int[]{1, 3, 7, 5},
+            new int[]{4, 0, 1, 5},
+            new int[]{2, 6, 7, 3},
+            new int[]{6, 4, 5, 7},
+            new int[]{0, 2, 3, 1}
         };
-        public static readonly Dictionary<Face, Vector3I> Normals = new()
-        {
-            {Face.Top,      Vector3I.Up},
-            {Face.Btm,      Vector3I.Down},
-            {Face.West,     Vector3I.Left},
-            {Face.East,     Vector3I.Right},
-            {Face.North,    Vector3I.Forward},
-            {Face.South,    Vector3I.Back}
-        };
-        public static readonly Dictionary<UV, Vector2I> UVs = new()
-        {
-            {UV.TopLeft,    new(0,  0)},
-            {UV.BtmLeft,    new(0, -1)},
-            {UV.BtmRight,   new(1, -1)},
-            {UV.TopRight,   new(1,  0)}
-        };
-    
-        #endregion Dictionaries
+
+        #endregion Constants
 
         public Voxel() {}
         
-        public static bool GenerateVisibility(Biome biome, Vector3I voxelGlobalPosition)
+        public static bool GenerateMask(VoxelContainer voxelContainer, Vector3I globalPosition)
         {
-            float densityNoise = biome.DensityNoise.GetNoise3Dv(voxelGlobalPosition);
-            float voxelDensity = biome.DensityCurve.Sample((densityNoise + 1) * 0.5f);
+            float densityNoise = voxelContainer.Biome.DensityNoise.GetNoise3Dv(globalPosition);
+            float voxelDensity = voxelContainer.Biome.DensityCurve.Sample((densityNoise + 1) * 0.5f);
 
             if (voxelDensity < 0.5f) return false;
 
             return true;
         }
-        public static int GenerateID(World world, Biome biome, Vector3I voxelGlobalPosition)
+        public static uint GenerateType(VoxelContainer voxelContainer, Vector3I globalPosition)
         {
-            float heightNoise = biome.HeightNoise.GetNoise2D(voxelGlobalPosition.X, voxelGlobalPosition.Z);
+            float heightNoise = voxelContainer.Biome.HeightNoise.GetNoise2D(globalPosition.X, globalPosition.Z);
             
-            foreach (BiomeLayer biomeLayer in biome.Layers.Reverse())
+            foreach (BiomeLayer biomeLayer in voxelContainer.Biome.Layers.Reverse())
             {
                 float voxelHeight = biomeLayer.HeightCurve.Sample((heightNoise + 1) * 0.5f);
 
-                if (voxelGlobalPosition.Y <= voxelHeight)
+                if (globalPosition.Y <= voxelHeight)
                 {
-                    return Array.IndexOf(world.Voxels, biomeLayer.Voxel);
+                    return (uint)Array.IndexOf(voxelContainer.World.Voxels, biomeLayer.Voxel);
                 }
             }
 
-            // Return air as a last resort.
             return 0;
         }
-        public static bool IsExternal(Chunk chunk, Vector3I gridPosition)
+        public static bool IsExternal(VoxelContainer voxelContainer, Vector3I gridPosition)
         {
-            if (gridPosition.X < 0 || gridPosition.X >= chunk.World.ChunkDiameter.X) return true;
-            if (gridPosition.Y < 0 || gridPosition.Y >= chunk.World.ChunkDiameter.Y) return true;
-            if (gridPosition.Z < 0 || gridPosition.Z >= chunk.World.ChunkDiameter.Z) return true;
+            if (gridPosition.X < 0 || gridPosition.X >= voxelContainer.World.ChunkDiameter.X) return true;
+            if (gridPosition.Y < 0 || gridPosition.Y >= voxelContainer.World.ChunkDiameter.Y) return true;
+            if (gridPosition.Z < 0 || gridPosition.Z >= voxelContainer.World.ChunkDiameter.Z) return true;
             
             return false;
         }
-        public static bool IsVisible(Chunk chunk, Vector3I gridPosition)
+        public static bool IsVisible(VoxelContainer voxelContainer, Vector3I gridPosition)
         {
-            if (IsExternal(chunk, gridPosition))
+            if (IsExternal(voxelContainer, gridPosition))
             {
-                if (chunk.World.ShowChunkEdges) return false;
+                if (voxelContainer.World.ShowChunkEdges) return false;
 
-                return GenerateVisibility(chunk.Biome, gridPosition);
+                Vector3I globalPosition = (Vector3I)voxelContainer.Position + gridPosition;
+                
+                bool mask = GenerateMask(voxelContainer, globalPosition);
+                uint type = GenerateType(voxelContainer, globalPosition);
+                
+                if (mask == true && type != 0) return true;
+                else return false;
             }
             
-            int gridIndex = XYZConvert.Vector3IToIndex(gridPosition, chunk.World.ChunkDiameter);
+            int gridIndex = XYZConvert.Vector3IToIndex(gridPosition, voxelContainer.World.ChunkDiameter);
             
-            return chunk.VoxelBits[gridIndex];
+            return voxelContainer.VoxelMasks[gridIndex];
         }
-        public static void SetID(Chunk chunk, Vector3I voxelGridPosition, int voxelID)
+        public static void SetType(VoxelContainer voxelContainer, Vector3I gridPosition, byte voxelType)
         {
-            voxelGridPosition.X = Mathf.PosMod(voxelGridPosition.X, chunk.World.ChunkDiameter.X);
-            voxelGridPosition.Y = Mathf.PosMod(voxelGridPosition.Y, chunk.World.ChunkDiameter.Y);
-            voxelGridPosition.Z = Mathf.PosMod(voxelGridPosition.Z, chunk.World.ChunkDiameter.Z);
+            gridPosition.X = Mathf.PosMod(gridPosition.X, voxelContainer.World.ChunkDiameter.X);
+            gridPosition.Y = Mathf.PosMod(gridPosition.Y, voxelContainer.World.ChunkDiameter.Y);
+            gridPosition.Z = Mathf.PosMod(gridPosition.Z, voxelContainer.World.ChunkDiameter.Z);
             
-            chunk.VoxelIDs[XYZConvert.Vector3IToIndex(voxelGridPosition, chunk.World.ChunkDiameter)] = (byte)voxelID;
+            int gridIndex = XYZConvert.Vector3IToIndex(gridPosition, voxelContainer.World.ChunkDiameter);
+            
+            voxelContainer.VoxelTypes[gridIndex] = voxelType;
         }
     }
 }

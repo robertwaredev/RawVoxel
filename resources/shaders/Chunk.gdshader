@@ -9,16 +9,12 @@ render_mode depth_prepass_alpha;
 uniform bool showChunkEdges = true;
 uniform ivec3 chunkDimension;
 
+uniform sampler3D density;
+
 uniform int surfaceHeight = 128;
 uniform int layer2Height = 96;
 uniform int layer1Height = 64;
 uniform int bedrockHeight = 0;
-
-uniform sampler2D typeMapYX;
-uniform sampler2D typeMapYZ;
-
-varying vec4 color;
-varying vec3 normal;
 
 bool IsVoxelOutOfBounds(ivec3 voxelPosition) {
 	if (voxelPosition.x < 0 || voxelPosition.x >= chunkDimension.x) return true;

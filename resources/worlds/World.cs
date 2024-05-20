@@ -32,7 +32,11 @@ namespace RawVoxel
 
         [ExportGroup("Dimensions")]
         [Export] public bool CenterChunk = true;
-        [Export] public Vector3I Draw = new(1, 1, 1);
+        [Export] public Vector3I DrawRadius = new(1, 1, 1);
+                 public Vector3I DrawDiameter
+                 {
+                    get { return DrawRadius * 2 + Vector3I.One; }
+                 }
         [Export] public Vector3I Radius = new(128, 128, 128);
                  public Vector3I Diameter
                  {
@@ -41,7 +45,7 @@ namespace RawVoxel
         [Export] public Vector3I ChunkDiameter = new(16, 16, 16);
 
         [ExportGroup("Material")]
-        [Export] public Material TerrainMaterial { get; set; } = GD.Load<Material>("res://addons/RawVoxel/resources/materials/ChunkShaderMaterial.tres");
+        [Export] public Material TerrainMaterial { get; set; } = new StandardMaterial3D();
 
         [ExportGroup("Rendering")]
         [Export] public bool ShowChunkEdges = false;

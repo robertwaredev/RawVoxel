@@ -8,24 +8,10 @@ using System.Collections.Generic;
 
 namespace RawVoxel
 {
-    public partial class OctreeNode : MeshInstance3D, IVoxelContainer
+    public partial class OctreeNode : VoxelContainer
     {
-        #region Variables
-        
-        public World World { get; set; }
-        public Biome Biome { get; set; }
-        public BitArray VoxelBits { get; set; } = new(1);
-        public byte[] VoxelIDs { get; set; } = new byte[1];
-        
         public readonly byte Branch;
         public OctreeNode[] Leaves;
-
-        private readonly List<Vector3> _vertices = new();
-        private readonly List<Vector3> _normals = new();
-        private readonly List<Color> _colors = new();
-        private readonly List<int> _indices = new();
-
-        #endregion Variables
 
         public OctreeNode(World world, byte branch)
         {
@@ -33,131 +19,93 @@ namespace RawVoxel
             Branch = branch;
         }
 
-        public void GenerateVoxels(Vector3I globalPosition)
+        public override void GenerateVoxels(Vector3I globalPosition)
         {
             Position = globalPosition;
             Biome = Biome.Generate(World, globalPosition);
             
             if (Branch == 0)
             {
-                VoxelBits.Set(0, Voxel.GenerateVisibility(Biome, (Vector3I)Position));
-                VoxelIDs[0] = (byte)Voxel.GenerateID(World, Biome, (Vector3I)Position);
+                VoxelMasks.Set(0, Voxel.GenerateMask(this, (Vector3I)Position));
+                VoxelTypes[0] = (byte)Voxel.GenerateType(this, (Vector3I)Position);
             }
-/*
             else
             {
-                if (CanSubdivideFast())
+                if (CanSubdivideFast() || CanSubdivideSlow())
                 {
                     GenerateLeaves();
                     return;
                 }
-            
-                if (CanSubdivideSlow())
-                {   
-                    GenerateLeaves();
-                    return;
-                }
             }
-*/
-            GenerateMesh();
-        }
-        public void GenerateMesh()
-        {
-            GenerateMeshData();
-            GenerateMeshSurface();
-            GenerateMeshCollision();
-        }
 
-        // Voxel generation.
+            CulledMesher.Generate(this);
+        }
         private bool CanSubdivideFast()
         {
-            // Create a new bit array to hold voxel visibility bits.
-            VoxelBits = new BitArray(8);
+            VoxelMasks = new BitArray(8);
+            VoxelTypes = new byte[8];
             
-            // Create a new byte array to hold voxel IDs.
-            VoxelIDs = new byte[8];
-            
-            // Create placeholder for previous voxel ID.
-            int prevID = 0;
+            int prevType = 0;
             
             // Generate 8 temporary voxels at node center to check if subdivision should occur.
             for (int voxelIndex = 0; voxelIndex < 8; voxelIndex ++)
             {
-                // Get voxel global position.
-                Vector3I voxelPosition = XYZBitShift.IndexToVector3I(voxelIndex, 1) - Vector3I.One;
-                Vector3I voxelGlobalPosition = (Vector3I)Position + voxelPosition;
+                Vector3I voxelgridPosition = XYZBitShift.IndexToVector3I(voxelIndex, 1) - Vector3I.One;
+                Vector3I voxelGlobalPosition = (Vector3I)Position + voxelgridPosition;
                 
-                // Generate voxel visibility & ID.
-                bool visible = Voxel.GenerateVisibility(Biome, voxelGlobalPosition);
-                byte thisID = (byte)Voxel.GenerateID(World, Biome, voxelGlobalPosition);
+                bool mask = Voxel.GenerateMask(this, voxelGlobalPosition);
+                byte type = (byte)Voxel.GenerateType(this, voxelGlobalPosition);
 
-                // Update visibility and ID.
-                if (visible && thisID != 0)
+                if (mask && type != 0)
                 {
-                    VoxelBits.Set(voxelIndex, true);
-                    VoxelIDs[voxelIndex] = thisID;
+                    VoxelMasks.Set(voxelIndex, true);
+                    VoxelTypes[voxelIndex] = type;
                 }
 
-                // Check against previous ID to determine if subdivision should occur.
-                if (voxelIndex > 0 && thisID != prevID) return true;
+                if (voxelIndex > 0 && type != prevType) return true;
 
-                // Update previous ID.
-                prevID = thisID;
+                prevType = type;
             }
 
-            // No subdivision should occur, return false.
             return false;
         }
         private bool CanSubdivideSlow()
         {
-            // Calculate number of voxels in a chunk.
             int voxelCount = 1 << Branch << Branch << Branch;
-            
-            // Create a new bit array to hold voxel visibility bits.
-            VoxelBits = new BitArray(voxelCount);
-            
-            // Create a new byte array to hold voxel IDs.
-            VoxelIDs = new byte[voxelCount];
 
-            // Set a placeholder for the previous voxel ID.
+            VoxelMasks = new BitArray(voxelCount);
+            VoxelTypes = new byte[voxelCount];
+
             byte prevVoxelID = 0;
             
             // Begin generating all voxels to check if subdivision should occur.
             for (int voxelIndex = 0; voxelIndex < voxelCount; voxelIndex ++)
             {
-                // Convert voxel grid index to voxel grid position.
                 Vector3I voxelPosition = XYZBitShift.IndexToVector3I(voxelIndex, Branch);
 
-                // Get voxel global position by adding chunk global position to voxel grid position.
                 Vector3I voxelGlobalPosition = (Vector3I)Position + voxelPosition;
                 
-                // Generate voxel visibility & ID.
-                bool visible = Voxel.GenerateVisibility(Biome, voxelGlobalPosition);
-                byte thisVoxelID = (byte)Voxel.GenerateID(World, Biome, voxelGlobalPosition);
+                bool visible = Voxel.GenerateMask(this, voxelGlobalPosition);
+                byte thisVoxelID = (byte)Voxel.GenerateType(this, voxelGlobalPosition);
 
-                // Update visibility and ID.
                 if (visible && thisVoxelID != 0)
                 {
-                    VoxelIDs[voxelIndex] = thisVoxelID;
-                    VoxelBits.Set(voxelIndex, true);
+                    VoxelTypes[voxelIndex] = thisVoxelID;
+                    VoxelMasks.Set(voxelIndex, true);
                 }
 
-                // Compare voxel ID against previous ID to check if subdivision should occur.
                 if (voxelIndex > 0 && thisVoxelID != prevVoxelID) return true;
                 
-                // Update placeholder.
                 prevVoxelID = thisVoxelID;
             }
             
-            // No subdivision should occur, return false.
             return false;
         }
         
-        // Leaf generation.
         private void GenerateLeaves()
         {
-            if (VoxelBits.Length > 0) VoxelBits = null;
-            if (VoxelIDs.Length > 0) VoxelIDs = null;
+            if (VoxelMasks.Length > 0) VoxelMasks = null;
+            if (VoxelTypes.Length > 0) VoxelTypes = null;
             
             // Generate the leaves array.
             Leaves = new OctreeNode[8];
@@ -189,90 +137,6 @@ namespace RawVoxel
 
                 Thread.Sleep(World.GenerateFrequency);
             }
-        }
-
-        // Mesh generation.
-        public void GenerateMeshData()
-        {
-            //Color color = _root.VoxelLibrary.Voxels[VoxelIDs[0]].Color;
-            Color color = Colors.OrangeRed;
-            
-            GenerateFaceMeshData(Voxel.Face.Top, Vector3I.Up, color);
-            GenerateFaceMeshData(Voxel.Face.Btm, Vector3I.Down, color);
-            GenerateFaceMeshData(Voxel.Face.West, Vector3I.Left, color);
-            GenerateFaceMeshData(Voxel.Face.East, Vector3I.Right, color);
-            GenerateFaceMeshData(Voxel.Face.North, Vector3I.Forward, color);
-            GenerateFaceMeshData(Voxel.Face.South, Vector3I.Back, color);
-        }
-        private void GenerateFaceMeshData(Voxel.Face face, Vector3I normal, Color color)
-        {
-            Voxel.Vertex[] faceVertices = Voxel.Faces[face];
-            
-            Vector3I vertexA = Voxel.Vertices[faceVertices[0]];
-            Vector3I vertexB = Voxel.Vertices[faceVertices[1]];
-            Vector3I vertexC = Voxel.Vertices[faceVertices[2]];
-            Vector3I vertexD = Voxel.Vertices[faceVertices[3]];
-
-            vertexA = (Vector3I)Position + XYZBitShift.Vector3ILeft(vertexA, Branch);
-            vertexB = (Vector3I)Position + XYZBitShift.Vector3ILeft(vertexB, Branch);
-            vertexC = (Vector3I)Position + XYZBitShift.Vector3ILeft(vertexC, Branch);
-            vertexD = (Vector3I)Position + XYZBitShift.Vector3ILeft(vertexD, Branch);
-            
-            int offset = _vertices.Count;
-
-            _vertices.AddRange(new List<Vector3> { vertexA, vertexB, vertexC, vertexD });
-            _normals.AddRange(new List<Vector3> { normal, normal, normal, normal });
-            _colors.AddRange(new List<Color> { color, color, color, color });
-            _indices.AddRange(new List<int> { 0 + offset, 1 + offset, 2 + offset, 0 + offset, 2 + offset, 3 + offset });
-        }
-
-        // Chunk mesh surface generation.
-        public void GenerateMeshSurface()
-        {
-            if (IsInstanceValid(Mesh)) Mesh = null;
-            
-            if (_vertices.Count == 0) return;
-            if (_normals.Count == 0) return;
-            if (_colors.Count == 0) return;
-            if (_indices.Count == 0) return;
-            
-            Godot.Collections.Array surfaceArray = new();
-            surfaceArray.Resize((int)Mesh.ArrayType.Max);
-
-            surfaceArray[(int)Mesh.ArrayType.Vertex] = _vertices.ToArray();
-            surfaceArray[(int)Mesh.ArrayType.Normal] = _normals.ToArray();
-            surfaceArray[(int)Mesh.ArrayType.Color]  = _colors.ToArray();
-            surfaceArray[(int)Mesh.ArrayType.Index]  = _indices.ToArray();
-            
-            _vertices.Clear();
-            _normals.Clear();
-            _colors.Clear();
-            _indices.Clear();
-
-            ArrayMesh arrayMesh = new();
-
-            arrayMesh.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles, surfaceArray);
-
-            surfaceArray.Clear();
-
-            Mesh = arrayMesh;
-        }
-
-        // Collision generation.
-        public void GenerateMeshCollision()
-        {
-            // Prevent collision generation with no mesh.
-            if (Mesh == null) return;
-
-            // Clear collision if it exists.
-            StaticBody3D collision = GetChildOrNull<StaticBody3D>(0);
-            collision?.QueueFree();
-
-            // Create collision.
-            CreateTrimeshCollision();
-            
-            // Update navigation.
-            AddToGroup("NavSource");
         }
     }
 }
