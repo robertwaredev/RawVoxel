@@ -42,7 +42,7 @@ namespace RawVoxel
                  {
                     get { return Radius * 2 + Vector3I.One; }
                  }
-        [Export] public Vector3I ChunkDiameter = new(16, 16, 16);
+        [Export] public int ChunkDiameter = 16;
 
         [ExportGroup("Material")]
         [Export] public Material TerrainMaterial { get; set; } = new StandardMaterial3D();

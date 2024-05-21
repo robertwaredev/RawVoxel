@@ -50,9 +50,11 @@ namespace RawVoxel
             voxelContainer.CreateTrimeshCollision();
             voxelContainer.AddToGroup("NavSource");
         }
-        static void GenerateVoxel(VoxelContainer voxelContainer, int voxelGridIndex)
+        private static void GenerateVoxel(VoxelContainer voxelContainer, int voxelGridIndex)
             {
-                Vector3I voxelGridPosition = XYZConvert.IndexToVector3I(voxelGridIndex, voxelContainer.World.ChunkDiameter);
+                int chunkDiameter = voxelContainer.World.ChunkDiameter;
+                Vector3I voxelGridPosition = XYZConvert.IndexToVector3I(voxelGridIndex, new(chunkDiameter, chunkDiameter, chunkDiameter));
+                
                 int voxelType = voxelContainer.VoxelTypes[voxelGridIndex];
                 Color color = voxelContainer.World.Voxels[voxelType].Color;
                     
@@ -74,7 +76,7 @@ namespace RawVoxel
                 if (Voxel.IsVisible(voxelContainer, voxelGridPosition + Vector3I.Back) == false)
                     GenerateFace(Voxel.Face.South, voxelGridPosition, Vector3I.Back, color);
             }
-        static void GenerateFace(Voxel.Face face, Vector3I voxelGridPosition, Vector3I normal, Color color)
+        private static void GenerateFace(Voxel.Face face, Vector3I voxelGridPosition, Vector3I normal, Color color)
             {
                 int[] faceVertices = Voxel.Faces[(int)face];
                 

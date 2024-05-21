@@ -77,9 +77,9 @@ namespace RawVoxel
         }
         public static bool IsExternal(VoxelContainer voxelContainer, Vector3I gridPosition)
         {
-            if (gridPosition.X < 0 || gridPosition.X >= voxelContainer.World.ChunkDiameter.X) return true;
-            if (gridPosition.Y < 0 || gridPosition.Y >= voxelContainer.World.ChunkDiameter.Y) return true;
-            if (gridPosition.Z < 0 || gridPosition.Z >= voxelContainer.World.ChunkDiameter.Z) return true;
+            if (gridPosition.X < 0 || gridPosition.X >= voxelContainer.World.ChunkDiameter) return true;
+            if (gridPosition.Y < 0 || gridPosition.Y >= voxelContainer.World.ChunkDiameter) return true;
+            if (gridPosition.Z < 0 || gridPosition.Z >= voxelContainer.World.ChunkDiameter) return true;
             
             return false;
         }
@@ -98,17 +98,19 @@ namespace RawVoxel
                 else return false;
             }
             
-            int gridIndex = XYZConvert.Vector3IToIndex(gridPosition, voxelContainer.World.ChunkDiameter);
+            int chunkDiameter = voxelContainer.World.ChunkDiameter;
+            int gridIndex = XYZConvert.Vector3IToIndex(gridPosition, new(chunkDiameter, chunkDiameter, chunkDiameter));
             
             return voxelContainer.VoxelMasks[gridIndex];
         }
         public static void SetType(VoxelContainer voxelContainer, Vector3I gridPosition, byte voxelType)
         {
-            gridPosition.X = Mathf.PosMod(gridPosition.X, voxelContainer.World.ChunkDiameter.X);
-            gridPosition.Y = Mathf.PosMod(gridPosition.Y, voxelContainer.World.ChunkDiameter.Y);
-            gridPosition.Z = Mathf.PosMod(gridPosition.Z, voxelContainer.World.ChunkDiameter.Z);
+            gridPosition.X = Mathf.PosMod(gridPosition.X, voxelContainer.World.ChunkDiameter);
+            gridPosition.Y = Mathf.PosMod(gridPosition.Y, voxelContainer.World.ChunkDiameter);
+            gridPosition.Z = Mathf.PosMod(gridPosition.Z, voxelContainer.World.ChunkDiameter);
             
-            int gridIndex = XYZConvert.Vector3IToIndex(gridPosition, voxelContainer.World.ChunkDiameter);
+            int chunkDiameter = voxelContainer.World.ChunkDiameter;
+            int gridIndex = XYZConvert.Vector3IToIndex(gridPosition, new(chunkDiameter, chunkDiameter, chunkDiameter));
             
             voxelContainer.VoxelTypes[gridIndex] = voxelType;
         }

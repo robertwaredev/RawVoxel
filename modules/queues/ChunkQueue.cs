@@ -53,8 +53,6 @@ namespace RawVoxel
 
             return Array.Empty<String>();
         }
-        
-        public abstract void ThreadProcess();
 
         public void TryUpdateFocusNodeGlobalPosition()
         {

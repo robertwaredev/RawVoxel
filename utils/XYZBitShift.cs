@@ -42,5 +42,18 @@ namespace RawUtils
             
             return vector;
         }
+
+        public static int CalculateShifts(int value)
+        {
+            int shifts = 0;
+
+            while (value > 1 && value % 2 == 0)
+            {
+                value >>= 1;
+                shifts ++;
+            }
+
+            return shifts;
+        }
     }
 }

@@ -23,7 +23,7 @@ namespace RawVoxel
         {
             TryUpdateFocusNodeGlobalPosition();
         }
-        public override void ThreadProcess()
+        public void ThreadProcess()
         {
             while (IsInstanceValid(this))
             {
