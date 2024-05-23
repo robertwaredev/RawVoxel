@@ -51,46 +51,46 @@ namespace RawVoxel
             voxelContainer.AddToGroup("NavSource");
         }
         private static void GenerateVoxel(VoxelContainer voxelContainer, int voxelGridIndex)
-            {
-                int chunkDiameter = voxelContainer.World.ChunkDiameter;
-                Vector3I voxelGridPosition = XYZConvert.IndexToVector3I(voxelGridIndex, new(chunkDiameter, chunkDiameter, chunkDiameter));
+        {
+            int chunkDiameter = voxelContainer.World.ChunkDiameter;
+            Vector3I voxelGridPosition = XYZConvert.IndexToVector3I(voxelGridIndex, new(chunkDiameter, chunkDiameter, chunkDiameter));
+            
+            int voxelType = voxelContainer.VoxelTypes[voxelGridIndex];
+            Color color = voxelContainer.World.Voxels[voxelType].Color;
                 
-                int voxelType = voxelContainer.VoxelTypes[voxelGridIndex];
-                Color color = voxelContainer.World.Voxels[voxelType].Color;
-                    
-                if (Voxel.IsVisible(voxelContainer, voxelGridPosition + Vector3I.Up) == false)
-                    GenerateFace(Voxel.Face.Top, voxelGridPosition, Vector3I.Up, color);
-                
-                if (Voxel.IsVisible(voxelContainer, voxelGridPosition + Vector3I.Down) == false)
-                    GenerateFace(Voxel.Face.Btm, voxelGridPosition, Vector3I.Down, color);
-                
-                if (Voxel.IsVisible(voxelContainer, voxelGridPosition + Vector3I.Left) == false)
-                    GenerateFace(Voxel.Face.West, voxelGridPosition, Vector3I.Left, color);
-                
-                if (Voxel.IsVisible(voxelContainer, voxelGridPosition + Vector3I.Right) == false)
-                    GenerateFace(Voxel.Face.East, voxelGridPosition, Vector3I.Right, color);
-                
-                if (Voxel.IsVisible(voxelContainer, voxelGridPosition + Vector3I.Forward) == false)
-                    GenerateFace(Voxel.Face.North, voxelGridPosition, Vector3I.Forward, color);
-                
-                if (Voxel.IsVisible(voxelContainer, voxelGridPosition + Vector3I.Back) == false)
-                    GenerateFace(Voxel.Face.South, voxelGridPosition, Vector3I.Back, color);
-            }
+            if (Voxel.IsVisible(voxelContainer, voxelGridPosition + Vector3I.Up) == false)
+                GenerateFace(Voxel.Face.Top, voxelGridPosition, Vector3I.Up, color);
+            
+            if (Voxel.IsVisible(voxelContainer, voxelGridPosition + Vector3I.Down) == false)
+                GenerateFace(Voxel.Face.Btm, voxelGridPosition, Vector3I.Down, color);
+            
+            if (Voxel.IsVisible(voxelContainer, voxelGridPosition + Vector3I.Left) == false)
+                GenerateFace(Voxel.Face.West, voxelGridPosition, Vector3I.Left, color);
+            
+            if (Voxel.IsVisible(voxelContainer, voxelGridPosition + Vector3I.Right) == false)
+                GenerateFace(Voxel.Face.East, voxelGridPosition, Vector3I.Right, color);
+            
+            if (Voxel.IsVisible(voxelContainer, voxelGridPosition + Vector3I.Forward) == false)
+                GenerateFace(Voxel.Face.North, voxelGridPosition, Vector3I.Forward, color);
+            
+            if (Voxel.IsVisible(voxelContainer, voxelGridPosition + Vector3I.Back) == false)
+                GenerateFace(Voxel.Face.South, voxelGridPosition, Vector3I.Back, color);
+        }
         private static void GenerateFace(Voxel.Face face, Vector3I voxelGridPosition, Vector3I normal, Color color)
-            {
-                int[] faceVertices = Voxel.Faces[(int)face];
-                
-                Vector3I vertexA = Voxel.Vertices[faceVertices[0]] + voxelGridPosition;
-                Vector3I vertexB = Voxel.Vertices[faceVertices[1]] + voxelGridPosition;
-                Vector3I vertexC = Voxel.Vertices[faceVertices[2]] + voxelGridPosition;
-                Vector3I vertexD = Voxel.Vertices[faceVertices[3]] + voxelGridPosition;
+        {
+            int[] faceVertices = Voxel.Faces[(int)face];
+            
+            Vector3I vertexA = Voxel.Vertices[faceVertices[0]] + voxelGridPosition;
+            Vector3I vertexB = Voxel.Vertices[faceVertices[1]] + voxelGridPosition;
+            Vector3I vertexC = Voxel.Vertices[faceVertices[2]] + voxelGridPosition;
+            Vector3I vertexD = Voxel.Vertices[faceVertices[3]] + voxelGridPosition;
 
-                int offset = Vertices.Count;
+            int offset = Vertices.Count;
 
-                Vertices.AddRange(new List<Vector3> { vertexA, vertexB, vertexC, vertexD });
-                Normals.AddRange(new List<Vector3> { normal, normal, normal, normal });
-                Colors.AddRange(new List<Color> { color, color, color, color });
-                Indices.AddRange(new List<int> { 0 + offset, 1 + offset, 2 + offset, 0 + offset, 2 + offset, 3 + offset });
-            }
+            Vertices.AddRange(new List<Vector3> { vertexA, vertexB, vertexC, vertexD });
+            Normals.AddRange(new List<Vector3> { normal, normal, normal, normal });
+            Colors.AddRange(new List<Color> { color, color, color, color });
+            Indices.AddRange(new List<int> { 0 + offset, 1 + offset, 2 + offset, 0 + offset, 2 + offset, 3 + offset });
+        }
     }
 }
