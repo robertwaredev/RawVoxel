@@ -6,7 +6,7 @@ namespace RawVoxel
 {
     public static class CulledMesher
     {
-        // FIXME - Having these in this scope will become a problem
+        // FIXME - Having these in this scope might be a problem
         public static readonly List<Vector3> Vertices = new();
         public static readonly List<Vector3> Normals = new();
         public static readonly List<Color> Colors = new();

@@ -41,7 +41,7 @@ namespace RawVoxel
 
             //SetupShader();
 
-            BinaryMesher.Generate(this);
+            //BinaryMesher.Generate(this);
             CulledMesher.Generate(this);
         }
         public void SetupShader()

@@ -43,6 +43,7 @@ namespace RawUtils
             return vector;
         }
 
+        // Calculate the number of right bitshifts required to reduce a number to 1.
         public static int CalculateShifts(int value)
         {
             int shifts = 0;

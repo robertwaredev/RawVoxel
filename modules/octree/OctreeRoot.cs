@@ -4,7 +4,7 @@ using System.Threading;
 namespace RawVoxel
 {
     [GlobalClass, Tool]
-    public partial class OctreeRoot : ChunkQueue
+    public partial class OctreeRoot : ChunkContainer
     {
         #region Exports
         

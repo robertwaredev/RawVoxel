@@ -8,7 +8,7 @@ using System.Collections.Generic;
 
 namespace RawVoxel
 {
-    public abstract partial class ChunkQueue : Node3D
+    public abstract partial class ChunkContainer : Node3D
     {
         #region Exports
 
@@ -187,6 +187,7 @@ namespace RawVoxel
 
                 Vector3I loadablePosition = XYZConvert.IndexToVector3I(loadableIndex, World.Diameter) - World.Radius;
                 
+                // FIXME - This should eventually be a proper thread queue.
                 Task generate = new(new Action(() => voxelContainer.CallDeferred(nameof(VoxelContainer.GenerateVoxels), loadablePosition)));
                 generate.Start();
                 generate.Wait();
@@ -238,7 +239,7 @@ namespace RawVoxel
             _freeable.Clear();
         }
     
-        public void FreeLoaded()
+        private void FreeLoaded()
         {
             if (_loaded.Count == 0) return;
 

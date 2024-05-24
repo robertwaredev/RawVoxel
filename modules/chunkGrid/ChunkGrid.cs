@@ -4,7 +4,7 @@ using System.Threading;
 namespace RawVoxel
 {
     [GlobalClass, Tool]
-    public partial class ChunkGrid : ChunkQueue
+    public partial class ChunkGrid : ChunkContainer
     {
         public ChunkGrid() {}
         

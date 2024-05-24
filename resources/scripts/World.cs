@@ -1,25 +1,11 @@
 using Godot;
-using System;
 using RawUtils;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
-using System.Collections.Generic;
-
-// TODO - Thread Pool
-// TODO - Fix chunk loading to always load chunks closest to focus node at surface level first.
 
 namespace RawVoxel
 {
     [GlobalClass, Tool]
     public partial class World : Resource
     {
-        #region Enums
-        
-        public enum Attribute { Temperature, Humidity }
-
-        #endregion Enums
-        
         #region Exports
 
         [ExportGroup("Libraries")]
@@ -33,15 +19,23 @@ namespace RawVoxel
         [ExportGroup("Dimensions")]
         [Export] public bool CenterChunk = true;
         [Export] public Vector3I DrawRadius = new(1, 1, 1);
-                 public Vector3I DrawDiameter
-                 {
-                    get { return DrawRadius * 2 + Vector3I.One; }
-                 }
+        public Vector3I DrawDiameter
+        {
+            get {
+                    Vector3I diameter = XYZBitShift.Vector3ILeft(DrawRadius, 1);
+                    if (CenterChunk) diameter += Vector3I.One;
+                    return diameter;
+                }
+        }
         [Export] public Vector3I Radius = new(128, 128, 128);
-                 public Vector3I Diameter
-                 {
-                    get { return Radius * 2 + Vector3I.One; }
-                 }
+        public Vector3I Diameter
+        {
+            get {
+                    Vector3I diameter = XYZBitShift.Vector3ILeft(Radius, 1);
+                    if (CenterChunk) diameter += Vector3I.One;
+                    return diameter;
+                }
+        }
         [Export] public int ChunkDiameter = 16;
 
         [ExportGroup("Material")]
