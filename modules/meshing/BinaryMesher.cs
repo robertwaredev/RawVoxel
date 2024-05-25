@@ -8,23 +8,10 @@ using System;
 
 namespace RawVoxel {
     public static class BinaryMesher { 
-        private struct Span
+        private struct SpanEnds
         {
-            public int Mask;
-            public byte Offset;
-
-            public void GenerateMask(int trailingZeroCount)
-            {
-                Mask = 0;
-                
-                if (trailingZeroCount > 0)
-                {
-                    for (int zeroCount = 0; zeroCount < trailingZeroCount; zeroCount ++)
-                    {
-                        Mask |= 1 << zeroCount;
-                    }
-                }
-            }
+            public int Top;
+            public int Btm;
         }
         
         public static void Generate(VoxelContainer voxelContainer) {
@@ -32,11 +19,11 @@ namespace RawVoxel {
             int diameter = voxelContainer.World.ChunkDiameter;
             int shifts = XYZBitShift.CalculateShifts(diameter);
             
-            // Set up mask column arrays.
-            int[,,] voxelMasks = new int[3, diameter, diameter];
-            int[,,] faceMasks = new int[6, diameter, diameter];
+            // Set up column arrays.
+            int[,,] voxelColumnSets = new int[3, diameter, diameter];
+            int[,,] faceColumnSets = new int[6, diameter, diameter];
             
-            // Generate columns of voxel visibility masks as 32 bit integers.
+            // Generate columns of voxel visibility masks for each axis.
             for (int x = 0; x < diameter; x ++)
             {
                 for (int y = 0; y < diameter; y ++)
@@ -47,117 +34,116 @@ namespace RawVoxel {
                         int voxelIndex = XYZBitShift.XYZToIndex(x, y, z, shifts);
                         if (voxelContainer.VoxelMasks[voxelIndex] == true)
                         {      
-                            // Merge the voxel's visibility mask into its respective mask columns.
-                            voxelMasks[0, y, z] |= 1 << x;
-                            voxelMasks[1, z, x] |= 1 << y;
-                            voxelMasks[2, x, y] |= 1 << z;
+                            // Merge the voxel's visibility mask into its respective column.
+                            voxelColumnSets[0, y, z] |= 1 << x;
+                            voxelColumnSets[1, z, x] |= 1 << y;
+                            voxelColumnSets[2, x, y] |= 1 << z;
                         }
                     }
                 }
             }
 
-            // Generate columns of voxel face visibility masks as 32 bit integers.
-            for (int axis = 0; axis < 3; axis ++)
+            // Generate two columns of face visibility masks for each column of voxel visibility masks.
+            for (int voxelColumnSet = 0; voxelColumnSet < 3; voxelColumnSet ++)
             {
-                for (int top = 0; top < diameter; top ++)
+                for (int depth = 0; depth < diameter; depth ++)
                 {
-                    for (int btm = 0; btm < diameter; btm ++)
+                    for (int width = 0; width < diameter; width ++)
                     {
-                        // Retrieve the current column mask.
-                        int voxelMask = voxelMasks[axis, top, btm];
-                        
-                        // Generate masks for the two opposite voxel faces on the current axis.
-                        faceMasks[2 * axis + 0, top, btm] = voxelMask & ~(voxelMask << 1);
-                        faceMasks[2 * axis + 1, btm, top] = voxelMask & ~(voxelMask >> 1);
+                        // Retrieve the current voxel column.
+                        int voxelColumn = voxelColumnSets[voxelColumnSet, depth, width];
+                        // Generate span ends for voxel column.
+                        SpanEnds spanEnds = GenerateSpanEnds(voxelColumn);
+
+                        // Generate masks for opposite voxel faces on the current axis.
+                        faceColumnSets[2 * voxelColumnSet + 0, depth, width] = spanEnds.Top;
+                        faceColumnSets[2 * voxelColumnSet + 1, width, depth] = spanEnds.Btm;
                     }
                 }
             }
         
-            // Generate faces for each span in the column.
-            for (int axis =  0; axis < 6; axis ++)
+            // Generate faces for each slice of columns in each face column set.
+            for (int faceColumnSet =  0; faceColumnSet < 6; faceColumnSet ++)
             {
-                /*
                 // Set AABB expand directions for the current axis.
                 Godot.Vector3 vExpandDirection = Godot.Vector3.Zero;
                 Godot.Vector3 hExpandDirection = Godot.Vector3.Zero;
-                switch (axis)
+                
+                switch (faceColumnSet)
                 {
-                    case 0 | 1: // X
+                    case 0 | 1:
                         vExpandDirection = new(0, 1, 0);
                         hExpandDirection = new(0, 0, 1);
                         break;
-                    case 2 | 3: // Y
+                    case 2 | 3:
                         vExpandDirection = new(1, 0, 0);
                         hExpandDirection = new(0, 0, 1);
                         break;
-                    case 4 | 5: // Z
+                    case 4 | 5:
                         vExpandDirection = new(0, 1, 0);
                         hExpandDirection = new(1, 0, 0);
                         break;
                 }
-                */
 
-                for (int width = 0; width < diameter; width ++)
+                for (int depth = 0; depth < diameter; depth ++)
                 {
-                    // Create a new set of spans to track across columns.
-                    List<Span> sliceSpans = new();
-                    
-                    for (int depth = 0; depth < diameter; depth ++)
+                    for (int width = 0; width < diameter; width ++)
                     {
-                        // Retrieve face colummn visibility mask.
-                        int mask = faceMasks[axis, width, depth];
-
-                        // Generate spans from mask.
-                        List<Span> maskSpans = GenerateSpans(mask);
-
-                        // Early return if no spans were generated.
-                        if (maskSpans.Count == 0) return;
-
-
+                        // Retrieve the current column of face visibility masks.
+                        int faceColumn = faceColumnSets[faceColumnSet, depth, width];
+                        
+                        // Generate span columns for the current face column.
+                        List<int> spans = GenerateSpans(faceColumn);
                     }
                 }
             }
         }
-    
-        private static List<Span> GenerateSpans(int mask)
+        // Break a column into multiple, each containing one span from the original column.
+        private static List<int> GenerateSpans(int column)
         {
-            List<Span> spans = new();
+            List<int> spanColumns = new();
             
-            if (mask == 0) return spans;
+            if (column == 0) return spanColumns;
             
-            int mergedMasks = 0;
-            byte spanOffset = 0;
+            // Generate span ends for face column.
+            SpanEnds spanEnds = GenerateSpanEnds(column);
             
-            // Generate spans.
-            while (~mergedMasks != 0)
+            // Loop through span ends and generate spans for the column, bottom to top.
+            while ((spanEnds.Top | spanEnds.Btm) > 0)
             {
-                // Create a new span.
-                Span span = new()
+                // Calculate info about the span's position and vertical size.
+                int spanVerticalOffset = BitOperations.TrailingZeroCount(spanEnds.Btm);
+                int spanVerticalSize = BitOperations.TrailingZeroCount(spanEnds.Top >> spanVerticalOffset) + 1;
+
+                int spanColumn = 0;
+                
+                // Generate new span column with no trailing zeros.
+                for (int setBit = 0; setBit < spanVerticalSize; setBit ++)
                 {
-                    Mask = 0,
-                    Offset = spanOffset
-                };
+                    spanColumn |= 1 << setBit;
+                }
                 
-                // Add new span to the spans list.
-                spans.Add(span);
-
-                // Bitshift the mask to the current span.
-                mask >>= spanOffset;
+                // Add the proper number of trailing zeros to the span column.
+                spanColumn <<= spanVerticalOffset;
                 
-                // Get the inverted mask's trailing zero count.
-                int trailingZeroCount = BitOperations.TrailingZeroCount(~mask);
+                // Add span column to the list.
+                spanColumns.Add(spanColumn);
 
-                // Generate the span's mask.
-                span.GenerateMask(trailingZeroCount);
-
-                // Merge inverted mask with span mask.
-                mergedMasks = ~mask | span.Mask;
-                
-                // Update the number of bitshifts required to offset to the next span.
-                spanOffset += (byte)BitOperations.TrailingZeroCount(~mergedMasks);
+                // Clear bits for the current span from span ends to allow info about the next span to be calculated.
+                spanEnds.Top &= ~spanColumn;
+                spanEnds.Btm &= ~spanColumn;
             }
 
-            return spans;
+            return spanColumns;
+        }
+        // Break a column into two, one containing start positions and the other containing the end potitions of each span in the original column.
+        private static SpanEnds GenerateSpanEnds(int column)
+        {
+            return new SpanEnds()
+            {
+                Top = column & ~(column >> 1),
+                Btm = column & ~(column << 1)
+            };
         }
     }
 }
