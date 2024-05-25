@@ -62,7 +62,7 @@ namespace RawVoxel {
                 }
             }
         
-            // Generate faces for each slice of columns in each face column set.
+            // Generate faces for each slice of face columns in each face column set.
             for (int faceColumnSet =  0; faceColumnSet < 6; faceColumnSet ++)
             {
                 // Set AABB expand directions for the current axis.
@@ -83,6 +83,8 @@ namespace RawVoxel {
                         vExpandDirection = new(0, 1, 0);
                         hExpandDirection = new(1, 0, 0);
                         break;
+                    default:
+                        break;
                 }
 
                 for (int depth = 0; depth < diameter; depth ++)
@@ -90,10 +92,54 @@ namespace RawVoxel {
                     for (int width = 0; width < diameter; width ++)
                     {
                         // Retrieve the current column of face visibility masks.
-                        int faceColumn = faceColumnSets[faceColumnSet, depth, width];
+                        int thisFaceColumn = faceColumnSets[faceColumnSet, depth, width];
                         
                         // Generate span columns for the current face column.
-                        List<int> spans = GenerateSpans(faceColumn);
+                        List<int> spanColumns = GenerateSpans(thisFaceColumn);
+
+                        // Loop through span columns.
+                        foreach (int spanColumn in spanColumns)
+                        {
+                            // Calculate this span's vertical offset and size.
+                            int spanVerticalOffset = BitOperations.TrailingZeroCount(spanColumn);
+                            int spanVerticalSize = BitOperations.TrailingZeroCount(~(spanColumn >> spanVerticalOffset));
+                            
+                            // Create an AABB to represent the face to be generated for the current span.
+                            Aabb spanBounds = new()
+                            {
+                                // Caluclate AABB starting position for the current span.
+                                Position = voxelContainer.Position + vExpandDirection * spanVerticalOffset + new Godot.Vector3(width, 0, depth),
+                            };
+                            
+                            // Expand AABB to encompass the current span.
+                            spanBounds.Expand(spanBounds.End + vExpandDirection * spanVerticalSize + hExpandDirection);
+
+                            // Loop through neighboring face columns and try to expand the current span to them.
+                            for (int faceColumn = width + 1; faceColumn < diameter; faceColumn ++)
+                            {
+                                // Retrieve the next column of face visibility masks.
+                                int nextFaceColumn = faceColumnSets[faceColumnSet, depth, faceColumn];
+
+                                // Check if the current span can expand into the next face column.
+                                if (BitOperations.TrailingZeroCount(nextFaceColumn >> spanVerticalOffset) == 0)
+                                {
+                                    if (nextFaceColumn >> spanVerticalOffset >= spanColumn >> spanVerticalOffset)
+                                    {
+                                        // Expand the current span's AABB.
+                                        spanBounds.Expand(spanBounds.End + hExpandDirection);
+                                        
+                                        // Clear the current span's column bits from the face column that was expanded into.
+                                        faceColumnSets[faceColumnSet, depth, faceColumn] &= ~spanColumn;
+                                    }
+                                }
+                                else
+                                {
+                                    break;
+                                }
+                            }
+                            
+                            // TODO - Commit AABB
+                        }
                     }
                 }
             }
@@ -101,14 +147,17 @@ namespace RawVoxel {
         // Break a column into multiple, each containing one span from the original column.
         private static List<int> GenerateSpans(int column)
         {
+            if (column == 0) return new List<int>{ 0 };
+            
+            if (column == int.MaxValue) return new List<int>{ column };
+            
+            // Create a new list of span columns.
             List<int> spanColumns = new();
-            
-            if (column == 0) return spanColumns;
-            
+
             // Generate span ends for face column.
             SpanEnds spanEnds = GenerateSpanEnds(column);
             
-            // Loop through span ends and generate spans for the column, bottom to top.
+            // Loop through span ends and generate span columns, bottom to top.
             while ((spanEnds.Top | spanEnds.Btm) > 0)
             {
                 // Calculate info about the span's position and vertical size.
