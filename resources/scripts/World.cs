@@ -38,17 +38,17 @@ namespace RawVoxel
                     return diameter;
                 }
         }
-        [Export] public int ChunkDiameter = 32;
+        [Export] public int ChunkDiameter = 16;
 
         [ExportGroup("Material")]
         [Export] public Material TerrainMaterial { get; set; } = new StandardMaterial3D();
 
         [ExportGroup("Rendering")]
         [Export] public bool ShowChunkEdges = false;
-        [Export] public MeshGenerationType MeshGeneration { get; set; }
+        [Export] public MeshGenerationType MeshGeneration { get; set; } = MeshGenerationType.Greedy;
         
         [ExportGroup("Threading")]
-        [Export] public int GenerateFrequency = 15;
+        [Export] public int GenerateFrequency = 10;
 
         #endregion Exports
     

@@ -52,7 +52,7 @@ namespace RawVoxel
                 }
             }
             
-            RawTimer.Time(Update);
+            Update();
         }
         public void Update()
         {
