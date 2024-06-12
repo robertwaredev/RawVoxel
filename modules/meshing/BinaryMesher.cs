@@ -1,198 +1,272 @@
 using Godot;
 using RawUtils;
-using System.Numerics;
 using System.Collections.Generic;
-using System;
+using System.Diagnostics;
+using static System.Numerics.BitOperations;
 
 // !! THIS ONLY WORKS WITH CUBED CHUNK DIMENSIONS THAT ARE A POWER OF TWO. !!
 
 namespace RawVoxel {
     public static class BinaryMesher { 
-        private struct SpanEnds
+        // Generate two bit masks from the specified "sequence" containing left and right ends of "spans" of bits from the sequence.
+        private struct Ends(int sequence)
         {
-            public int Top;
-            public int Btm;
+            // "L" refers to ends of spans extracted from a sequence of bits via "left to right" order. (left-most ends)
+            public int LBitMask = sequence & ~(sequence >> 1);
+            // "R" refers to ends of spans extracted from a sequence of bits via "right to left" order. (right-most ends)
+            public int RBitMask = sequence & ~(sequence << 1);
+            // Clear bits from L & R where set bits in the specified bit mask mark which bits should be cleared.
+            public void ClearBits(int bitMask)
+            {
+                LBitMask &= ~bitMask;
+                RBitMask &= ~bitMask;
+            }
+        }
+        // A bit mask, 
+        private struct Span(Ends ends)
+        {
+            // Bit mask representing the right-most span of set bits in a sequence.
+            public int BitMask = 0;
+            // Trailing zeros for BitMask.
+            public byte Offset = (byte)TrailingZeroCount(ends.RBitMask);
+            // Length of the span of set bits in BitMask.
+            public byte Length = (byte)(TrailingZeroCount(ends.LBitMask >> TrailingZeroCount(ends.RBitMask)) + 1);
         }
         
-        public static void Generate(VoxelContainer voxelContainer) {
-            // Calculate the number of bitshifts equivalent to the chunk diameter.
-            int diameter = voxelContainer.World.ChunkDiameter;
-            int shifts = XYZBitShift.CalculateShifts(diameter);
-            
-            // Set up column arrays.
-            int[,,] voxelColumnSets = new int[3, diameter, diameter];
-            int[,,] faceColumnSets = new int[6, diameter, diameter];
-            
-            // Generate columns of voxel visibility masks for each axis.
-            for (int x = 0; x < diameter; x ++)
+        // Generate binary mesh for the specified chunk.
+        public static void Generate(ref Chunk chunk)
+        {
+            // Check if all voxels in the chunk are solid.
+            if (chunk.VoxelMasks.HasAllSet())
             {
-                for (int y = 0; y < diameter; y ++)
+                // TODO - Skip straight to simple mesh generation.
+            }
+            // FIXME - else
+            {
+                #region Variables
+
+                // Store chunk diameter with a shorter name so I have to type less.
+                byte diameter = (byte)chunk.World.ChunkDiameter;
+                
+                // Voxels stored as [set, depth, width] with height encoded into each array element's sequence of bits.
+                int[,,] voxelSequences = new int[3, diameter, diameter];
+                
+                // Planes stored as [set, height, width] with depth encoded into each array element's sequence of bits.
+                int[,,] planeSequences = new int[6, diameter, diameter];
+                
+                // Create placeholders for relative axes to be used when generating mesh data.
+                Vector3I hDirection = new();
+                Vector3I wDirection = new();
+                Vector3I dDirection = new();
+                
+                // Create placeholder lists for mesh data.
+                List<Vector3> Vertices = [];
+                List<Vector3> Normals = [];
+                List<Color> Colors = [];
+                List<int> Indices = [];
+
+                #endregion Variables
+                
+                // Generate sequences of voxel bit masks in sets, one for each axis.
+                for (int x = 0; x < diameter; x ++)
                 {
-                    for (int z = 0; z < diameter; z ++)
+                    for (int y = 0; y < diameter; y ++)
                     {
-                        // Check if current voxel's visibility mask is true.
-                        int voxelIndex = XYZBitShift.XYZToIndex(x, y, z, shifts);
-                        if (voxelContainer.VoxelMasks[voxelIndex] == true)
-                        {      
-                            // Merge the voxel's visibility mask into its respective column.
-                            voxelColumnSets[0, y, z] |= 1 << x;
-                            voxelColumnSets[1, z, x] |= 1 << y;
-                            voxelColumnSets[2, x, y] |= 1 << z;
+                        for (int z = 0; z < diameter; z ++)
+                        {
+                            // Convert position to index.
+                            int voxelIndex = XYZBitShift.XYZToIndex(x, y, z, XYZBitShift.CalculateShifts(diameter));
+                            
+                            // Check if current voxel bit mask is true.
+                            if (chunk.VoxelMasks[voxelIndex] == true)
+                            {      
+                                // Merge voxel bit mask into its respective sequence.
+                                voxelSequences[0, y, z] |= 1 << x;
+                                voxelSequences[1, z, x] |= 1 << y;
+                                voxelSequences[2, x, y] |= 1 << z;
+                            }
                         }
                     }
                 }
-            }
 
-            // Generate two columns of face visibility masks for each column of voxel visibility masks.
-            for (int voxelColumnSet = 0; voxelColumnSet < 3; voxelColumnSet ++)
-            {
-                for (int depth = 0; depth < diameter; depth ++)
+                // Generate sequences of plane bit masks in sets, two for each axis.
+                for (int set = 0; set < 3; set ++)
                 {
-                    for (int width = 0; width < diameter; width ++)
+                    for (int depth = 0; depth < diameter; depth ++)
                     {
-                        // Retrieve the current voxel column.
-                        int voxelColumn = voxelColumnSets[voxelColumnSet, depth, width];
-                        // Generate span ends for voxel column.
-                        SpanEnds spanEnds = GenerateSpanEnds(voxelColumn);
-
-                        // Generate masks for opposite voxel faces on the current axis.
-                        faceColumnSets[2 * voxelColumnSet + 0, depth, width] = spanEnds.Top;
-                        faceColumnSets[2 * voxelColumnSet + 1, width, depth] = spanEnds.Btm;
-                    }
-                }
-            }
-        
-            // Generate faces for each slice of face columns in each face column set.
-            for (int faceColumnSet =  0; faceColumnSet < 6; faceColumnSet ++)
-            {
-                // Set AABB expand directions for the current axis.
-                Godot.Vector3 vExpandDirection = Godot.Vector3.Zero;
-                Godot.Vector3 hExpandDirection = Godot.Vector3.Zero;
-                
-                switch (faceColumnSet)
-                {
-                    case 0 | 1:
-                        vExpandDirection = new(0, 1, 0);
-                        hExpandDirection = new(0, 0, 1);
-                        break;
-                    case 2 | 3:
-                        vExpandDirection = new(1, 0, 0);
-                        hExpandDirection = new(0, 0, 1);
-                        break;
-                    case 4 | 5:
-                        vExpandDirection = new(0, 1, 0);
-                        hExpandDirection = new(1, 0, 0);
-                        break;
-                    default:
-                        break;
-                }
-
-                for (int depth = 0; depth < diameter; depth ++)
-                {
-                    for (int width = 0; width < diameter; width ++)
-                    {
-                        // Retrieve the current column of face visibility masks.
-                        int thisFaceColumn = faceColumnSets[faceColumnSet, depth, width];
-                        
-                        // Generate span columns for the current face column.
-                        List<int> spanColumns = GenerateSpans(thisFaceColumn);
-
-                        // Loop through span columns.
-                        foreach (int spanColumn in spanColumns)
+                        for (int width = 0; width < diameter; width ++)
                         {
-                            // Calculate this span's vertical offset and size.
-                            int spanVerticalOffset = BitOperations.TrailingZeroCount(spanColumn);
-                            int spanVerticalSize = BitOperations.TrailingZeroCount(~(spanColumn >> spanVerticalOffset));
+                            // Generate bit masks for left and right ends of spans in the current sequence. (visible planes/faces)
+                            Ends ends = new(voxelSequences[set, depth, width]);
                             
-                            // Create an AABB to represent the face to be generated for the current span.
-                            Aabb spanBounds = new()
+                            // Loop thru each voxel at the given height.
+                            for(int height = 0; height < diameter; height ++)
                             {
-                                // Caluclate AABB starting position for the current span.
-                                Position = voxelContainer.Position + vExpandDirection * spanVerticalOffset + new Godot.Vector3(width, 0, depth),
-                            };
-                            
-                            // Expand AABB to encompass the current span.
-                            spanBounds.Expand(spanBounds.End + vExpandDirection * spanVerticalSize + hExpandDirection);
-
-                            // Loop through neighboring face columns and try to expand the current span to them.
-                            for (int faceColumn = width + 1; faceColumn < diameter; faceColumn ++)
-                            {
-                                // Retrieve the next column of face visibility masks.
-                                int nextFaceColumn = faceColumnSets[faceColumnSet, depth, faceColumn];
-
-                                // Check if the current span can expand into the next face column.
-                                if (BitOperations.TrailingZeroCount(nextFaceColumn >> spanVerticalOffset) == 0)
+                                // Check if voxel at the current height has a "left" plane.
+                                if ((ends.LBitMask & (1 << height)) != 0)
                                 {
-                                    if (nextFaceColumn >> spanVerticalOffset >= spanColumn >> spanVerticalOffset)
-                                    {
-                                        // Expand the current span's AABB.
-                                        spanBounds.Expand(spanBounds.End + hExpandDirection);
-                                        
-                                        // Clear the current span's column bits from the face column that was expanded into.
-                                        faceColumnSets[faceColumnSet, depth, faceColumn] &= ~spanColumn;
-                                    }
+                                    // Merge "left" plane bit mask into its respective sequence.
+                                    planeSequences[(set << 1) + 0, height, width] |= 1 << depth;
                                 }
-                                else
+                                
+                                // Check if voxel at the current height has a "right" plane.
+                                if ((ends.RBitMask & (1 << height)) != 0)
                                 {
-                                    break;
+                                    // Merge "right" plane bit mask into its respective sequence.
+                                    planeSequences[(set << 1) + 1, height, width] |= 1 << depth;
                                 }
                             }
-                            
-                            // TODO - Commit AABB
                         }
                     }
                 }
-            }
-        }
-        // Break a column into multiple, each containing one span from the original column.
-        private static List<int> GenerateSpans(int column)
-        {
-            if (column == 0) return new List<int>{ 0 };
-            
-            if (column == int.MaxValue) return new List<int>{ column };
-            
-            // Create a new list of span columns.
-            List<int> spanColumns = new();
 
-            // Generate span ends for face column.
-            SpanEnds spanEnds = GenerateSpanEnds(column);
-            
-            // Loop through span ends and generate span columns, bottom to top.
-            while ((spanEnds.Top | spanEnds.Btm) > 0)
-            {
-                // Calculate info about the span's position and vertical size.
-                int spanVerticalOffset = BitOperations.TrailingZeroCount(spanEnds.Btm);
-                int spanVerticalSize = BitOperations.TrailingZeroCount(spanEnds.Top >> spanVerticalOffset) + 1;
-
-                int spanColumn = 0;
-                
-                // Generate new span column with no trailing zeros.
-                for (int setBit = 0; setBit < spanVerticalSize; setBit ++)
+                // Generate mesh data.
+                for (int set = 0; set < 6; set ++)
                 {
-                    spanColumn |= 1 << setBit;
+                    // Set relative axes based on set. (width, height, depth)
+                    switch (set)
+                    {
+                        case 0: case 1: // X axis sequences.
+                            wDirection = new(0, 0, 1);  // Z
+                            hDirection = new(1, 0, 0);  // X
+                            dDirection = new(0, 1, 0);  // Y
+                            break;
+                        case 2: case 3: // Y axis sequences.
+                            wDirection = new(1, 0, 0);  // X
+                            hDirection = new(0, 1, 0);  // Y
+                            dDirection = new(0, 0, 1);  // Z
+                            break;
+                        case 4: case 5: // Z axis sequences.
+                            wDirection = new(0, 1, 0);  // Y
+                            hDirection = new(0, 0, 1);  // Z
+                            dDirection = new(1, 0, 0);  // X
+                            break;
+                    }
+
+                    // Loop through plane sequences.
+                    for (int height = 0; height < diameter; height ++)
+                    {
+                        for (int width = 0; width < diameter; width ++)
+                        {
+                            // Retrieve the current plane sequence.
+                            int thisPlaneSequence = planeSequences[set, height, width];
+                            
+                            // Generate spans for the current plane sequence.
+                            List<Span> spans = GenerateSpans(thisPlaneSequence);
+
+                            // Loop through spans and generate mesh data.
+                            foreach (Span span in spans)
+                            {
+                                // Calculate initial start position of span.
+                                Vector3I start = set switch
+                                {
+                                    0 or 2 or 4 => (hDirection * height) + (wDirection * width) + (dDirection * span.Offset) + hDirection,
+                                    _           => (hDirection * height) + (wDirection * width) + (dDirection * span.Offset),
+                                };
+                                
+                                // Calculate initial end position of span.
+                                Vector3I end = start + wDirection + (dDirection * span.Length);
+                                
+                                // Loop through neighboring plane sequences and try to expand the current span into them.
+                                for (int nextWidth = width + 1; nextWidth < diameter; nextWidth ++)
+                                {
+                                    // Retrieve the next plane sequence.
+                                    int nextPlaneSequence = planeSequences[set, height, nextWidth];
+
+                                    // Check if the current span can expand into the next plane sequence.
+                                    if ((span.BitMask & nextPlaneSequence) == span.BitMask)
+                                    {
+                                        // Expand the current span into the neighboring plane sequence.
+                                        end += wDirection;
+                                        
+                                        // Clear bits from the neighboring plane sequence.
+                                        planeSequences[set, height, nextWidth] &= ~span.BitMask;
+                                    }
+                                    else
+                                    {
+                                        break;
+                                    }
+                                }
+
+                                // Generate span mesh data.
+                                Vector3I vertexA = start + (dDirection * span.Length);
+                                Vector3I vertexB = start;
+                                Vector3I vertexC = end - (dDirection * span.Length);
+                                Vector3I vertexD = end;
+
+                                int offset = Vertices.Count;
+
+                                // FIXME - Current color is just the normal direction.
+                                Color color = new()
+                                {
+                                    R = hDirection.X,
+                                    G = hDirection.Y,
+                                    B = hDirection.Z,
+                                };
+
+                                // Add mesh data to lists.
+                                switch (set)
+                                {
+                                    case 0: case 2: case 4:
+                                        Vertices.AddRange([vertexA, vertexB, vertexC, vertexD]);
+                                        Normals.AddRange([hDirection, hDirection, hDirection, hDirection]);
+                                        Colors.AddRange([color, color, color, color]);
+                                        break;
+                                    default:
+                                        Vertices.AddRange([vertexD, vertexC, vertexB, vertexA]);
+                                        Normals.AddRange([-hDirection, -hDirection, -hDirection, -hDirection]);
+                                        Colors.AddRange([-color, -color, -color, -color]);
+                                        break;
+                                }
+
+                                Indices.AddRange([0 + offset, 1 + offset, 2 + offset, 0 + offset, 2 + offset, 3 + offset]);
+                            }
+                        }
+                    }
                 }
                 
-                // Add the proper number of trailing zeros to the span column.
-                spanColumn <<= spanVerticalOffset;
-                
-                // Add span column to the list.
-                spanColumns.Add(spanColumn);
+                // Generate mesh.
+                MeshHelper.Generate(ref chunk, ref Vertices, ref Normals, ref Colors, ref Indices);
+            }
+        }
+        
+        // Generate a list of spans.
+        private static List<Span> GenerateSpans(int sequence)
+        {
+            // Early return if no bits are set.
+            if (sequence == 0) return [];
+            
+            // Generate ends from sequence.
+            Ends ends = new(sequence);
 
-                // Clear bits for the current span from span ends to allow info about the next span to be calculated.
-                spanEnds.Top &= ~spanColumn;
-                spanEnds.Btm &= ~spanColumn;
+            // Assert both bit masks in ends should have the same number of set bits.
+            Debug.Assert(PopCount((uint)ends.LBitMask) == PopCount((uint)ends.RBitMask), "GenerateSpans() - Uneven sequence ends.");
+
+            // Create a placeholder list of spans.
+            List<Span> spans = [];
+            
+            // Generate spans from ends.
+            while ((ends.LBitMask | ends.RBitMask) != 0)
+            {
+                // Generate span from ends.
+                Span span = new(ends);
+
+                Debug.Assert((span.Offset + span.Length) < 32, "GenerateSpans() - Span offset + length overstepped bounds!");
+
+                // Generate span's bit mask using its offset and length.
+                for (byte bit = span.Offset; bit < span.Offset + span.Length; bit ++)
+                {
+                    span.BitMask |= 1 << bit;
+                }
+
+                // Add span to the list.
+                spans.Add(span);
+
+                // Clear bits from ends using the span's bit mask.
+                ends.ClearBits(span.BitMask);
             }
 
-            return spanColumns;
-        }
-        // Break a column into two, one containing start positions and the other containing the end potitions of each span in the original column.
-        private static SpanEnds GenerateSpanEnds(int column)
-        {
-            return new SpanEnds()
-            {
-                Top = column & ~(column >> 1),
-                Btm = column & ~(column << 1)
-            };
+            return spans;
         }
     }
 }

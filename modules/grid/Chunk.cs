@@ -1,64 +1,72 @@
 using Godot;
 using RawUtils;
 using System.Collections;
+using System.Collections.Specialized;
 
 namespace RawVoxel
 {
-    [GlobalClass, Tool]
-    public partial class Chunk : VoxelContainer
+    [Tool]
+    public partial class Chunk : MeshInstance3D
     {
-        public Chunk(World world)
+        #region Variables
+        
+        public Biome Biome;
+        public World World;
+        public BitArray VoxelMasks;
+        public byte[] VoxelTypes;
+        
+        #endregion Variables
+        
+        public Chunk(ref World world)
         {
             World = world;
             MaterialOverride = world.TerrainMaterial.Duplicate() as Material;
         }
 
-        public override void GenerateVoxels(Vector3I chunkGridPosition)
+        public void Generate(Vector3I chunkPosition)
         {
-            Position = chunkGridPosition * World.ChunkDiameter;
-            Biome = Biome.Generate(World, chunkGridPosition);
+            Chunk chunk = this;
+            
+            Position = chunkPosition * World.ChunkDiameter;
+            Biome = Biome.Generate(ref World, chunkPosition);
             
             int voxelCount = World.ChunkDiameter * World.ChunkDiameter * World.ChunkDiameter;
             
             VoxelMasks = new BitArray(voxelCount);
             VoxelTypes = new byte[voxelCount];
 
-            for (int voxelGridIndex = 0; voxelGridIndex < voxelCount; voxelGridIndex ++)
+            for (int voxelIndex = 0; voxelIndex < voxelCount; voxelIndex ++)
             {
                 Vector3I chunkDiameter = new(World.ChunkDiameter, World.ChunkDiameter, World.ChunkDiameter);
-                Vector3I voxelGridPosition = XYZConvert.IndexToVector3I(voxelGridIndex, chunkDiameter);
-                Vector3I voxelGlobalPosition = (Vector3I)Position + voxelGridPosition;
                 
-                bool mask = Voxel.GenerateMask(this, voxelGlobalPosition);
-                uint type = Voxel.GenerateType(this, voxelGlobalPosition);
+                Vector3I voxelPosition = XYZConvert.IndexToVector3I(voxelIndex, chunkDiameter);
+                Vector3I voxelGlobalPosition = (Vector3I)Position + voxelPosition;
+                
+                bool voxelMask = Voxel.GenerateMask(ref chunk, voxelGlobalPosition);
+                uint voxelType = Voxel.GenerateType(ref chunk, voxelGlobalPosition);
 
-                if (mask == true && type != 0)
+                if (voxelMask == true && voxelType != 0)
                 {
-                    VoxelMasks.Set(voxelGridIndex, true);
-                    VoxelTypes[voxelGridIndex] = (byte)type;
+                    VoxelMasks[voxelIndex] = true;
+                    VoxelTypes[voxelIndex] = (byte)voxelType;
                 }
             }
-
-            //SetupShader();
-
-            //BinaryMesher.Generate(this);
-            CulledMesher.Generate(this);
-        }
-        public void SetupShader()
-        {
-            NoiseTexture3D densityTexture = new()
-            {
-                Noise = Biome.DensityNoise,
-                Width = World.ChunkDiameter,
-                Height = World.ChunkDiameter,
-                Depth = World.ChunkDiameter,
-            };
-
-            FastNoiseLite fastNoise = densityTexture.Noise as FastNoiseLite;
-            fastNoise.Offset = Position;
             
-            ShaderMaterial material = MaterialOverride as ShaderMaterial;            
-            material.SetShaderParameter("density", densityTexture);
+            RawTimer.Time(Update);
+        }
+        public void Update()
+        {
+            Chunk chunk = this;
+            
+            switch (World.MeshGeneration)
+            {
+                case World.MeshGenerationType.Standard:
+                    CulledMesher.Generate(ref chunk);
+                    break;
+                case World.MeshGenerationType.Greedy:
+                    BinaryMesher.Generate(ref chunk);
+                    break;
+            }
         }
     }
 }

@@ -6,6 +6,8 @@ namespace RawVoxel
     [GlobalClass, Tool]
     public partial class World : Resource
     {
+        public enum MeshGenerationType { Standard, Greedy }
+        
         #region Exports
 
         [ExportGroup("Libraries")]
@@ -36,13 +38,14 @@ namespace RawVoxel
                     return diameter;
                 }
         }
-        [Export] public int ChunkDiameter = 16;
+        [Export] public int ChunkDiameter = 32;
 
         [ExportGroup("Material")]
         [Export] public Material TerrainMaterial { get; set; } = new StandardMaterial3D();
 
         [ExportGroup("Rendering")]
         [Export] public bool ShowChunkEdges = false;
+        [Export] public MeshGenerationType MeshGeneration { get; set; }
         
         [ExportGroup("Threading")]
         [Export] public int GenerateFrequency = 15;

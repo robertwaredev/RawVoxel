@@ -2,7 +2,6 @@ using Godot;
 using System;
 using RawUtils;
 using System.Linq;
-using System.Collections.Generic;
 
 namespace RawVoxel
 {
@@ -50,69 +49,77 @@ namespace RawVoxel
 
         public Voxel() {}
         
-        public static bool GenerateMask(VoxelContainer voxelContainer, Vector3I globalPosition)
+        public static bool GenerateMask(ref Chunk chunk, Vector3I globalPosition)
         {
-            float densityNoise = voxelContainer.Biome.DensityNoise.GetNoise3Dv(globalPosition);
-            float voxelDensity = voxelContainer.Biome.DensityCurve.Sample((densityNoise + 1) * 0.5f);
+            float densityNoise = chunk.Biome.DensityNoise.GetNoise3Dv(globalPosition);
+            float voxelDensity = chunk.Biome.DensityCurve.Sample((densityNoise + 1) * 0.5f);
 
             if (voxelDensity < 0.5f) return false;
 
             return true;
         }
-        public static uint GenerateType(VoxelContainer voxelContainer, Vector3I globalPosition)
+        public static uint GenerateType(ref Chunk chunk, Vector3I globalPosition)
         {
-            float heightNoise = voxelContainer.Biome.HeightNoise.GetNoise2D(globalPosition.X, globalPosition.Z);
+            float heightNoise = chunk.Biome.HeightNoise.GetNoise2D(globalPosition.X, globalPosition.Z);
             
-            foreach (BiomeLayer biomeLayer in voxelContainer.Biome.Layers.Reverse())
+            foreach (BiomeLayer biomeLayer in chunk.Biome.Layers.Reverse())
             {
                 float voxelHeight = biomeLayer.HeightCurve.Sample((heightNoise + 1) * 0.5f);
 
                 if (globalPosition.Y <= voxelHeight)
                 {
-                    return (uint)Array.IndexOf(voxelContainer.World.Voxels, biomeLayer.Voxel);
+                    return (uint)Array.IndexOf(chunk.World.Voxels, biomeLayer.Voxel);
                 }
             }
 
             return 0;
         }
-        public static bool IsExternal(VoxelContainer voxelContainer, Vector3I gridPosition)
+        public static bool IsExternal(ref Chunk chunk, Vector3I voxelPosition)
         {
-            if (gridPosition.X < 0 || gridPosition.X >= voxelContainer.World.ChunkDiameter) return true;
-            if (gridPosition.Y < 0 || gridPosition.Y >= voxelContainer.World.ChunkDiameter) return true;
-            if (gridPosition.Z < 0 || gridPosition.Z >= voxelContainer.World.ChunkDiameter) return true;
+            if (voxelPosition.X < 0 || voxelPosition.X >= chunk.World.ChunkDiameter) return true;
+            if (voxelPosition.Y < 0 || voxelPosition.Y >= chunk.World.ChunkDiameter) return true;
+            if (voxelPosition.Z < 0 || voxelPosition.Z >= chunk.World.ChunkDiameter) return true;
             
             return false;
         }
-        public static bool IsVisible(VoxelContainer voxelContainer, Vector3I gridPosition)
+        public static bool IsVisible(ref Chunk chunk, Vector3I voxelPosition)
         {
-            if (IsExternal(voxelContainer, gridPosition))
+            if (IsExternal(ref chunk, voxelPosition))
             {
-                if (voxelContainer.World.ShowChunkEdges) return false;
+                if (chunk.World.ShowChunkEdges) return false;
 
-                Vector3I globalPosition = (Vector3I)voxelContainer.Position + gridPosition;
+                Vector3I globalPosition = (Vector3I)chunk.Position + voxelPosition;
                 
-                bool mask = GenerateMask(voxelContainer, globalPosition);
-                uint type = GenerateType(voxelContainer, globalPosition);
+                bool mask = GenerateMask(ref chunk, globalPosition);
+                uint type = GenerateType(ref chunk, globalPosition);
                 
                 if (mask == true && type != 0) return true;
                 else return false;
             }
             
-            int chunkDiameter = voxelContainer.World.ChunkDiameter;
-            int gridIndex = XYZConvert.Vector3IToIndex(gridPosition, new(chunkDiameter, chunkDiameter, chunkDiameter));
+            int chunkDiameter = chunk.World.ChunkDiameter;
+            int gridIndex = XYZConvert.Vector3IToIndex(voxelPosition, new(chunkDiameter, chunkDiameter, chunkDiameter));
             
-            return voxelContainer.VoxelMasks[gridIndex];
+            return chunk.VoxelMasks[gridIndex];
         }
-        public static void SetType(VoxelContainer voxelContainer, Vector3I gridPosition, byte voxelType)
+        public static void SetType(ref Chunk chunk, Vector3I voxelPosition, byte voxelType)
         {
-            gridPosition.X = Mathf.PosMod(gridPosition.X, voxelContainer.World.ChunkDiameter);
-            gridPosition.Y = Mathf.PosMod(gridPosition.Y, voxelContainer.World.ChunkDiameter);
-            gridPosition.Z = Mathf.PosMod(gridPosition.Z, voxelContainer.World.ChunkDiameter);
+            voxelPosition.X = Mathf.PosMod(voxelPosition.X, chunk.World.ChunkDiameter);
+            voxelPosition.Y = Mathf.PosMod(voxelPosition.Y, chunk.World.ChunkDiameter);
+            voxelPosition.Z = Mathf.PosMod(voxelPosition.Z, chunk.World.ChunkDiameter);
             
-            int chunkDiameter = voxelContainer.World.ChunkDiameter;
-            int gridIndex = XYZConvert.Vector3IToIndex(gridPosition, new(chunkDiameter, chunkDiameter, chunkDiameter));
+            int chunkDiameter = chunk.World.ChunkDiameter;
+            int voxelIndex = XYZConvert.Vector3IToIndex(voxelPosition, new(chunkDiameter, chunkDiameter, chunkDiameter));
             
-            voxelContainer.VoxelTypes[gridIndex] = voxelType;
+            if (voxelType == 0)
+            {
+                chunk.VoxelMasks[voxelIndex] = false;
+            }
+            else
+            {
+                chunk.VoxelMasks[voxelIndex] = true;
+            }
+            chunk.VoxelTypes[voxelIndex] = voxelType;
         }
     }
 }

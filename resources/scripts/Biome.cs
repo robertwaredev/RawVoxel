@@ -30,18 +30,17 @@ namespace RawVoxel
     
         public Biome() {}
         
-        public static Biome Generate(World world, Vector3I gridPosition)
+        public static Biome Generate(ref World world, Vector3I chunkPosition)
         {
-            //float temperatureNoise = (_world.TemperatureNoise.GetNoise1D(voxelUnsignedWorldPositionWrapped.Z) + 1) * 0.5f;
-            float temperature = world.Temperature.Distribution.Sample((float)(gridPosition.Z + 0.5f) / world.Diameter.Z);
+            float temperature = world.Temperature.Distribution.Sample((float)(chunkPosition.Z + 0.5f) / world.Diameter.Z);
             temperature = world.Temperature.Range.Sample(temperature);
             
-            //float humidityNoise = (_world.HumidityNoise.GetNoise1D(voxelUnsignedWorldPositionWrapped.X) + 1) * 0.5f;
-            float humidity = world.Humidity.Distribution.Sample((float)(gridPosition.X + 0.5f) / world.Diameter.X);
+            float humidity = world.Humidity.Distribution.Sample((float)(chunkPosition.X + 0.5f) / world.Diameter.X);
             humidity = world.Humidity.Range.Sample(humidity);
 
             Biome thisBiome = world.Biomes[0];
             
+            // FIXME - This is probably not the ideal way to handle biome selection.
             foreach (Biome biome in world.Biomes)
             {
                 if (

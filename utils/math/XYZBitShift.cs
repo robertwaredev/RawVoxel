@@ -1,3 +1,5 @@
+using static System.Numerics.BitOperations;
+using System.Diagnostics;
 using Godot;
 
 namespace RawUtils
@@ -26,6 +28,7 @@ namespace RawUtils
             return new Vector3I(X, Y, Z);
         }
     
+        // Bitshift each component of a Vector3I left or right.
         public static Vector3I Vector3ILeft(Vector3I vector, int shifts)
         {
             vector.X <<= shifts;
@@ -46,9 +49,11 @@ namespace RawUtils
         // Calculate the number of right bitshifts required to reduce a number to 1.
         public static int CalculateShifts(int value)
         {
+            Debug.Assert(IsPow2(value), "BitshiftXYZ.CalculateShifts() requires a power of two value as input!");
+
             int shifts = 0;
 
-            while (value > 1 && value % 2 == 0)
+            while (value > 1)
             {
                 value >>= 1;
                 shifts ++;

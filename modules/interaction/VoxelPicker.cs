@@ -4,17 +4,16 @@ namespace RawVoxel
 {
     public partial class VoxelPicker : RayCast3D
     {
-        public VoxelPicker() {}
-        
         [Export] MeshInstance3D VoxelHighlight;
-        
         private readonly object voxelEditLock = new();
+        
+        public VoxelPicker() {}   
         
         public override void _Process(double delta)
         {
-            Chunk collidedChunk = GetCollidedChunk();
+            Chunk chunk = GetCollidedVoxelContainer();
             
-            if (collidedChunk == null)
+            if (chunk == null)
             {
                 VoxelHighlight.Visible = false;
                 VoxelHighlight.Position = Vector3.Zero;
@@ -32,8 +31,8 @@ namespace RawVoxel
             {
                 lock (voxelEditLock)
                 {
-                    Voxel.SetType(collidedChunk, voxelGlobalPosition, 0);
-                    CulledMesher.Generate(collidedChunk);
+                    Voxel.SetType(ref chunk, voxelGlobalPosition, 0);
+                    chunk.Update();
                 }
             }
             
@@ -41,13 +40,13 @@ namespace RawVoxel
             {
                 lock (voxelEditLock)
                 {
-                    Voxel.SetType(collidedChunk, voxelGlobalPosition + (Vector3I)collisionNormal, 1);
-                    CulledMesher.Generate(collidedChunk);
+                    Voxel.SetType(ref chunk, voxelGlobalPosition + (Vector3I)collisionNormal, 1);
+                    chunk.Update();
                 }
             }
         }
 
-        public Chunk GetCollidedChunk()
+        public Chunk GetCollidedVoxelContainer()
         {
             object collidedObject = GetCollider();
 

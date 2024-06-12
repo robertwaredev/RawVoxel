@@ -28,7 +28,6 @@ metadata/_snap_count = 16
 [sub_resource type="Resource" id="Resource_gumvy"]
 script = ExtResource("2_oxfyi")
 Voxel = ExtResource("1_bsoum")
-Height = 0
 HeightCurve = SubResource("Curve_65kmv")
 
 [sub_resource type="Curve" id="Curve_wremd"]
@@ -39,7 +38,6 @@ point_count = 2
 [sub_resource type="Resource" id="Resource_2htbq"]
 script = ExtResource("2_oxfyi")
 Voxel = ExtResource("3_a72er")
-Height = -128
 HeightCurve = SubResource("Curve_wremd")
 
 [resource]
