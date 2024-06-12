@@ -38,7 +38,7 @@ namespace RawVoxel
                     return diameter;
                 }
         }
-        [Export] public int ChunkDiameter = 16;
+        [Export] public int ChunkDiameter = 32;
 
         [ExportGroup("Material")]
         [Export] public Material TerrainMaterial { get; set; } = new StandardMaterial3D();

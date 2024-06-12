@@ -1,6 +1,6 @@
-using static System.Numerics.BitOperations;
-using System.Diagnostics;
 using Godot;
+using System.Diagnostics;
+using static System.Numerics.BitOperations;
 
 namespace RawUtils
 {
@@ -49,7 +49,7 @@ namespace RawUtils
         // Calculate the number of right bitshifts required to reduce a number to 1.
         public static int CalculateShifts(int value)
         {
-            Debug.Assert(IsPow2(value), "BitshiftXYZ.CalculateShifts() requires a power of two value as input!");
+            Debug.Assert((value & (value - 1)) == 0, "BitshiftXYZ.CalculateShifts() requires a power of two value as input!");
 
             int shifts = 0;
 

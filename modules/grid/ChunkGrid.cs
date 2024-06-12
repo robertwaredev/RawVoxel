@@ -13,6 +13,7 @@ namespace RawVoxel
     {
         #region Exports
 
+        [Export] public bool PreloadChunks;
         [Export] public bool Regenerate
         {
             get { return _regenerate; }
@@ -50,11 +51,13 @@ namespace RawVoxel
         // On node ready.
         public override void _Ready()
         {
-            TryUpdateFocusNodeGlobalPosition();
-            TryUpdateFocusNodeChunkPosition();
-            Init();
-
-            Generated = true;
+            if (PreloadChunks)
+            {
+                TryUpdateFocusNodeGlobalPosition();
+                TryUpdateFocusNodeChunkPosition();
+                Init();
+                Generated = true;
+            }
             
             Thread Thread = new(new ThreadStart(ChunkGridProcess)) { Name = "Chunk Container Thread" };
             Thread.Start();

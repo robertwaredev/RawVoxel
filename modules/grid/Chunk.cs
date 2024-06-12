@@ -1,7 +1,5 @@
 using Godot;
 using RawUtils;
-using System.Collections;
-using System.Collections.Specialized;
 
 namespace RawVoxel
 {
@@ -12,7 +10,6 @@ namespace RawVoxel
         
         public Biome Biome;
         public World World;
-        public BitArray VoxelMasks;
         public byte[] VoxelTypes;
         
         #endregion Variables
@@ -20,7 +17,7 @@ namespace RawVoxel
         public Chunk(ref World world)
         {
             World = world;
-            MaterialOverride = world.TerrainMaterial.Duplicate() as Material;
+            MaterialOverride = world.TerrainMaterial;
         }
 
         public void Generate(Vector3I chunkPosition)
@@ -30,12 +27,9 @@ namespace RawVoxel
             Position = chunkPosition * World.ChunkDiameter;
             Biome = Biome.Generate(ref World, chunkPosition);
             
-            int voxelCount = World.ChunkDiameter * World.ChunkDiameter * World.ChunkDiameter;
-            
-            VoxelMasks = new BitArray(voxelCount);
-            VoxelTypes = new byte[voxelCount];
+            VoxelTypes = new byte[World.ChunkDiameter * World.ChunkDiameter * World.ChunkDiameter];
 
-            for (int voxelIndex = 0; voxelIndex < voxelCount; voxelIndex ++)
+            for (int voxelIndex = 0; voxelIndex < VoxelTypes.Length; voxelIndex ++)
             {
                 Vector3I chunkDiameter = new(World.ChunkDiameter, World.ChunkDiameter, World.ChunkDiameter);
                 
@@ -47,7 +41,6 @@ namespace RawVoxel
 
                 if (voxelMask == true && voxelType != 0)
                 {
-                    VoxelMasks[voxelIndex] = true;
                     VoxelTypes[voxelIndex] = (byte)voxelType;
                 }
             }

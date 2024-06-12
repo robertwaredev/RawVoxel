@@ -98,9 +98,14 @@ namespace RawVoxel
             }
             
             int chunkDiameter = chunk.World.ChunkDiameter;
-            int gridIndex = XYZConvert.Vector3IToIndex(voxelPosition, new(chunkDiameter, chunkDiameter, chunkDiameter));
+            int voxelIndex = XYZConvert.Vector3IToIndex(voxelPosition, new(chunkDiameter, chunkDiameter, chunkDiameter));
             
-            return chunk.VoxelMasks[gridIndex];
+            if (chunk.VoxelTypes[voxelIndex] == 0)
+            {
+                return false;
+            }
+
+            return true;
         }
         public static void SetType(ref Chunk chunk, Vector3I voxelPosition, byte voxelType)
         {
@@ -111,14 +116,6 @@ namespace RawVoxel
             int chunkDiameter = chunk.World.ChunkDiameter;
             int voxelIndex = XYZConvert.Vector3IToIndex(voxelPosition, new(chunkDiameter, chunkDiameter, chunkDiameter));
             
-            if (voxelType == 0)
-            {
-                chunk.VoxelMasks[voxelIndex] = false;
-            }
-            else
-            {
-                chunk.VoxelMasks[voxelIndex] = true;
-            }
             chunk.VoxelTypes[voxelIndex] = voxelType;
         }
     }

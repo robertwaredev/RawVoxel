@@ -58,9 +58,9 @@ namespace RawVoxel
                     GenerateFace(Voxel.Face.South, voxelGridPosition, Vector3I.Back, color);
             }
             
-            for (int voxelIndex = 0; voxelIndex < chunk.VoxelMasks.Length; voxelIndex ++)
+            for (int voxelIndex = 0; voxelIndex < chunk.VoxelTypes.Length; voxelIndex ++)
             {
-                if (chunk.VoxelMasks[voxelIndex] == true)
+                if (chunk.VoxelTypes[voxelIndex] != 0)
                     GenerateVoxel(ref chunk, voxelIndex);
             }
 
