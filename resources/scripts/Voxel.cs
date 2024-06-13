@@ -49,55 +49,56 @@ namespace RawVoxel
 
         public Voxel() {}
         
-        public static bool GenerateMask(ref Chunk chunk, Vector3I globalPosition)
+        public static bool GenerateMask(Vector3I globalPosition, ref Biome biome)
         {
-            float densityNoise = chunk.Biome.DensityNoise.GetNoise3Dv(globalPosition);
-            float voxelDensity = chunk.Biome.DensityCurve.Sample((densityNoise + 1) * 0.5f);
+            float densityNoise = biome.DensityNoise.GetNoise3Dv(globalPosition);
+            float voxelDensity = biome.DensityCurve.Sample((densityNoise + 1) * 0.5f);
 
             if (voxelDensity < 0.5f) return false;
 
             return true;
         }
-        public static uint GenerateType(ref Chunk chunk, Vector3I globalPosition)
+        public static byte GenerateType(Vector3I globalPosition, ref Biome biome, ref WorldSettings worldSettings)
         {
-            float heightNoise = chunk.Biome.HeightNoise.GetNoise2D(globalPosition.X, globalPosition.Z);
+            float heightNoise = biome.HeightNoise.GetNoise2D(globalPosition.X, globalPosition.Z);
             
-            foreach (BiomeLayer biomeLayer in chunk.Biome.Layers.Reverse())
+            foreach (BiomeLayer biomeLayer in biome.Layers.Reverse())
             {
                 float voxelHeight = biomeLayer.HeightCurve.Sample((heightNoise + 1) * 0.5f);
 
                 if (globalPosition.Y <= voxelHeight)
                 {
-                    return (uint)Array.IndexOf(chunk.World.Voxels, biomeLayer.Voxel);
+                    return (byte)Array.IndexOf(worldSettings.Voxels, biomeLayer.Voxel);
                 }
             }
 
             return 0;
         }
-        public static bool IsExternal(ref Chunk chunk, Vector3I voxelPosition)
+        public static bool IsExternal(Vector3I voxelPosition, ref WorldSettings worldSettings)
         {
-            if (voxelPosition.X < 0 || voxelPosition.X >= chunk.World.ChunkDiameter) return true;
-            if (voxelPosition.Y < 0 || voxelPosition.Y >= chunk.World.ChunkDiameter) return true;
-            if (voxelPosition.Z < 0 || voxelPosition.Z >= chunk.World.ChunkDiameter) return true;
+            if (voxelPosition.X < 0 || voxelPosition.X >= worldSettings.ChunkDiameter) return true;
+            if (voxelPosition.Y < 0 || voxelPosition.Y >= worldSettings.ChunkDiameter) return true;
+            if (voxelPosition.Z < 0 || voxelPosition.Z >= worldSettings.ChunkDiameter) return true;
             
             return false;
         }
-        public static bool IsVisible(ref Chunk chunk, Vector3I voxelPosition)
+        public static bool IsVisible(ref Chunk chunk, Vector3I voxelPosition, ref Biome biome, ref WorldSettings worldSettings)
         {
-            if (IsExternal(ref chunk, voxelPosition))
+            if (IsExternal(voxelPosition, ref worldSettings))
             {
-                if (chunk.World.ShowChunkEdges) return false;
+                if (worldSettings.ShowChunkEdges) return false;
 
                 Vector3I globalPosition = (Vector3I)chunk.Position + voxelPosition;
                 
-                bool mask = GenerateMask(ref chunk, globalPosition);
-                uint type = GenerateType(ref chunk, globalPosition);
+                bool mask = GenerateMask(globalPosition, ref biome);
+                uint type = GenerateType(globalPosition, ref biome, ref worldSettings);
                 
                 if (mask == true && type != 0) return true;
+                
                 else return false;
             }
             
-            int chunkDiameter = chunk.World.ChunkDiameter;
+            int chunkDiameter = worldSettings.ChunkDiameter;
             int voxelIndex = XYZConvert.Vector3IToIndex(voxelPosition, new(chunkDiameter, chunkDiameter, chunkDiameter));
             
             if (chunk.VoxelTypes[voxelIndex] == 0)
@@ -107,13 +108,13 @@ namespace RawVoxel
 
             return true;
         }
-        public static void SetType(ref Chunk chunk, Vector3I voxelPosition, byte voxelType)
+        public static void SetType(ref Chunk chunk, Vector3I voxelPosition, byte voxelType, ref WorldSettings worldSettings)
         {
-            voxelPosition.X = Mathf.PosMod(voxelPosition.X, chunk.World.ChunkDiameter);
-            voxelPosition.Y = Mathf.PosMod(voxelPosition.Y, chunk.World.ChunkDiameter);
-            voxelPosition.Z = Mathf.PosMod(voxelPosition.Z, chunk.World.ChunkDiameter);
+            voxelPosition.X = Mathf.PosMod(voxelPosition.X, worldSettings.ChunkDiameter);
+            voxelPosition.Y = Mathf.PosMod(voxelPosition.Y, worldSettings.ChunkDiameter);
+            voxelPosition.Z = Mathf.PosMod(voxelPosition.Z, worldSettings.ChunkDiameter);
             
-            int chunkDiameter = chunk.World.ChunkDiameter;
+            int chunkDiameter = worldSettings.ChunkDiameter;
             int voxelIndex = XYZConvert.Vector3IToIndex(voxelPosition, new(chunkDiameter, chunkDiameter, chunkDiameter));
             
             chunk.VoxelTypes[voxelIndex] = voxelType;

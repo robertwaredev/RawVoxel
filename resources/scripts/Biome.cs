@@ -1,8 +1,9 @@
 using Godot;
-using System;
+
+// FIXME - This is NOT the ideal way to handle biome selection.
 
 namespace RawVoxel
-{
+{    
     [GlobalClass, Tool]
     public partial class Biome : Resource
     {
@@ -30,18 +31,17 @@ namespace RawVoxel
     
         public Biome() {}
         
-        public static Biome Generate(ref World world, Vector3I chunkPosition)
+        public static Biome Generate(ref WorldSettings worldSettings, Vector3I chunkPosition)
         {
-            float temperature = world.Temperature.Distribution.Sample((float)(chunkPosition.Z + 0.5f) / world.Diameter.Z);
-            temperature = world.Temperature.Range.Sample(temperature);
+            float temperature = worldSettings.Temperature.Distribution.Sample((float)(chunkPosition.Z + 0.5f) / worldSettings.Diameter.Z);
+            temperature = worldSettings.Temperature.Range.Sample(temperature);
             
-            float humidity = world.Humidity.Distribution.Sample((float)(chunkPosition.X + 0.5f) / world.Diameter.X);
-            humidity = world.Humidity.Range.Sample(humidity);
+            float humidity = worldSettings.Humidity.Distribution.Sample((float)(chunkPosition.X + 0.5f) / worldSettings.Diameter.X);
+            humidity = worldSettings.Humidity.Range.Sample(humidity);
 
-            Biome thisBiome = world.Biomes[0];
+            Biome thisBiome = worldSettings.Biomes[0];
             
-            // FIXME - This is probably not the ideal way to handle biome selection.
-            foreach (Biome biome in world.Biomes)
+            foreach (Biome biome in worldSettings.Biomes)
             {
                 if (
                     temperature >= biome.TemperatureMin &&

@@ -31,8 +31,18 @@ namespace RawVoxel
             {
                 lock (voxelEditLock)
                 {
-                    Voxel.SetType(ref chunk, voxelGlobalPosition, 0);
-                    chunk.Update();
+                    // FIXME - Voxel.SetType(ref chunk, voxelGlobalPosition, 0);
+                    // FIXME - chunk.Update();
+            
+                    /* switch (worldSettings.MeshGeneration)
+                    {
+                        case WorldSettings.MeshGenerationType.Greedy:
+                            BinaryMesher.Generate(ref chunk, ref worldSettings);
+                            break;
+                        case WorldSettings.MeshGenerationType.Standard:
+                            CulledMesher.Generate(ref chunk, ref biome, ref worldSettings);
+                            break;
+                    } */
                 }
             }
             
@@ -40,8 +50,18 @@ namespace RawVoxel
             {
                 lock (voxelEditLock)
                 {
-                    Voxel.SetType(ref chunk, voxelGlobalPosition + (Vector3I)collisionNormal, 1);
-                    chunk.Update();
+                    // FIXME - Voxel.SetType(ref chunk, voxelGlobalPosition + (Vector3I)collisionNormal, 1);
+                    // FIXME - chunk.Update();
+
+                    /* switch (worldSettings.MeshGeneration)
+                    {
+                        case WorldSettings.MeshGenerationType.Greedy:
+                            BinaryMesher.Generate(ref chunk, ref worldSettings);
+                            break;
+                        case WorldSettings.MeshGenerationType.Standard:
+                            CulledMesher.Generate(ref chunk, ref biome, ref worldSettings);
+                            break;
+                    } */
                 }
             }
         }

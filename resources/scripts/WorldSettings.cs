@@ -4,9 +4,9 @@ using RawUtils;
 namespace RawVoxel
 {
     [GlobalClass, Tool]
-    public partial class World : Resource
+    public partial class WorldSettings : Resource
     {
-        public enum MeshGenerationType { Standard, Greedy }
+        public enum MeshGenerationType { Greedy, Standard }
         
         #region Exports
 
@@ -48,10 +48,10 @@ namespace RawVoxel
         [Export] public MeshGenerationType MeshGeneration { get; set; } = MeshGenerationType.Greedy;
         
         [ExportGroup("Threading")]
-        [Export] public int GenerateFrequency = 10;
+        [Export] public int GenerateFrequency = 30;
 
         #endregion Exports
     
-        public World() {}
+        public WorldSettings() {}
     }
 }

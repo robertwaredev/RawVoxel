@@ -17,7 +17,7 @@ namespace RawUtils
             surfaceArray[(int)Mesh.ArrayType.Vertex] = vertices.ToArray();
             vertices.Clear();
 
-            surfaceArray[(int)Mesh.ArrayType.Index]  = indices.ToArray();
+            surfaceArray[(int)Mesh.ArrayType.Index] = indices.ToArray();
             indices.Clear();
             
             GenerateMesh(ref chunk, ref surfaceArray);
@@ -28,17 +28,14 @@ namespace RawUtils
             if (normals.Count == 0) return;
             if (indices.Count  == 0) return;
             
-            Godot.Collections.Array surfaceArray = new();
+            Godot.Collections.Array surfaceArray = [];
             surfaceArray.Resize((int)Mesh.ArrayType.Max);
             
             surfaceArray[(int)Mesh.ArrayType.Vertex] = vertices.ToArray();
-            vertices.Clear();
             
             surfaceArray[(int)Mesh.ArrayType.Normal] = normals.ToArray();
-            normals.Clear();
 
-            surfaceArray[(int)Mesh.ArrayType.Index]  = indices.ToArray();
-            indices.Clear();
+            surfaceArray[(int)Mesh.ArrayType.Index] = indices.ToArray();
             
             GenerateMesh(ref chunk, ref surfaceArray);
         }
@@ -49,7 +46,7 @@ namespace RawUtils
             if (colors.Count == 0) return;
             if (indices.Count == 0) return;
             
-            Godot.Collections.Array surfaceArray = new();
+            Godot.Collections.Array surfaceArray = [];
             surfaceArray.Resize((int)Mesh.ArrayType.Max);
             
             surfaceArray[(int)Mesh.ArrayType.Vertex] = vertices.ToArray();
@@ -58,10 +55,10 @@ namespace RawUtils
             surfaceArray[(int)Mesh.ArrayType.Normal] = normals.ToArray();
             normals.Clear();
             
-            surfaceArray[(int)Mesh.ArrayType.Color]  = colors.ToArray();
+            surfaceArray[(int)Mesh.ArrayType.Color] = colors.ToArray();
             colors.Clear();
         
-            surfaceArray[(int)Mesh.ArrayType.Index]  = indices.ToArray();
+            surfaceArray[(int)Mesh.ArrayType.Index] = indices.ToArray();
             indices.Clear();
             
             GenerateMesh(ref chunk, ref surfaceArray);

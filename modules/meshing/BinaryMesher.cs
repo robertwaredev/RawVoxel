@@ -1,16 +1,17 @@
 using Godot;
 using RawUtils;
 using System.Collections.Generic;
-using System.Diagnostics;
 using static System.Numerics.BitOperations;
 
 // !! THIS ONLY WORKS WITH CUBED CHUNK DIMENSIONS THAT ARE A POWER OF TWO. !!
 
 // TODO - Skip the generation section for homogenous chunks.
 
-namespace RawVoxel {
-    public static class BinaryMesher { 
-        // Generate two bit masks from the specified "sequence" containing left and right ends of "spans" of bits from the sequence.
+namespace RawVoxel
+{
+    public static class BinaryMesher
+    { 
+        // Two bit masks, containing left and right ends of "spans" of bits from the sequence respectively.
         private struct Ends(uint sequence)
         {
             // "L" refers to ends of spans extracted from a sequence of bits via "left to right" order. (left-most ends)
@@ -35,19 +36,13 @@ namespace RawVoxel {
             public byte Length = (byte)(TrailingZeroCount(ends.LBitMask >> TrailingZeroCount(ends.RBitMask)) + 1);
         }
         
-        // Generate binary mesh for the specified chunk.
-        public static void Generate(ref Chunk chunk)
+        // Generate binary greedy mesh.
+        public static void Generate(ref Chunk chunk, ref WorldSettings worldSettings)
         {
-            // TODO - Check if all voxels in the chunk are solid.
-            /* if (chunk.VoxelMasks.HasAllSet())
-            {
-                return;
-            } */
-
             #region Variables
 
-            // Store chunk diameter with a shorter name so I have to type less.
-            byte diameter = (byte)chunk.World.ChunkDiameter;
+            // Store chunk diameter with a shorter name.
+            int diameter = worldSettings.ChunkDiameter;
             
             // Voxels stored as [set, depth, width] with height encoded into each array element's sequence of bits.
             uint[,,] voxelSequences = new uint[3, diameter, diameter];
@@ -63,12 +58,11 @@ namespace RawVoxel {
             // Create placeholder lists for mesh data.
             List<Vector3> Vertices = [];
             List<Vector3> Normals = [];
-            List<Color> Colors = [];
             List<int> Indices = [];
 
             #endregion Variables
                 
-            // Generate sequences of voxel bit masks in sets, one for each axis.
+            // Encode voxel position into sequences of bit masks, one set for each axis.
             for (int x = 0; x < diameter; x ++)
             {
                 for (int y = 0; y < diameter; y ++)
@@ -90,31 +84,30 @@ namespace RawVoxel {
                 }
             }
 
-            // Generate sequences of plane bit masks in sets, two for each axis.
+            // Encode plane position into sequences of bit masks, two sets for each axis.
             for (int set = 0; set < 3; set ++)
             {
                 for (int depth = 0; depth < diameter; depth ++)
                 {
                     for (int width = 0; width < diameter; width ++)
                     {
-                        // Generate bit masks for left and right ends of spans in the current sequence. (visible planes/faces)
-                        Ends ends = new(voxelSequences[set, depth, width]);
+                        // Extract visible planes from the current sequence.
+                        Ends planes = new(voxelSequences[set, depth, width]);
                         
-                        // Loop thru each voxel at the given height.
-                        for(int height = 0; height < diameter; height ++)
+                        for(int bit = 0; bit < diameter; bit ++)
                         {
-                            // Check if voxel at the current height has a "left" plane.
-                            if ((ends.LBitMask & (1 << height)) != 0)
+                            // Check if a "left" plane exists at the current bit.
+                            if ((planes.LBitMask & (1 << bit)) != 0)
                             {
                                 // Merge "left" plane bit mask into its respective sequence.
-                                planeSequences[(set << 1) + 0, height, width] |= (uint)1 << depth;
+                                planeSequences[(set << 1) + 0, bit, width] |= (uint)1 << depth;
                             }
                             
-                            // Check if voxel at the current height has a "right" plane.
-                            if ((ends.RBitMask & (1 << height)) != 0)
+                            // Check if a "right" plane exists at the current bit.
+                            if ((planes.RBitMask & (1 << bit)) != 0)
                             {
                                 // Merge "right" plane bit mask into its respective sequence.
-                                planeSequences[(set << 1) + 1, height, width] |= (uint)1 << depth;
+                                planeSequences[(set << 1) + 1, bit, width] |= (uint)1 << depth;
                             }
                         }
                     }
@@ -127,33 +120,30 @@ namespace RawVoxel {
                 // Set relative axes based on set. (width, height, depth)
                 switch (set)
                 {
-                    case 0: case 1: // X axis sequences.
+                    case 0: case 1: // X axis sequences of planes.
                         wDirection = new(0, 0, 1);  // Z
                         hDirection = new(1, 0, 0);  // X
                         dDirection = new(0, 1, 0);  // Y
                         break;
-                    case 2: case 3: // Y axis sequences.
+                    case 2: case 3: // Y axis sequences of planes.
                         wDirection = new(1, 0, 0);  // X
                         hDirection = new(0, 1, 0);  // Y
                         dDirection = new(0, 0, 1);  // Z
                         break;
-                    case 4: case 5: // Z axis sequences.
+                    case 4: case 5: // Z axis sequences of planes.
                         wDirection = new(0, 1, 0);  // Y
                         hDirection = new(0, 0, 1);  // Z
                         dDirection = new(1, 0, 0);  // X
                         break;
                 }
 
-                // Loop through plane sequences.
+                // Loop through sequences of planes.
                 for (int height = 0; height < diameter; height ++)
                 {
                     for (int width = 0; width < diameter; width ++)
                     {
-                        // Retrieve the current plane sequence.
-                        uint thisPlaneSequence = planeSequences[set, height, width];
-                        
-                        // Generate spans for the current plane sequence.
-                        List<Span> spans = GenerateSpans(thisPlaneSequence);
+                        // Queue spans for the current sequence of planes.
+                        Queue<Span> spans = QueueSpans(planeSequences[set, height, width]);
 
                         // Loop through spans and generate mesh data.
                         foreach (Span span in spans)
@@ -168,25 +158,17 @@ namespace RawVoxel {
                             // Calculate initial end position of span.
                             Vector3I end = start + wDirection + (dDirection * span.Length);
                             
-                            // Loop through neighboring plane sequences and try to expand the current span into them.
-                            for (int nextWidth = width + 1; nextWidth < diameter; nextWidth ++)
+                            // Loop through neighboring sequences of planes and try to expand the current span into them.
+                            for (int neighbor = width + 1; neighbor < diameter; neighbor ++)
                             {
-                                // Retrieve the next plane sequence.
-                                uint nextPlaneSequence = planeSequences[set, height, nextWidth];
-
-                                // Check if the current span can expand into the next plane sequence.
-                                if ((span.BitMask & nextPlaneSequence) == span.BitMask)
-                                {
-                                    // Expand the current span into the neighboring plane sequence.
-                                    end += wDirection;
-                                    
-                                    // Clear bits from the neighboring plane sequence.
-                                    planeSequences[set, height, nextWidth] &= ~span.BitMask;
-                                }
-                                else
-                                {
-                                    break;
-                                }
+                                // Break if the current span is unable to expand into the next sequence of planes.
+                                if ((span.BitMask & planeSequences[set, height, neighbor]) != span.BitMask) break;
+                                
+                                // Expand the current span into the neighboring sequence of planes.
+                                end += wDirection;
+                                
+                                // Clear bits from the neighboring sequence of planes to prevent creating overlapping planes.
+                                planeSequences[set, height, neighbor] &= ~span.BitMask;
                             }
 
                             // Generate span mesh data.
@@ -197,26 +179,16 @@ namespace RawVoxel {
 
                             int offset = Vertices.Count;
 
-                            // FIXME - Current color is just the normal direction.
-                            Color color = new()
-                            {
-                                R = hDirection.X,
-                                G = hDirection.Y,
-                                B = hDirection.Z,
-                            };
-
                             // Add mesh data to lists.
                             switch (set)
                             {
                                 case 0: case 2: case 4:
                                     Vertices.AddRange([vertexA, vertexB, vertexC, vertexD]);
                                     Normals.AddRange([hDirection, hDirection, hDirection, hDirection]);
-                                    Colors.AddRange([color, color, color, color]);
                                     break;
                                 default:
                                     Vertices.AddRange([vertexD, vertexC, vertexB, vertexA]);
                                     Normals.AddRange([-hDirection, -hDirection, -hDirection, -hDirection]);
-                                    Colors.AddRange([-color, -color, -color, -color]);
                                     break;
                             }
 
@@ -227,11 +199,11 @@ namespace RawVoxel {
             }
             
             // Generate mesh.
-            MeshHelper.Generate(ref chunk, ref Vertices, ref Normals, ref Colors, ref Indices);
+            MeshHelper.Generate(ref chunk, ref Vertices, ref Normals, ref Indices);
         }
         
         // Generate a list of spans.
-        private static List<Span> GenerateSpans(uint sequence)
+        private static Queue<Span> QueueSpans(uint sequence)
         {
             // Early return if no bits are set.
             if (sequence == 0) return [];
@@ -240,7 +212,7 @@ namespace RawVoxel {
             Ends ends = new(sequence);
 
             // Create a placeholder list of spans.
-            List<Span> spans = [];
+            Queue<Span> spans = [];
             
             // Generate spans from ends.
             while ((ends.LBitMask | ends.RBitMask) != 0)
@@ -255,7 +227,7 @@ namespace RawVoxel {
                 }
 
                 // Add span to the list.
-                spans.Add(span);
+                spans.Enqueue(span);
 
                 // Clear bits from ends using the span's bit mask.
                 ends.ClearBits(span.BitMask);
