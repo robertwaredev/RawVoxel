@@ -11,29 +11,30 @@ namespace RawVoxel
 {
     public static class BinaryMesher
     { 
-        // Two bit masks, containing left and right ends of "chains" of bits from the sequence respectively.
-        private struct Ends(uint sequence)
+        // Two bit masks representing left-most and right-most endpoint "links" of each "chain" of set bits in the specified sequence.
+        private struct Links(uint sequence)
         {
-            // "L" refers to ends of chains extracted from a sequence of bits via "left to right" order. (left-most ends)
+            // "L" refers to links extracted from chains of set bits in a sequence via "left to right" order. (left-most links)
             public uint LBitMask = sequence & ~(sequence >> 1);
-            // "R" refers to ends of chains extracted from a sequence of bits via "right to left" order. (right-most ends)
+            // "R" refers to links extracted from chains of set bits in a sequence via "right to left" order. (right-most links)
             public uint RBitMask = sequence & ~(sequence << 1);
-            // Clear bits from L & R where set bits in the specified bit mask mark which bits should be cleared.
+            // Clear bits, where set bits in the specified bit mask mark which bits should be cleared.
             public void ClearBits(uint bitMask)
             {
                 LBitMask &= ~bitMask;
                 RBitMask &= ~bitMask;
             }
         }
-        // A bit mask representing a "chain" of set bits from a sequence, its offset in that sequence, and its length.
-        private struct Chain(Ends ends)
+        
+        // A bit mask representing a "chain" of set bits generated from the specified endpoint links, its offset, and its length.
+        private struct Chain(Links links)
         {
             // Bit mask representing the right-most chain of set bits in a sequence.
             public uint BitMask = 0;
             // Trailing zeros for BitMask.
-            public byte Offset = (byte)TrailingZeroCount(ends.RBitMask);
+            public byte Offset = (byte)TrailingZeroCount(links.RBitMask);
             // Length of the chain of set bits in BitMask.
-            public byte Length = (byte)(TrailingZeroCount(ends.LBitMask >> TrailingZeroCount(ends.RBitMask)) + 1);
+            public byte Length = (byte)(TrailingZeroCount(links.LBitMask >> TrailingZeroCount(links.RBitMask)) + 1);
         }
         
         // Generate a binary greedy mesh.
@@ -92,7 +93,7 @@ namespace RawVoxel
                     for (int width = 0; width < diameter; width ++)
                     {
                         // Extract visible planes from the current sequence.
-                        Ends visiblePlanes = new(voxelSequences[set, depth, width]);
+                        Links visiblePlanes = new(voxelSequences[set, depth, width]);
                         
                         // Loop through bits in visible planes.
                         for(int height = 0; height < diameter; height ++)
@@ -209,17 +210,17 @@ namespace RawVoxel
             // Early return if no bits are set.
             if (sequence == 0) return [];
             
-            // Generate ends from sequence.
-            Ends ends = new(sequence);
+            // Generate links from sequence.
+            Links links = new(sequence);
 
             // Create a placeholder list of chains.
             Queue<Chain> chains = [];
             
-            // Generate chains from ends.
-            while ((ends.LBitMask | ends.RBitMask) != 0)
+            // Generate chains from links.
+            while ((links.LBitMask | links.RBitMask) != 0)
             {
-                // Generate chain from ends.
-                Chain chain = new(ends);
+                // Generate chain from links.
+                Chain chain = new(links);
 
                 // Generate chain's bit mask using its offset and length.
                 for (byte bit = chain.Offset; bit < chain.Offset + chain.Length; bit ++)
@@ -230,8 +231,8 @@ namespace RawVoxel
                 // Add chain to the list.
                 chains.Enqueue(chain);
 
-                // Clear bits from ends using the chain's bit mask.
-                ends.ClearBits(chain.BitMask);
+                // Clear bits from links using the chain's bit mask.
+                links.ClearBits(chain.BitMask);
             }
 
             return chains;
