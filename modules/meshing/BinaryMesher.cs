@@ -14,27 +14,50 @@ namespace RawVoxel
         // Two bit masks representing left-most and right-most endpoint "links" of each "chain" of set bits in the specified sequence.
         private struct Links(uint sequence)
         {
-            // "L" refers to links extracted from chains of set bits in a sequence via "left to right" order. (left-most links)
+            // Links extracted from chains of set bits in a sequence via "left to right" order. (left-most endpoint links)
             public uint LBitMask = sequence & ~(sequence >> 1);
-            // "R" refers to links extracted from chains of set bits in a sequence via "right to left" order. (right-most links)
+            // Links extracted from chains of set bits in a sequence via "right to left" order. (right-most endpoint links)
             public uint RBitMask = sequence & ~(sequence << 1);
-            // Clear bits, where set bits in the specified bit mask mark which bits should be cleared.
-            public void ClearBits(uint bitMask)
-            {
-                LBitMask &= ~bitMask;
-                RBitMask &= ~bitMask;
-            }
         }
         
-        // A bit mask representing a "chain" of set bits generated from the specified endpoint links, its offset, and its length.
+        // A bit mask representing a "chain" of set bits generated from the specified endpoint "links", its offset, and its length.
         private struct Chain(Links links)
         {
-            // Bit mask representing the right-most chain of set bits in a sequence.
+            // Bit mask representing a chain of set bits from a larger sequence.
             public uint BitMask = 0;
             // Trailing zeros for BitMask.
             public byte Offset = (byte)TrailingZeroCount(links.RBitMask);
             // Length of the chain of set bits in BitMask.
             public byte Length = (byte)(TrailingZeroCount(links.LBitMask >> TrailingZeroCount(links.RBitMask)) + 1);
+        }
+        
+        // Queue "chains" of set bits from the specified sequence.
+        private static Queue<Chain> QueueChains(Links links)
+        {
+            // Create a placeholder list of chains.
+            Queue<Chain> chains = [];
+            
+            // Generate chains from links.
+            while ((links.LBitMask | links.RBitMask) != 0)
+            {
+                // Generate chain from links.
+                Chain chain = new(links);
+
+                // Generate chain's bit mask using its offset and length.
+                for (byte bit = chain.Offset; bit < chain.Offset + chain.Length; bit ++)
+                {
+                    chain.BitMask |= (uint)1 << bit;
+                }
+
+                // Add chain to the list.
+                chains.Enqueue(chain);
+
+                // Clear bits from links using the chain's bit mask.
+                links.LBitMask &= ~chain.BitMask;
+                links.RBitMask &= ~chain.BitMask;
+            }
+
+            return chains;
         }
         
         // Generate a binary greedy mesh.
@@ -95,20 +118,20 @@ namespace RawVoxel
                         // Extract visible planes from the current sequence.
                         Links visiblePlanes = new(voxelSequences[set, depth, width]);
                         
-                        // Loop through bits in visible planes.
+                        // Loop through bits in visible planes bit masks.
                         for(int height = 0; height < diameter; height ++)
                         {
-                            // Check if a "left" plane exists at the current bit.
+                            // Check if a "top" plane exists at the current relative height.
                             if ((visiblePlanes.LBitMask & (1 << height)) != 0)
                             {
-                                // Merge "left" plane bit mask into its respective sequence.
+                                // Merge "top" plane bit mask into its respective sequence.
                                 planeSequences[(set << 1) + 0, height, width] |= (uint)1 << depth;
                             }
                             
-                            // Check if a "right" plane exists at the current bit.
+                            // Check if a "bottom" plane exists at the current relative height.
                             if ((visiblePlanes.RBitMask & (1 << height)) != 0)
                             {
-                                // Merge "right" plane bit mask into its respective sequence.
+                                // Merge "bottom" plane bit mask into its respective sequence.
                                 planeSequences[(set << 1) + 1, height, width] |= (uint)1 << depth;
                             }
                         }
@@ -144,8 +167,11 @@ namespace RawVoxel
                 {
                     for (int width = 0; width < diameter; width ++)
                     {
-                        // Queue chains for the current sequence of planes.
-                        Queue<Chain> chains = QueueChains(planeSequences[set, height, width]);
+                        // Generate chain links from the current sequence of planes.
+                        Links links = new(planeSequences[set, height, width]);
+                        
+                        // Generate chains from the current sequence of chain links.
+                        Queue<Chain> chains = QueueChains(links);
 
                         // Loop through chains and generate mesh data.
                         foreach (Chain chain in chains)
@@ -202,40 +228,6 @@ namespace RawVoxel
             
             // Generate mesh.
             MeshHelper.Generate(ref chunk, ref Vertices, ref Normals, ref Indices);
-        }
-        
-        // Generate a queue of chains.
-        private static Queue<Chain> QueueChains(uint sequence)
-        {
-            // Early return if no bits are set.
-            if (sequence == 0) return [];
-            
-            // Generate links from sequence.
-            Links links = new(sequence);
-
-            // Create a placeholder list of chains.
-            Queue<Chain> chains = [];
-            
-            // Generate chains from links.
-            while ((links.LBitMask | links.RBitMask) != 0)
-            {
-                // Generate chain from links.
-                Chain chain = new(links);
-
-                // Generate chain's bit mask using its offset and length.
-                for (byte bit = chain.Offset; bit < chain.Offset + chain.Length; bit ++)
-                {
-                    chain.BitMask |= (uint)1 << bit;
-                }
-
-                // Add chain to the list.
-                chains.Enqueue(chain);
-
-                // Clear bits from links using the chain's bit mask.
-                links.ClearBits(chain.BitMask);
-            }
-
-            return chains;
         }
     }
 }
