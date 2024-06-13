@@ -121,17 +121,17 @@ namespace RawVoxel
                         // Loop through bits in visible planes bit masks.
                         for(int height = 0; height < diameter; height ++)
                         {
-                            // Check if a "top" plane exists at the current relative height.
+                            // Check if an "upper" plane exists at the current relative height.
                             if ((visiblePlanes.LBitMask & (1 << height)) != 0)
                             {
-                                // Merge "top" plane bit mask into its respective sequence.
+                                // Merge "upper" plane bit mask into its respective sequence.
                                 planeSequences[(set << 1) + 0, height, width] |= (uint)1 << depth;
                             }
                             
-                            // Check if a "bottom" plane exists at the current relative height.
+                            // Check if an "lower" plane exists at the current relative height.
                             if ((visiblePlanes.RBitMask & (1 << height)) != 0)
                             {
-                                // Merge "bottom" plane bit mask into its respective sequence.
+                                // Merge "lower" plane bit mask into its respective sequence.
                                 planeSequences[(set << 1) + 1, height, width] |= (uint)1 << depth;
                             }
                         }
@@ -189,17 +189,20 @@ namespace RawVoxel
                             // Loop through neighboring sequences of planes and try to expand the current chain into them.
                             for (int nextWidth = width + 1; nextWidth < diameter; nextWidth ++)
                             {
+                                // Retrieve the next sequence of planes.
+                                ref uint nextPlaneSequence = ref planeSequences[set, height, nextWidth];
+                                
                                 // Break if the current chain is unable to expand into the next sequence of planes.
-                                if ((chain.BitMask & planeSequences[set, height, nextWidth]) != chain.BitMask) break;
+                                if ((chain.BitMask & nextPlaneSequence) != chain.BitMask) break;
                                 
                                 // Expand the current chain into the neighboring sequence of planes.
                                 end += wDirection;
                                 
                                 // Clear bits from the neighboring sequence of planes to prevent creating overlapping planes.
-                                planeSequences[set, height, nextWidth] &= ~chain.BitMask;
+                                nextPlaneSequence &= ~chain.BitMask;
                             }
 
-                            // Generate chain mesh data.
+                            // Generate chain vertices.
                             Vector3I vertexA = start + (dDirection * chain.Length);
                             Vector3I vertexB = start;
                             Vector3I vertexC = end - (dDirection * chain.Length);
