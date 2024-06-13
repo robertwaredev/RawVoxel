@@ -3,7 +3,7 @@ using Godot;
 namespace RawVoxel
 {
     [GlobalClass, Tool]
-    public partial class WorldAttribute : Resource
+    public partial class WorldAttribute() : Resource
     {
         #region Exports
         
@@ -11,8 +11,6 @@ namespace RawVoxel
         [Export] public Curve Range { get; set; } = new();
 
         #endregion Exports
-
-        public WorldAttribute() {}
 
         public float Sample(int axisGridPosition, int axisGridDiameter)
         {

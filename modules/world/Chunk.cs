@@ -4,20 +4,18 @@ using RawUtils;
 namespace RawVoxel
 {
     [Tool]
-    public partial class Chunk : MeshInstance3D
+    public partial class Chunk() : MeshInstance3D
     {
         public byte[] VoxelTypes;
-        
-        public Chunk() {}
 
         // Generate voxel types.
         public static byte[] GenerateVoxels(Vector3I chunkPosition, WorldSettings worldSettings)
         {
             Biome biome = Biome.Generate(ref worldSettings, chunkPosition);
             
-            byte[] VoxelTypes = new byte[worldSettings.ChunkDiameter * worldSettings.ChunkDiameter * worldSettings.ChunkDiameter];
+            byte[] voxelTypes = new byte[worldSettings.ChunkDiameter * worldSettings.ChunkDiameter * worldSettings.ChunkDiameter];
 
-            for (int voxelIndex = 0; voxelIndex < VoxelTypes.Length; voxelIndex ++)
+            for (int voxelIndex = 0; voxelIndex < voxelTypes.Length; voxelIndex ++)
             {
                 Vector3I chunkDiameter = new(worldSettings.ChunkDiameter, worldSettings.ChunkDiameter, worldSettings.ChunkDiameter);
                 
@@ -29,11 +27,11 @@ namespace RawVoxel
 
                 if (voxelMask == true && voxelType != 0)
                 {
-                    VoxelTypes[voxelIndex] = voxelType;
+                    voxelTypes[voxelIndex] = voxelType;
                 }
             }
             
-            return VoxelTypes;
+            return voxelTypes;
         }
 
         // Generate voxel types.
@@ -66,7 +64,7 @@ namespace RawVoxel
             switch (worldSettings.MeshGeneration)
             {
                 case WorldSettings.MeshGenerationType.Greedy:
-                    BinaryMesher.Generate(ref chunk, ref worldSettings);
+                    BinaryMesher.Generate(ref chunk, ref VoxelTypes, ref worldSettings);
                     break;
                 case WorldSettings.MeshGenerationType.Standard:
                     CulledMesher.Generate(ref chunk, ref biome, ref worldSettings);

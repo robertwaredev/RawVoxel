@@ -7,11 +7,9 @@ namespace RawVoxel
         [Export] MeshInstance3D VoxelHighlight;
         private readonly object voxelEditLock = new();
         
-        public VoxelPicker() {}   
-        
         public override void _Process(double delta)
         {
-            Chunk chunk = GetCollidedVoxelContainer();
+            Chunk chunk = GetCollidedChunk();
             
             if (chunk == null)
             {
@@ -66,7 +64,7 @@ namespace RawVoxel
             }
         }
 
-        public Chunk GetCollidedVoxelContainer()
+        public Chunk GetCollidedChunk()
         {
             object collidedObject = GetCollider();
 

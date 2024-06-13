@@ -6,7 +6,7 @@ using System.Linq;
 namespace RawVoxel
 {
     [GlobalClass, Tool]
-    public partial class Voxel : Resource
+    public partial class Voxel() : Resource
     {
         #region Exports
         
@@ -24,8 +24,8 @@ namespace RawVoxel
 
         #region Constants
         
-        public static readonly Vector3I[] Vertices = new Vector3I[]
-        {
+        public static readonly Vector3I[] Vertices =
+        [
             new(0, 1, 1),
             new(0, 0, 1),
             new(1, 1, 1),
@@ -34,20 +34,18 @@ namespace RawVoxel
             new(0, 0, 0),
             new(1, 1, 0),
             new(1, 0, 0)
-        };
-        public static readonly int[][] Faces = new int[][]
-        {
-            new int[]{4, 6, 2, 0},
-            new int[]{1, 3, 7, 5},
-            new int[]{4, 0, 1, 5},
-            new int[]{2, 6, 7, 3},
-            new int[]{6, 4, 5, 7},
-            new int[]{0, 2, 3, 1}
-        };
+        ];
+        public static readonly int[][] Faces =
+        [
+            [4, 6, 2, 0],
+            [1, 3, 7, 5],
+            [4, 0, 1, 5],
+            [2, 6, 7, 3],
+            [6, 4, 5, 7],
+            [0, 2, 3, 1]
+        ];
 
         #endregion Constants
-
-        public Voxel() {}
         
         public static bool GenerateMask(Vector3I globalPosition, ref Biome biome)
         {

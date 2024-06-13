@@ -5,7 +5,7 @@ using Godot;
 namespace RawVoxel
 {    
     [GlobalClass, Tool]
-    public partial class Biome : Resource
+    public partial class Biome() : Resource
     {
         #region Exports
         
@@ -28,8 +28,6 @@ namespace RawVoxel
         [Export] public Curve DensityCurve { get; set; }
 
         #endregion Exports
-    
-        public Biome() {}
         
         public static Biome Generate(ref WorldSettings worldSettings, Vector3I chunkPosition)
         {

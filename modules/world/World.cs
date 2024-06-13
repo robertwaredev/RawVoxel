@@ -9,7 +9,7 @@ using System.Collections.Generic;
 namespace RawVoxel
 {
     [Tool]
-    public partial class World : Node3D
+    public partial class World() : Node3D
     {
         #region Exports
 
@@ -33,8 +33,6 @@ namespace RawVoxel
         private readonly Dictionary<int, Chunk> _loaded = [];
 
         #endregion Variables
-        
-        public World() {}
         
         public override void _Ready()
         {
