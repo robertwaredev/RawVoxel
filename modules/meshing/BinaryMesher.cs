@@ -7,6 +7,12 @@ using static System.Numerics.BitOperations;
 
 // TODO - Skip the generation section for homogenous chunks.
 
+// X AXIS SWIZZLES     || Y AXIS SWIZZLES     || Z AXIS SWIZZLES
+// =================================================================
+// Z = relative width  || X = relative width  || Y = relative width
+// X = relative height || Y = relative height || Z = relative height
+// Y = relative depth  || Z = relative depth  || X = relative depth
+
 namespace RawVoxel
 {
     public static class BinaryMesher
@@ -68,33 +74,31 @@ namespace RawVoxel
             // Store chunk diameter with a shorter name.
             int diameter = worldSettings.ChunkDiameter;
             
+            // Store chunk diameter as diameter = 1 << shifts.
+            int shifts = XYZBitShift.CalculateShifts(diameter);
+            
             // Sequences of voxel visibility bit masks, stored as [set, relative depth, relative width] with relative height encoded into each sequence's bits.
             uint[,,] voxelSequences = new uint[3, diameter, diameter];
             
             // Sequences of plane visibility bit masks, stored as [set, relative height, relative width] with relative depth encoded into each sequence's bits.
             uint[,,] planeSequences = new uint[6, diameter, diameter];
             
-            // Create placeholders for relative axes to be used when generating mesh data.
-            Vector3I hDirection = new();
-            Vector3I wDirection = new();
-            Vector3I dDirection = new();
-            
-            // Create placeholder lists for mesh data.
+            // Create placeholder list for mesh data.
             List<Vector3> Vertices = [];
             List<Vector3> Normals = [];
             List<int> Indices = [];
 
             #endregion Variables
                 
-            // Encode visible voxel positions into sequences of bit masks.
+            // Encode visible voxel positions into bit mask sequences.
             for (int x = 0; x < diameter; x ++)
             {
                 for (int y = 0; y < diameter; y ++)
                 {
                     for (int z = 0; z < diameter; z ++)
                     {
-                        // Convert position to index.
-                        uint voxelIndex = (uint)XYZBitShift.XYZToIndex(x, y, z, XYZBitShift.CalculateShifts(diameter));
+                        // Convert voxel position to index.
+                        uint voxelIndex = (uint)XYZBitShift.XYZToIndex(x, y, z, shifts);
                         
                         // Check if current voxel bit mask is true.
                         if (voxelTypes[voxelIndex] != 0)
@@ -108,7 +112,7 @@ namespace RawVoxel
                 }
             }
 
-            // Encode visible plane positions into sequences of bit masks.
+            // Encode visible plane positions into bit mask sequences.
             for (int set = 0; set < 3; set ++)
             {
                 for (int depth = 0; depth < diameter; depth ++)
@@ -138,36 +142,15 @@ namespace RawVoxel
                     }
                 }
             }
-
-            // Generate mesh data.
+            
+            // Loop through plane sequences and generate mesh data.
             for (int set = 0; set < 6; set ++)
             {
-                // Set relative axes based on set. These are the same axes used to encode visible voxel positions.
-                switch (set)
-                {
-                    case 0: case 1: // X axis planes.
-                        dDirection = new(0, 1, 0);  // Y = relative depth
-                        wDirection = new(0, 0, 1);  // Z = relative width
-                        hDirection = new(1, 0, 0);  // X = relative height
-                        break;
-                    case 2: case 3: // Y axis planes.
-                        dDirection = new(0, 0, 1);  // Z = relative depth
-                        wDirection = new(1, 0, 0);  // X = relative width
-                        hDirection = new(0, 1, 0);  // Y = relative height
-                        break;
-                    case 4: case 5: // Z axis planes.
-                        dDirection = new(1, 0, 0);  // X = relative depth
-                        wDirection = new(0, 1, 0);  // Y = relative width
-                        hDirection = new(0, 0, 1);  // Z = relative height
-                        break;
-                }
-
-                // Loop through sequences of planes.
                 for (int height = 0; height < diameter; height ++)
                 {
                     for (int width = 0; width < diameter; width ++)
                     {
-                        // Generate chain links from the current sequence of planes.
+                        // Generate chain links from the current plane sequence.
                         Links links = new(planeSequences[set, height, width]);
                         
                         // Generate chains from the current sequence of chain links.
@@ -176,53 +159,106 @@ namespace RawVoxel
                         // Loop through chains and generate mesh data.
                         foreach (Chain chain in chains)
                         {
-                            // Calculate initial start position of chain.
-                            Vector3I start = set switch
+                            // Store chain offset and length as "depth" and "length" for clarity purposes.
+                            int depth = chain.Offset;
+                            int length = chain.Length;
+
+                            // Calculate chain start position.
+                            Vector3I chainStart = set switch
                             {
-                                0 or 2 or 4 => (hDirection * height) + (wDirection * width) + (dDirection * chain.Offset) + hDirection,
-                                _           => (hDirection * height) + (wDirection * width) + (dDirection * chain.Offset),
+                                0 => new Vector3I(height + 1, depth, width),
+                                1 => new Vector3I(height, depth, width),
+
+                                2 => new Vector3I(width, height + 1, depth),
+                                3 => new Vector3I(width, height, depth),
+                                
+                                4 => new Vector3I(depth, width, height + 1),
+                                _ => new Vector3I(depth, width, height),
                             };
-                            
-                            // Calculate initial end position of chain.
-                            Vector3I end = start + wDirection + (dDirection * chain.Length);
-                            
-                            // Loop through neighboring sequences of planes and try to expand the current chain into them.
+
+                            // Calculate chain end position.
+                            Vector3I chainEnd = set switch
+                            {
+                                0 or 1 => chainStart + new Vector3I(0, length, 1),
+                                2 or 3 => chainStart + new Vector3I(1, 0, length),
+                                _      => chainStart + new Vector3I(length, 1, 0),
+                            };
+
+                            // Loop through neighboring plane sequences and try to expand the current chain into them.
                             for (int nextWidth = width + 1; nextWidth < diameter; nextWidth ++)
                             {
-                                // Retrieve the next sequence of planes.
+                                // Retrieve the next plane sequence.
                                 ref uint nextPlaneSequence = ref planeSequences[set, height, nextWidth];
                                 
-                                // Break if the current chain is unable to expand into the next sequence of planes.
+                                // Break if the current chain is unable to expand into the next plane sequence.
                                 if ((chain.BitMask & nextPlaneSequence) != chain.BitMask) break;
-                                
-                                // Expand the current chain into the neighboring sequence of planes.
-                                end += wDirection;
-                                
-                                // Clear bits from the neighboring sequence of planes to prevent creating overlapping planes.
+
+                                // Expand the current chain into the neighboring plane sequence.
+                                switch (set)
+                                {
+                                    case 0: case 1:
+                                        chainEnd.Z ++;
+                                        break;
+                                    case 2: case 3:
+                                        chainEnd.X ++;
+                                        break;
+                                    default:
+                                        chainEnd.Y ++;
+                                        break;
+                                }
+
+                                // Clear bits from the neighboring plane sequence to prevent creating overlapping planes.
                                 nextPlaneSequence &= ~chain.BitMask;
                             }
 
-                            // Generate chain vertices.
-                            Vector3I vertexA = start + (dDirection * chain.Length);
-                            Vector3I vertexB = start;
-                            Vector3I vertexC = end - (dDirection * chain.Length);
-                            Vector3I vertexD = end;
-
+                            // Get offset for indices.
                             int offset = Vertices.Count;
 
-                            // Add mesh data to lists.
+                            // Set vertices.
+                            Vector3I vertexA = chainStart;
+                            Vector3I vertexB = chainStart;
+                            Vector3I vertexC = chainEnd;
+                            Vector3I vertexD = chainEnd;
+
+                            // Offset vertices.
+                            switch (set)
+                            {
+                                case 0: case 1:
+                                    vertexA += new Vector3I(0, chain.Length, 0);
+                                    vertexC -= new Vector3I(0, chain.Length, 0);
+                                    break;
+                                case 2: case 3:
+                                    vertexA += new Vector3I(0, 0, chain.Length);
+                                    vertexC -= new Vector3I(0, 0, chain.Length);
+                                    break;
+                                default:
+                                    vertexA += new Vector3I(chain.Length, 0, 0);
+                                    vertexC -= new Vector3I(chain.Length, 0, 0);
+                                    break;
+                            }
+
+                            // Switch normal based on set.
+                            Vector3I normal = set switch
+                            {
+                                0 or 1 => new(1, 0, 0),
+                                2 or 3 => new(0, 1, 0),
+                                _      => new(0, 0, 1),
+                            };
+
+                            // Invert vertex draw order based on set.
                             switch (set)
                             {
                                 case 0: case 2: case 4:
                                     Vertices.AddRange([vertexA, vertexB, vertexC, vertexD]);
-                                    Normals.AddRange([hDirection, hDirection, hDirection, hDirection]);
+                                    Normals.AddRange([normal, normal, normal, normal]);
                                     break;
                                 default:
                                     Vertices.AddRange([vertexD, vertexC, vertexB, vertexA]);
-                                    Normals.AddRange([-hDirection, -hDirection, -hDirection, -hDirection]);
+                                    Normals.AddRange([-normal, -normal, -normal, -normal]);
                                     break;
                             }
 
+                            // Add indices to their list.
                             Indices.AddRange([0 + offset, 1 + offset, 2 + offset, 0 + offset, 2 + offset, 3 + offset]);
                         }
                     }

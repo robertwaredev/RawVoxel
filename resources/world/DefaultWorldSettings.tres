@@ -34,8 +34,7 @@ script = ExtResource("3_4jtgp")
 Distribution = SubResource("Curve_h8uip")
 Range = SubResource("Curve_5cwxg")
 
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_yv1ih"]
-vertex_color_use_as_albedo = true
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_vlexl"]
 
 [resource]
 script = ExtResource("2_od4l8")
@@ -44,10 +43,10 @@ Biomes = [ExtResource("1_n3txv")]
 Temperature = SubResource("Resource_lhfc1")
 Humidity = SubResource("Resource_gsmj2")
 CenterChunk = true
-DrawRadius = Vector3i(1, 1, 1)
-Radius = Vector3i(128, 128, 128)
+DrawRadius = Vector3i(10, 1, 10)
+WorldRadius = Vector3i(128, 128, 128)
 ChunkDiameter = 32
-TerrainMaterial = SubResource("StandardMaterial3D_yv1ih")
+TerrainMaterial = SubResource("StandardMaterial3D_vlexl")
 ShowChunkEdges = true
 MeshGeneration = 0
-GenerateFrequency = 30
+GenerateFrequency = 25

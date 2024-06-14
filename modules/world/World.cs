@@ -1,7 +1,6 @@
 using Godot;
 using System;
 using RawUtils;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Collections.Generic;
@@ -13,43 +12,41 @@ namespace RawVoxel
     {
         #region Exports
 
-        [Export] public bool Preload = true;
         [Export] public bool Generated = false;
-
         [Export] public Node3D FocusNode { get; set; }
         [Export] public WorldSettings WorldSettings { get; set; }
 
         #endregion Exports
-        
+
         #region Variables
 
         private Vector3 _focusNodeWorldPosition;
         private Vector3I _focusNodeChunkPosition = Vector3I.MinValue;
         private readonly object _focusNodePositionLock = new();
-        
+
         private readonly Queue<int> _drawQueue = [];
         private readonly Queue<int> _loadQueue = [];
         private readonly Queue<int> _wrapQueue = [];
         private readonly Dictionary<int, Chunk> _loaded = [];
 
         #endregion Variables
-        
+
         public override void _Ready()
         {
             Generated = false;
 
-            // Preload chunks when playing the game, disable when in the editor for faster project loading.
-            if (Preload)
+            // Preload drawable chunks when playing the game, disable when in the editor for faster scene loading.
+            if (Engine.IsEditorHint() == false)
             {
                 TryUpdateFocusNodeWorldPosition();
                 TryUpdateFocusNodeChunkPosition();
-                
+
                 QueueChunks();
                 LoadQueued();
 
                 Generated = true;
             }
-            
+
             // Start secondary thread to handle chunk queueing, loading, freeing, and repositioning ("wrapping").
             Thread worldThread = new(new ThreadStart(WorldProcess)) { Name = "World Thread" };
             worldThread.Start();
@@ -88,7 +85,7 @@ namespace RawVoxel
         public void TryUpdateFocusNodeWorldPosition() // Update stored focus node world position.
         {
             if (FocusNode == null) return;
-            
+
             lock (_focusNodePositionLock)
             {
                 _focusNodeWorldPosition = (Vector3I)FocusNode.Position.Floor();
@@ -97,14 +94,14 @@ namespace RawVoxel
         public bool TryUpdateFocusNodeChunkPosition() // Update stored focus node chunk position.
         {
             if (FocusNode == null) return false;
-            
+
             Vector3I queriedFocusNodeChunkPosition;
-            
+
             lock (_focusNodePositionLock)
             {
                 queriedFocusNodeChunkPosition = (Vector3I)(_focusNodeWorldPosition / WorldSettings.ChunkDiameter).Floor();
             }
-            
+
             if (_focusNodeChunkPosition != queriedFocusNodeChunkPosition)
             {
                 _focusNodeChunkPosition = queriedFocusNodeChunkPosition;
@@ -114,23 +111,23 @@ namespace RawVoxel
 
             return false;
         }
-        
+
         private void QueueChunks() // Queue chunks into _drawQueue, _loadQueue, and _wrapQueue.
         {
             #region Draw Queue // Chunk positions that are drawable.
 
             _drawQueue.Clear();
-            
-            for (int x = 0; x < WorldSettings.DrawDiameter.X; x ++)
+
+            for (int x = 0; x < WorldSettings.DrawDiameter.X; x++)
             {
-                for (int y = 0; y < WorldSettings.DrawDiameter.Y; y ++)
+                for (int y = 0; y < WorldSettings.DrawDiameter.Y; y++)
                 {
-                    for (int z = 0; z < WorldSettings.DrawDiameter.Z; z ++)
+                    for (int z = 0; z < WorldSettings.DrawDiameter.Z; z++)
                     {
-                        Vector3I position = new Vector3I(x, y, z) - WorldSettings.DrawRadius + _focusNodeChunkPosition + WorldSettings.Radius;
-                        
-                        int chunkIndex = XYZConvert.Vector3IToIndex(position, WorldSettings.Diameter);
-                        
+                        Vector3I position = new Vector3I(x, y, z) - WorldSettings.DrawRadius + _focusNodeChunkPosition + WorldSettings.WorldRadius;
+
+                        int chunkIndex = XYZConvert.Vector3IToIndex(position, WorldSettings.WorldDiameter);
+
                         _drawQueue.Enqueue(chunkIndex);
                     }
                 }
@@ -187,17 +184,17 @@ namespace RawVoxel
 
                 chunk.MaterialOverride = WorldSettings.TerrainMaterial;
 
-                Vector3I loadablePosition = XYZConvert.IndexToVector3I(loadIndex, WorldSettings.Diameter) - WorldSettings.Radius;
-                
+                Vector3I loadablePosition = XYZConvert.IndexToVector3I(loadIndex, WorldSettings.WorldDiameter) - WorldSettings.WorldRadius;
+
                 // FIXME - This should eventually be a proper thread queue.
                 Task generate = new(new Action(() => chunk.CallDeferred(nameof(Chunk.Generate), loadablePosition, WorldSettings)));
                 generate.Start();
                 generate.Wait();
-                
+
                 CallDeferred(Node.MethodName.AddChild, chunk);
                 Thread.Sleep(WorldSettings.GenerateFrequency);
             }
-        
+
             _loadQueue.Clear();
         }
         private void WrapQueued()  // Wrap chunks in the scene tree.
@@ -208,12 +205,12 @@ namespace RawVoxel
             {
                 Chunk chunk = _loaded[wrapIndex];
                 _loaded.Remove(wrapIndex);
-                
+
                 int loadIndex = _loadQueue.Dequeue();
                 _loaded.Add(loadIndex, chunk);
-                
-                Vector3I loadablePosition = XYZConvert.IndexToVector3I(loadIndex, WorldSettings.Diameter) - WorldSettings.Radius;
-                
+
+                Vector3I loadablePosition = XYZConvert.IndexToVector3I(loadIndex, WorldSettings.WorldDiameter) - WorldSettings.WorldRadius;
+
                 // FIXME - This should eventually be a proper thread queue.
                 Task generate = new(new Action(() => chunk.CallDeferred(nameof(Chunk.Generate), loadablePosition, WorldSettings)));
                 generate.Start();
@@ -221,7 +218,7 @@ namespace RawVoxel
 
                 Thread.Sleep(WorldSettings.GenerateFrequency);
             }
-            
+
             _wrapQueue.Clear();
         }
         private void FreeLoaded()  // Free chunks from the scene tree.
@@ -231,13 +228,13 @@ namespace RawVoxel
             foreach (int loadedIndex in _loaded.Keys)
             {
                 Chunk chunk = _loaded[loadedIndex];
-                
+
                 _loaded.Remove(loadedIndex);
-                
+
                 chunk.QueueFree();
             }
         }
-        
+
         public override string[] _GetConfigurationWarnings() // Godot specific configuration warnings.
         {
             if (FocusNode == null)

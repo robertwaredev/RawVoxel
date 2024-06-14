@@ -1,14 +1,12 @@
 using Godot;
 
-// FIXME - This is NOT the ideal way to handle biome selection.
-
 namespace RawVoxel
-{    
+{
     [GlobalClass, Tool]
     public partial class Biome() : Resource
     {
         #region Exports
-        
+
         [ExportCategory("Layers")]
         [Export] public BiomeLayer[] Layers { get; set; }
 
@@ -22,33 +20,35 @@ namespace RawVoxel
 
         [ExportGroup("Height")]
         [Export] public FastNoiseLite HeightNoise { get; set; }
-        
+
         [ExportGroup("Density")]
         [Export] public FastNoiseLite DensityNoise { get; set; }
         [Export] public Curve DensityCurve { get; set; }
 
         #endregion Exports
-        
+
+        // FIXME - This is NOT the ideal way to handle biome selection.
         public static Biome Generate(ref WorldSettings worldSettings, Vector3I chunkPosition)
         {
-            float temperature = worldSettings.Temperature.Distribution.Sample((float)(chunkPosition.Z + 0.5f) / worldSettings.Diameter.Z);
+            float temperature = worldSettings.Temperature.Distribution.Sample((float)(chunkPosition.Z + 0.5f) / worldSettings.WorldDiameter.Z);
             temperature = worldSettings.Temperature.Range.Sample(temperature);
-            
-            float humidity = worldSettings.Humidity.Distribution.Sample((float)(chunkPosition.X + 0.5f) / worldSettings.Diameter.X);
+
+            float humidity = worldSettings.Humidity.Distribution.Sample((float)(chunkPosition.X + 0.5f) / worldSettings.WorldDiameter.X);
             humidity = worldSettings.Humidity.Range.Sample(humidity);
 
             Biome thisBiome = worldSettings.Biomes[0];
-            
+
             foreach (Biome biome in worldSettings.Biomes)
             {
-                if (
+                if
+                (
                     temperature >= biome.TemperatureMin &&
                     temperature <= biome.TemperatureMax &&
                     humidity >= biome.HumidityMin &&
                     humidity <= biome.HumidityMax
                 )
-                
-                thisBiome = biome;
+
+                    thisBiome = biome;
             }
 
             return thisBiome;

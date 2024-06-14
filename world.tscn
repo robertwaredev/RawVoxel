@@ -5,10 +5,7 @@
 
 [node name="World" type="Node3D" node_paths=PackedStringArray("FocusNode")]
 script = ExtResource("1_47kl6")
-Preload = false
 Generated = true
-FocusNode = NodePath("Marker3D")
+FocusNode = NodePath(".")
 WorldSettings = ExtResource("2_g1d63")
 metadata/_edit_lock_ = true
-
-[node name="Marker3D" type="Marker3D" parent="."]
