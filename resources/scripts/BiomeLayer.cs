@@ -1,15 +1,14 @@
 using Godot;
 
-namespace RawVoxel
+namespace RawVoxel;
+
+[GlobalClass, Tool]
+public partial class BiomeLayer() : Resource
 {
-    [GlobalClass, Tool]
-    public partial class BiomeLayer() : Resource
-    {
-        #region Exports
+    #region Exports
 
-        [Export] public Voxel Voxel { get; set;}
-        [Export] public Curve HeightCurve { get; set; }
+    [Export] public Voxel Voxel { get; set;}
+    [Export] public Curve HeightCurve { get; set; }
 
-        #endregion Exports
-    }
+    #endregion Exports
 }

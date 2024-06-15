@@ -1,75 +1,40 @@
 using Godot;
 using RawVoxel;
-using System;
-using System.Collections.Generic;
 
-namespace RawUtils
+namespace RawUtils;
+    
+public static class MeshHelper
 {
-    public static class MeshHelper
+    public static ArrayMesh GenerateMesh(ref Surface[] surfaces, Material material)
     {
-        public static void Generate(ref Chunk chunk, ref List<int> indices)
+        ArrayMesh arrayMesh = new();
+        
+        for (int surface = 0; surface < surfaces.Length; surface ++)
         {
-            if (indices.Count  == 0) return;
-            
             Godot.Collections.Array surfaceArray = [];
             surfaceArray.Resize((int)Mesh.ArrayType.Max);
             
-            surfaceArray[(int)Mesh.ArrayType.Index] = indices.ToArray();
-
-            GenerateMesh(ref chunk, ref surfaceArray);
+            if (surfaces[surface].Vertices.Count != 0)
+            {
+                surfaceArray[(int)Mesh.ArrayType.Vertex] = surfaces[surface].Vertices.ToArray();
+            }
+            if (surfaces[surface].Normals.Count != 0)
+            {
+                surfaceArray[(int)Mesh.ArrayType.Normal] = surfaces[surface].Normals.ToArray();
+            }
+            if (surfaces[surface].Colors.Count != 0)
+            {
+                surfaceArray[(int)Mesh.ArrayType.Color] = surfaces[surface].Colors.ToArray();
+            }
+            if (surfaces[surface].Indices.Count != 0)
+            {
+                surfaceArray[(int)Mesh.ArrayType.Index] = surfaces[surface].Indices.ToArray();
+            }
+        
+            arrayMesh.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles, surfaceArray);
+            arrayMesh.SurfaceSetMaterial(surface, material);
         }
-        public static void Generate(ref Chunk chunk, ref List<Vector3> vertices, ref List<Vector3> normals, ref List<Color> colors, ref List<int> indices)
-        {
-            if (vertices.Count == 0) return;
-            if (normals.Count == 0) return;
-            if (colors.Count == 0) return;
-            if (indices.Count == 0) return;
-            
-            Godot.Collections.Array surfaceArray = [];
-            surfaceArray.Resize((int)Mesh.ArrayType.Max);
-            
-            surfaceArray[(int)Mesh.ArrayType.Vertex] = vertices.ToArray();
-            surfaceArray[(int)Mesh.ArrayType.Normal] = normals.ToArray();
-            surfaceArray[(int)Mesh.ArrayType.Color] = colors.ToArray();
-            surfaceArray[(int)Mesh.ArrayType.Index] = indices.ToArray();
-            
-            GenerateMesh(ref chunk, ref surfaceArray);
-        }
-        public static void Generate(ref Chunk chunk, ref List<Vector3> vertices, ref List<Vector3> normals, ref List<int> indices)
-        {
-            if (vertices.Count == 0) return;
-            if (normals.Count == 0) return;
-            if (indices.Count == 0) return;
-            
-            Godot.Collections.Array surfaceArray = [];
-            surfaceArray.Resize((int)Mesh.ArrayType.Max);
-            
-            surfaceArray[(int)Mesh.ArrayType.Vertex] = vertices.ToArray();
-            surfaceArray[(int)Mesh.ArrayType.Normal] = normals.ToArray();
-            surfaceArray[(int)Mesh.ArrayType.Index] = indices.ToArray();
-            
-            GenerateMesh(ref chunk, ref surfaceArray);
-        }    
-        private static void GenerateMesh(ref Chunk chunk, ref Godot.Collections.Array surfaceArray)
-        {
-            ArrayMesh arrayMesh = new();
-            
-            Mesh.ArrayFormat format = Mesh.ArrayFormat.FlagUsesEmptyVertexArray;
-            
-            arrayMesh.AddSurfaceFromArrays
-            (
-                primitive: Mesh.PrimitiveType.Triangles,
-                arrays: surfaceArray,
-                flags: format
-            );
 
-            chunk.Mesh = arrayMesh;
-
-            /* StaticBody3D collision = chunk.GetChildOrNull<StaticBody3D>(0);
-            collision?.QueueFree();
-
-            chunk.CreateTrimeshCollision();
-            chunk.AddToGroup("NavSource"); */
-        }
+        return arrayMesh;
     }
 }

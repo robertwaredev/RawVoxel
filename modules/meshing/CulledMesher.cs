@@ -1,70 +1,66 @@
 using Godot;
 using RawUtils;
-using System.Collections;
-using System.Collections.Generic;
 
-namespace RawVoxel
-{    
-    public static class CulledMesher
+namespace RawVoxel;
+
+public static class CulledMesher
+{
+    public static Surface[] GenerateSurfaces(ref byte[] voxelTypes, Vector3I chunkTruePosition, ref Biome biome, WorldSettings worldSettings)
     {
-        public static void Generate(ref Chunk chunk, ref Biome biome, ref WorldSettings worldSettings)
+        Surface[] surfaces = new Surface[6];
+        
+        for (int voxelIndex = 0; voxelIndex < voxelTypes.Length; voxelIndex ++)
         {
-            List<Vector3> Vertices = [];
-            List<Vector3> Normals = [];
-            List<Color> Colors = [];
-            List<int> Indices = [];
-            
-            void GenerateFace(Voxel.Face face, Vector3I voxelGridPosition, Vector3I normal, Color color)
-            {
-                int[] faceVertices = Voxel.Faces[(int)face];
-                
-                Vector3I vertexA = Voxel.Vertices[faceVertices[0]] + voxelGridPosition;
-                Vector3I vertexB = Voxel.Vertices[faceVertices[1]] + voxelGridPosition;
-                Vector3I vertexC = Voxel.Vertices[faceVertices[2]] + voxelGridPosition;
-                Vector3I vertexD = Voxel.Vertices[faceVertices[3]] + voxelGridPosition;
-
-                int offset = Vertices.Count;
-
-                Vertices.AddRange([vertexA, vertexB, vertexC, vertexD]);
-                Normals.AddRange([normal, normal, normal, normal]);
-                Colors.AddRange([color, color, color, color]);
-                Indices.AddRange([0 + offset, 1 + offset, 2 + offset, 0 + offset, 2 + offset, 3 + offset]);
-            }        
-            
-            void GenerateVoxel(ref Chunk chunk, int voxelGridIndex, ref WorldSettings worldSettings, ref Biome biome)
-            {
-                int chunkDiameter = worldSettings.ChunkDiameter;
-                Vector3I voxelGridPosition = XYZConvert.IndexToVector3I(voxelGridIndex, new(chunkDiameter, chunkDiameter, chunkDiameter));
-                
-                int voxelType = chunk.VoxelTypes[voxelGridIndex];
-                Color color = worldSettings.Voxels[voxelType].Color;
-                    
-                if (Voxel.IsVisible(ref chunk, voxelGridPosition + Vector3I.Left, ref biome, ref worldSettings) == false)
-                    GenerateFace(Voxel.Face.West, voxelGridPosition, Vector3I.Left, color);
-                
-                if (Voxel.IsVisible(ref chunk, voxelGridPosition + Vector3I.Right, ref biome, ref worldSettings) == false)
-                    GenerateFace(Voxel.Face.East, voxelGridPosition, Vector3I.Right, color);
-                
-                if (Voxel.IsVisible(ref chunk, voxelGridPosition + Vector3I.Up, ref biome, ref worldSettings) == false)
-                    GenerateFace(Voxel.Face.Top, voxelGridPosition, Vector3I.Up, color);
-                
-                if (Voxel.IsVisible(ref chunk, voxelGridPosition + Vector3I.Down, ref biome, ref worldSettings) == false)
-                    GenerateFace(Voxel.Face.Btm, voxelGridPosition, Vector3I.Down, color);
-                
-                if (Voxel.IsVisible(ref chunk, voxelGridPosition + Vector3I.Forward, ref biome, ref worldSettings) == false)
-                    GenerateFace(Voxel.Face.North, voxelGridPosition, Vector3I.Forward, color);
-                
-                if (Voxel.IsVisible(ref chunk, voxelGridPosition + Vector3I.Back, ref biome, ref worldSettings) == false)
-                    GenerateFace(Voxel.Face.South, voxelGridPosition, Vector3I.Back, color);
-            }
-            
-            for (int voxelIndex = 0; voxelIndex < chunk.VoxelTypes.Length; voxelIndex ++)
-            {
-                if (chunk.VoxelTypes[voxelIndex] != 0)
-                    GenerateVoxel(ref chunk, voxelIndex, ref worldSettings, ref biome);
-            }
-
-            MeshHelper.Generate(ref chunk, ref Vertices, ref Normals, ref Colors, ref Indices);
+            if (voxelTypes[voxelIndex] != 0)
+                GenerateVoxel(voxelIndex, chunkTruePosition, ref voxelTypes, ref surfaces, ref biome, ref worldSettings);
         }
+
+        return surfaces;
     }
+
+    public static void GenerateVoxel(int voxelIndex, Vector3I chunkTruePosition, ref byte[] voxelTypes, ref Surface[] surfaces, ref Biome biome, ref WorldSettings worldSettings)
+    {
+        int chunkDiameter = worldSettings.ChunkDiameter;
+        Vector3I voxelGridPosition = XYZConvert.IndexToVector3I(voxelIndex, new(chunkDiameter, chunkDiameter, chunkDiameter));
+        
+        int type = voxelTypes[voxelIndex];
+        Color color = worldSettings.Voxels[type].Color;
+            
+        if (Voxel.IsVisible(voxelGridPosition + Vector3I.Left, chunkTruePosition, ref voxelTypes, ref biome, ref worldSettings) == false)
+            GenerateFace(voxelGridPosition, Voxel.Face.West, Vector3I.Left, color, ref surfaces[0]);
+        
+        if (Voxel.IsVisible(voxelGridPosition + Vector3I.Right, chunkTruePosition, ref voxelTypes, ref biome, ref worldSettings) == false)
+            GenerateFace(voxelGridPosition, Voxel.Face.East, Vector3I.Right, color, ref surfaces[1]);
+        
+        if (Voxel.IsVisible(voxelGridPosition + Vector3I.Up, chunkTruePosition, ref voxelTypes, ref biome, ref worldSettings) == false)
+            GenerateFace(voxelGridPosition, Voxel.Face.Top, Vector3I.Up, color, ref surfaces[2]);
+        
+        if (Voxel.IsVisible(voxelGridPosition + Vector3I.Down, chunkTruePosition, ref voxelTypes, ref biome, ref worldSettings) == false)
+            GenerateFace(voxelGridPosition, Voxel.Face.Btm, Vector3I.Down, color, ref surfaces[3]);
+        
+        if (Voxel.IsVisible(voxelGridPosition + Vector3I.Forward, chunkTruePosition, ref voxelTypes, ref biome, ref worldSettings) == false)
+            GenerateFace(voxelGridPosition, Voxel.Face.North, Vector3I.Forward, color, ref surfaces[4]);
+        
+        if (Voxel.IsVisible(voxelGridPosition + Vector3I.Back, chunkTruePosition, ref voxelTypes, ref biome, ref worldSettings) == false)
+            GenerateFace(voxelGridPosition, Voxel.Face.South, Vector3I.Back, color, ref surfaces[5]);
+    }
+
+    public static void GenerateFace(Vector3I voxelGridPosition, Voxel.Face face, Vector3I normal, Color color, ref Surface surface)
+    {
+        int[] faceVertices = Voxel.Faces[(int)face];
+        
+        Vector3I vertexA = Voxel.Vertices[faceVertices[0]] + voxelGridPosition;
+        Vector3I vertexB = Voxel.Vertices[faceVertices[1]] + voxelGridPosition;
+        Vector3I vertexC = Voxel.Vertices[faceVertices[2]] + voxelGridPosition;
+        Vector3I vertexD = Voxel.Vertices[faceVertices[3]] + voxelGridPosition;
+
+        int offset = surface.Vertices.Count;
+
+        surface.Vertices.AddRange([vertexA, vertexB, vertexC, vertexD]);
+        surface.Normals.AddRange([normal, normal, normal, normal]);
+        surface.Colors.AddRange([color, color, color, color]);
+        surface.Indices.AddRange([0 + offset, 1 + offset, 2 + offset, 0 + offset, 2 + offset, 3 + offset]);
+    }        
+    
+    
 }

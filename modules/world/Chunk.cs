@@ -1,75 +1,31 @@
 using Godot;
 using RawUtils;
 
-namespace RawVoxel
+namespace RawVoxel;
+
+[Tool]
+public partial class Chunk() : MeshInstance3D
 {
-    [Tool]
-    public partial class Chunk() : MeshInstance3D
+    public static byte[] GenerateVoxels(Vector3I chunkTruePosition, ref Biome biome, ref WorldSettings worldSettings)
     {
-        public byte[] VoxelTypes;
+        int shifts = XYZBitShift.CalculateShifts(worldSettings.ChunkDiameter);
 
-        // Generate voxel types.
-        public static byte[] GenerateVoxels(Vector3I chunkPosition, WorldSettings worldSettings)
-        {
-            Biome biome = Biome.Generate(ref worldSettings, chunkPosition);
+        byte[] voxels = new byte[1 << shifts << shifts << shifts];
+
+        for (int voxelIndex = 0; voxelIndex < voxels.Length; voxelIndex ++)
+        {    
+            Vector3I voxelGridPosition = XYZBitShift.IndexToVector3I(voxelIndex, shifts);
+            Vector3I voxelTruePosition = chunkTruePosition + voxelGridPosition;
             
-            byte[] voxelTypes = new byte[worldSettings.ChunkDiameter * worldSettings.ChunkDiameter * worldSettings.ChunkDiameter];
+            bool voxelMask = Voxel.GenerateMask(voxelTruePosition, ref biome);
+            byte voxelType = Voxel.GenerateType(voxelTruePosition, ref biome, ref worldSettings);
 
-            for (int voxelIndex = 0; voxelIndex < voxelTypes.Length; voxelIndex ++)
+            if (voxelMask == true && voxelType != 0)
             {
-                Vector3I chunkDiameter = new(worldSettings.ChunkDiameter, worldSettings.ChunkDiameter, worldSettings.ChunkDiameter);
-                
-                Vector3I voxelPosition = XYZConvert.IndexToVector3I(voxelIndex, chunkDiameter);
-                Vector3I voxelGlobalPosition = worldSettings.ChunkDiameter * chunkPosition + voxelPosition;
-                
-                bool voxelMask = Voxel.GenerateMask(voxelGlobalPosition, ref biome);
-                byte voxelType = Voxel.GenerateType(voxelGlobalPosition, ref biome, ref worldSettings);
-
-                if (voxelMask == true && voxelType != 0)
-                {
-                    voxelTypes[voxelIndex] = voxelType;
-                }
-            }
-            
-            return voxelTypes;
-        }
-
-        // Generate voxel types.
-        public void Generate(Vector3I chunkPosition, WorldSettings worldSettings)
-        {
-            Position = chunkPosition * worldSettings.ChunkDiameter;
-            
-            Biome biome = Biome.Generate(ref worldSettings, chunkPosition);
-            
-            VoxelTypes = new byte[worldSettings.ChunkDiameter * worldSettings.ChunkDiameter * worldSettings.ChunkDiameter];
-
-            for (int voxelIndex = 0; voxelIndex < VoxelTypes.Length; voxelIndex ++)
-            {
-                Vector3I chunkDiameter = new(worldSettings.ChunkDiameter, worldSettings.ChunkDiameter, worldSettings.ChunkDiameter);
-                
-                Vector3I voxelPosition = XYZConvert.IndexToVector3I(voxelIndex, chunkDiameter);
-                Vector3I voxelGlobalPosition = (Vector3I)Position + voxelPosition;
-                
-                bool voxelMask = Voxel.GenerateMask(voxelGlobalPosition, ref biome);
-                byte voxelType = Voxel.GenerateType(voxelGlobalPosition, ref biome, ref worldSettings);
-
-                if (voxelMask == true && voxelType != 0)
-                {
-                    VoxelTypes[voxelIndex] = voxelType;
-                }
-            }
-            
-            Chunk chunk = this;
-            
-            switch (worldSettings.MeshGeneration)
-            {
-                case WorldSettings.MeshGenerationType.Greedy:
-                    BinaryMesher.Generate(ref chunk, ref VoxelTypes, ref worldSettings);
-                    break;
-                case WorldSettings.MeshGenerationType.Standard:
-                    CulledMesher.Generate(ref chunk, ref biome, ref worldSettings);
-                    break;
+                voxels[voxelIndex] = voxelType;
             }
         }
+
+        return voxels;
     }
 }
