@@ -1,12 +1,13 @@
 using Godot;
 using System;
-using RawUtils;
+using RawVoxel.Meshing;
 using System.Threading;
-using System.Threading.Tasks;
-using System.Collections.Generic;
 using System.Diagnostics;
+using System.Threading.Tasks;
+using RawVoxel.Math.Conversions;
+using System.Collections.Generic;
 
-namespace RawVoxel;
+namespace RawVoxel.World;
 
 [Tool]
 public partial class World() : MeshInstance3D

@@ -1,7 +1,6 @@
 using Godot;
-using RawVoxel;
 
-namespace RawUtils;
+namespace RawVoxel.Meshing;
     
 public static class MeshHelper
 {

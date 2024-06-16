@@ -1,7 +1,7 @@
 using Godot;
-using RawUtils;
+using RawVoxel.Math.Conversions;
 
-namespace RawVoxel;
+namespace RawVoxel.World;
 
 [Tool]
 public partial class Chunk() : MeshInstance3D

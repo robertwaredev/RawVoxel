@@ -1,10 +1,10 @@
 using Godot;
-using RawUtils;
+using RawVoxel.Math.Binary;
+using RawVoxel.Math.Conversions;
 using System.Collections.Generic;
-using System.ComponentModel;
 using static System.Numerics.BitOperations;
 
-namespace RawVoxel;
+namespace RawVoxel.Meshing;
 
 // TODO - Skip the generation section for homogenous chunks.
 
@@ -16,53 +16,6 @@ namespace RawVoxel;
 
 public static class BinaryMesher
 { 
-    // Two bit masks representing left-most and right-most endpoint "links" of each "chain" of set bits in the specified sequence.
-    private struct Links(uint sequence)
-    {
-        // Links extracted from chains of set bits in a sequence via "left to right" order. (left-most endpoint links)
-        public uint LBitMask = sequence & ~(sequence >> 1);
-        // Links extracted from chains of set bits in a sequence via "right to left" order. (right-most endpoint links)
-        public uint RBitMask = sequence & ~(sequence << 1);
-    }
-    
-    // A bit mask representing a "chain" of set bits from the specified sequence.
-    private struct Chain(uint bitMask, byte offset, byte length)
-    {
-        // Bit mask representing a chain of set bits from a larger sequence.
-        public uint BitMask = bitMask;
-        // Trailing zeros for BitMask.
-        public byte Offset = offset;
-        // Length of the chain of set bits in BitMask.
-        public byte Length = length;
-    }
-    
-    // Queue "chains" of set bits from the specified sequence.
-    private static Queue<Chain> QueueChains(uint sequence)
-    {
-        // Create a placeholder list of chains.
-        Queue<Chain> chains = [];
-        
-        // Generate chains from links.
-        while (sequence != 0)
-        {
-            // Generate chain's bit mask using its offset and length.
-            byte offset = (byte)TrailingZeroCount(sequence);
-            byte length = (byte)TrailingZeroCount(~(sequence >> offset));
-            uint bitMask = uint.MaxValue >> (32 - length) << offset;
-            
-            // Generate chain from links.
-            Chain chain = new(bitMask, offset, length);
-
-            // Add chain to the list.
-            chains.Enqueue(chain);
-
-            // Clear bits from links using the chain's bit mask.
-            sequence &= ~bitMask;
-        }
-
-        return chains;
-    }
-    
     // Generate a binary greedy mesh.
     public static Surface[] GenerateSurfaces(ref byte[] voxels, ref WorldSettings worldSettings)
     {
@@ -118,23 +71,21 @@ public static class BinaryMesher
                         
                     // Extract visible planes from the current voxel sequence.
                     Links visiblePlanes = new(voxelSequence);
-                        
+
                     // Loop through bits in visible planes bit masks.
-                    for(int height = 0; height < diameter; height ++)
+                    while ((visiblePlanes.LBitMask | visiblePlanes.RBitMask) != 0)
                     {
-                        // Check if an "upper" plane exists at the current relative height.
-                        if ((visiblePlanes.LBitMask & (1 << height)) != 0)
-                        {
-                            // Merge "upper" plane bit mask into its respective sequence.
-                            planeSequences[(set << 1) + 0, height, width] |= (uint)1 << depth;
-                        }
-                        
-                        // Check if an "lower" plane exists at the current relative height.
-                        if ((visiblePlanes.RBitMask & (1 << height)) != 0)
-                        {
-                            // Merge "lower" plane bit mask into its respective sequence.
-                            planeSequences[(set << 1) + 1, height, width] |= (uint)1 << depth;
-                        }
+                        // Get heights of first pair of visible planes.
+                        int heightL = TrailingZeroCount(visiblePlanes.LBitMask);
+                        int heightR = TrailingZeroCount(visiblePlanes.RBitMask);
+
+                        // Merge "left" and "right" plane bit mask into its respective sequence.
+                        planeSequences[(set << 1) + 0, heightL, width] |= (uint)1 << depth;
+                        planeSequences[(set << 1) + 1, heightR, width] |= (uint)1 << depth;
+
+                        // Clear bits at the currrent heights so the next planes can be calculated.
+                        visiblePlanes.LBitMask &= (uint)~(1 << heightL);
+                        visiblePlanes.RBitMask &= (uint)~(1 << heightR);
                     }
                 }
             }
@@ -154,7 +105,7 @@ public static class BinaryMesher
                     if (planeSequence == 0) continue;
                     
                     // Generate chains from the current plane sequence.
-                    Queue<Chain> chains = QueueChains(planeSequence);
+                    Queue<Chain> chains = Chain.QueueChains(planeSequence);
 
                     // Loop through chains and generate mesh data.
                     foreach (Chain chain in chains)

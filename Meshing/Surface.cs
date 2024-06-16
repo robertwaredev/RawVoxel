@@ -1,7 +1,7 @@
 using Godot;
 using System.Collections.Generic;
 
-namespace RawVoxel;
+namespace RawVoxel.Meshing;
 
 [Tool]
 public class Surface()

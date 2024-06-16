@@ -1,6 +1,7 @@
 using Godot;
+using RawVoxel.World;
 
-namespace RawVoxel;
+namespace RawVoxel.Interaction;
 
 public partial class VoxelPicker : RayCast3D
 {

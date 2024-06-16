@@ -1,7 +1,7 @@
 [gd_scene load_steps=3 format=3 uid="uid://cyqtqvdarokhd"]
 
-[ext_resource type="Script" path="res://addons/RawVoxel/modules/world/World.cs" id="1_47kl6"]
-[ext_resource type="Resource" uid="uid://c7lrdyml3qram" path="res://addons/RawVoxel/resources/world/DefaultWorldSettings.tres" id="2_g1d63"]
+[ext_resource type="Script" path="res://addons/RawVoxel/World/World.cs" id="1_47kl6"]
+[ext_resource type="Resource" uid="uid://c7lrdyml3qram" path="res://addons/RawVoxel/Resources/world/DefaultWorldSettings.tres" id="2_g1d63"]
 
 [node name="World" type="MeshInstance3D" node_paths=PackedStringArray("FocusNode")]
 script = ExtResource("1_47kl6")

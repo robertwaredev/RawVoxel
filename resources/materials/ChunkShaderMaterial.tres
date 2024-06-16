@@ -1,6 +1,6 @@
 [gd_resource type="ShaderMaterial" load_steps=2 format=3 uid="uid://fuo8d8qsqq2t"]
 
-[ext_resource type="Shader" path="res://addons/RawVoxel/resources/shaders/Chunk.gdshader" id="1_27t73"]
+[ext_resource type="Shader" path="res://addons/RawVoxel/Resources/shaders/Chunk.gdshader" id="1_27t73"]
 
 [resource]
 resource_local_to_scene = true

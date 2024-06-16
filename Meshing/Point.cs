@@ -1,4 +1,4 @@
-namespace RawVoxel;
+namespace RawVoxel.Meshing;
 
 public static class Point
 {

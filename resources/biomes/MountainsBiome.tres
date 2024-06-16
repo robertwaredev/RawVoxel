@@ -1,10 +1,10 @@
 [gd_resource type="Resource" script_class="Biome" load_steps=15 format=3 uid="uid://dr48in2yja7pv"]
 
-[ext_resource type="Resource" uid="uid://bncsgv1yauy85" path="res://addons/RawVoxel/resources/voxels/Grass.tres" id="1_iml8r"]
-[ext_resource type="Script" path="res://addons/RawVoxel/resources/scripts/BiomeLayer.cs" id="2_1c6rp"]
-[ext_resource type="Resource" uid="uid://dle7im5f8jvv7" path="res://addons/RawVoxel/resources/voxels/Dirt.tres" id="3_dk8kt"]
-[ext_resource type="Resource" uid="uid://dmyx04guxsghu" path="res://addons/RawVoxel/resources/voxels/Stone.tres" id="4_bp1mj"]
-[ext_resource type="Script" path="res://addons/RawVoxel/resources/scripts/Biome.cs" id="5_b1yxo"]
+[ext_resource type="Resource" uid="uid://bncsgv1yauy85" path="res://addons/RawVoxel/Resources/voxels/Grass.tres" id="1_iml8r"]
+[ext_resource type="Script" path="res://addons/RawVoxel/Resources/scripts/BiomeLayer.cs" id="2_1c6rp"]
+[ext_resource type="Resource" uid="uid://dle7im5f8jvv7" path="res://addons/RawVoxel/Resources/voxels/Dirt.tres" id="3_dk8kt"]
+[ext_resource type="Resource" uid="uid://dmyx04guxsghu" path="res://addons/RawVoxel/Resources/voxels/Stone.tres" id="4_bp1mj"]
+[ext_resource type="Script" path="res://addons/RawVoxel/Resources/scripts/Biome.cs" id="5_b1yxo"]
 
 [sub_resource type="Curve" id="Curve_rkx2v"]
 _data = [Vector2(0, 0.3), 0.0, 0.0, 0, 0, Vector2(1, 1), 0.0, 0.0, 0, 0]
