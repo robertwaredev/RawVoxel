@@ -33,7 +33,7 @@ public struct Chain(uint bitMask, byte offset, byte length)
             // Add chain to the list.
             chains.Enqueue(chain);
 
-            // Clear bits from links using the chain's bit mask.
+            // Clear bits from sequence using the chain's bit mask.
             sequence &= ~bitMask;
         }
 

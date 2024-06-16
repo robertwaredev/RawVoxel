@@ -5,9 +5,9 @@ namespace RawVoxel.Meshing;
 
 public static class CulledMesher
 {
-    public static Surface[] GenerateSurfaces(ref byte[] voxelTypes, Vector3I chunkTruePosition, ref Biome biome, WorldSettings worldSettings)
+    public static Surface[] GenerateSurfaces(Vector3I chunkTruePosition, ref byte[] voxelTypes, ref Biome biome, ref WorldSettings worldSettings)
     {
-        Surface[] surfaces = new Surface[6];
+        Surface[] surfaces = [new(), new(), new(), new(), new(), new()];
         
         for (int voxelIndex = 0; voxelIndex < voxelTypes.Length; voxelIndex ++)
         {

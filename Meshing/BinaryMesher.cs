@@ -6,6 +6,7 @@ using static System.Numerics.BitOperations;
 
 namespace RawVoxel.Meshing;
 
+// TODO - 
 // TODO - Skip the generation section for homogenous chunks.
 
 // X AXIS SWIZZLES     || Y AXIS SWIZZLES     || Z AXIS SWIZZLES
@@ -79,7 +80,7 @@ public static class BinaryMesher
                         int heightL = TrailingZeroCount(visiblePlanes.LBitMask);
                         int heightR = TrailingZeroCount(visiblePlanes.RBitMask);
 
-                        // Merge "left" and "right" plane bit mask into its respective sequence.
+                        // Merge "left" and "right" plane bit mask into its respective sequence, swizzling depth for height.
                         planeSequences[(set << 1) + 0, heightL, width] |= (uint)1 << depth;
                         planeSequences[(set << 1) + 1, heightR, width] |= (uint)1 << depth;
 

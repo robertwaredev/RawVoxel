@@ -240,10 +240,8 @@ public partial class World() : MeshInstance3D
         }
     }
 
-    public static void GenerateChunk(Chunk chunk, int chunkIndex, WorldSettings worldSettings)
+    public void GenerateChunk(Chunk chunk, int chunkIndex, WorldSettings worldSettings)
     {
-        Stopwatch stopwatch = Stopwatch.StartNew();
-
         int shifts = XYZBitShift.CalculateShifts(worldSettings.ChunkDiameter);
 
         Vector3I chunkGridPosition = XYZConvert.IndexToVector3I(chunkIndex, worldSettings.WorldDiameter) - worldSettings.WorldRadius;
@@ -252,9 +250,28 @@ public partial class World() : MeshInstance3D
         chunk.Position = chunkTruePosition;
         
         Biome biome = Biome.Generate(chunkGridPosition, ref worldSettings);
+        
         byte[] voxels = Chunk.GenerateVoxels(chunkTruePosition, ref biome, ref worldSettings);
+        
         // TODO - Add homogeneity check.
-        Surface[] surfaces = BinaryMesher.GenerateSurfaces(ref voxels, ref worldSettings);
+        
+        Surface[] surfaces = [];
+
+        Stopwatch stopwatch = Stopwatch.StartNew();
+        
+        switch (WorldSettings.MeshGeneration)
+        {
+            case WorldSettings.MeshGenerationType.Greedy:
+                surfaces = BinaryMesher.GenerateSurfaces(ref voxels, ref worldSettings);
+                break;
+            case WorldSettings.MeshGenerationType.Standard:
+                surfaces = CulledMesher.GenerateSurfaces(chunkTruePosition, ref voxels, ref biome, ref worldSettings);
+                break;
+        }
+        
+        stopwatch.Stop();
+        GD.Print("~~~ Completed in " + stopwatch.ElapsedTicks / 10000.0f + " ms.");
+        
         // TODO - Add camera view direction check to determine which surfaces to mesh.
         ArrayMesh mesh = MeshHelper.GenerateMesh(ref surfaces, worldSettings.TerrainMaterial);
 
@@ -264,8 +281,6 @@ public partial class World() : MeshInstance3D
         collision?.QueueFree();
         chunk.CreateTrimeshCollision();
 
-        stopwatch.Stop();
-        GD.Print("~~~ Completed in " + stopwatch.ElapsedTicks / 10000.0f + " ms.");
     }
     
     public override string[] _GetConfigurationWarnings() // Godot specific configuration warnings.
