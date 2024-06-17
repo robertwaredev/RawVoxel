@@ -47,7 +47,7 @@ public partial class Voxel() : Resource
 
     #endregion Constants
     
-    public static bool GenerateMask(Vector3I voxelTruePosition, ref Biome biome)
+    public static bool GenerateMask(Vector3I voxelTruePosition, Biome biome)
     {
         float densityNoise = biome.DensityNoise.GetNoise3Dv(voxelTruePosition);
         float voxelDensity = biome.DensityCurve.Sample((densityNoise + 1) * 0.5f);
@@ -56,7 +56,7 @@ public partial class Voxel() : Resource
 
         return true;
     }
-    public static byte GenerateType(Vector3I voxelTruePosition, ref Biome biome, ref WorldSettings worldSettings)
+    public static byte GenerateType(Vector3I voxelTruePosition, Biome biome, WorldSettings worldSettings)
     {
         float heightNoise = biome.HeightNoise.GetNoise2D(voxelTruePosition.X, voxelTruePosition.Z);
         
@@ -72,31 +72,30 @@ public partial class Voxel() : Resource
 
         return 0;
     }
-    public static bool IsExternal(Vector3I voxelGridPosition, ref WorldSettings worldSettings)
+    public static bool IsExternal(Vector3I voxelGridPosition, byte chunkDiameter)
     {
-        if (voxelGridPosition.X < 0 || voxelGridPosition.X >= worldSettings.ChunkDiameter) return true;
-        if (voxelGridPosition.Y < 0 || voxelGridPosition.Y >= worldSettings.ChunkDiameter) return true;
-        if (voxelGridPosition.Z < 0 || voxelGridPosition.Z >= worldSettings.ChunkDiameter) return true;
+        if (voxelGridPosition.X < 0 || voxelGridPosition.X >= chunkDiameter) return true;
+        if (voxelGridPosition.Y < 0 || voxelGridPosition.Y >= chunkDiameter) return true;
+        if (voxelGridPosition.Z < 0 || voxelGridPosition.Z >= chunkDiameter) return true;
         
         return false;
     }
-    public static bool IsVisible(Vector3I voxelGridPosition, Vector3I chunkTruePosition, ref byte[] voxelTypes, ref Biome biome, ref WorldSettings worldSettings)
+    public static bool IsVisible(Vector3I voxelGridPosition, Vector3I chunkTruePosition, byte chunkDiameter, bool showChunkEdges, ref byte[] voxelTypes, Biome biome, WorldSettings worldSettings)
     {
-        if (IsExternal(voxelGridPosition, ref worldSettings))
+        if (IsExternal(voxelGridPosition, chunkDiameter))
         {
-            if (worldSettings.ShowChunkEdges) return false;
+            if (showChunkEdges) return false;
 
             Vector3I voxelTruePosition = chunkTruePosition + voxelGridPosition;
             
-            bool mask = GenerateMask(voxelTruePosition, ref biome);
-            uint type = GenerateType(voxelTruePosition, ref biome, ref worldSettings);
+            bool mask = GenerateMask(voxelTruePosition, biome);
+            uint type = GenerateType(voxelTruePosition, biome, worldSettings);
             
             if (mask == true && type != 0) return true;
             
             else return false;
         }
         
-        int chunkDiameter = worldSettings.ChunkDiameter;
         int voxelIndex = XYZConvert.Vector3IToIndex(voxelGridPosition, new(chunkDiameter, chunkDiameter, chunkDiameter));
         
         if (voxelTypes[voxelIndex] == 0)
@@ -106,13 +105,12 @@ public partial class Voxel() : Resource
 
         return true;
     }
-    public static void SetType(ref byte[] voxelTypes, Vector3I voxelPosition, byte voxelType, ref WorldSettings worldSettings)
+    public static void SetType(ref byte[] voxelTypes, Vector3I voxelPosition, byte voxelType, byte chunkDiameter)
     {
-        voxelPosition.X = Mathf.PosMod(voxelPosition.X, worldSettings.ChunkDiameter);
-        voxelPosition.Y = Mathf.PosMod(voxelPosition.Y, worldSettings.ChunkDiameter);
-        voxelPosition.Z = Mathf.PosMod(voxelPosition.Z, worldSettings.ChunkDiameter);
+        voxelPosition.X = Mathf.PosMod(voxelPosition.X, chunkDiameter);
+        voxelPosition.Y = Mathf.PosMod(voxelPosition.Y, chunkDiameter);
+        voxelPosition.Z = Mathf.PosMod(voxelPosition.Z, chunkDiameter);
         
-        int chunkDiameter = worldSettings.ChunkDiameter;
         int voxelIndex = XYZConvert.Vector3IToIndex(voxelPosition, new(chunkDiameter, chunkDiameter, chunkDiameter));
         
         voxelTypes[voxelIndex] = voxelType;

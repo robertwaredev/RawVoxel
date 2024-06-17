@@ -6,9 +6,9 @@ namespace RawVoxel.World;
 [Tool]
 public partial class Chunk() : MeshInstance3D
 {
-    public static byte[] GenerateVoxels(Vector3I chunkTruePosition, ref Biome biome, ref WorldSettings worldSettings)
+    public static byte[] GenerateVoxels(Vector3I chunkTruePosition, byte chunkDiameter, Biome biome, WorldSettings worldSettings)
     {
-        int shifts = XYZBitShift.CalculateShifts(worldSettings.ChunkDiameter);
+        int shifts = XYZBitShift.CalculateShifts(chunkDiameter);
 
         byte[] voxels = new byte[1 << shifts << shifts << shifts];
 
@@ -17,12 +17,16 @@ public partial class Chunk() : MeshInstance3D
             Vector3I voxelGridPosition = XYZBitShift.IndexToVector3I(voxelIndex, shifts);
             Vector3I voxelTruePosition = chunkTruePosition + voxelGridPosition;
             
-            bool voxelMask = Voxel.GenerateMask(voxelTruePosition, ref biome);
-            byte voxelType = Voxel.GenerateType(voxelTruePosition, ref biome, ref worldSettings);
+            bool voxelMask = Voxel.GenerateMask(voxelTruePosition, biome);
 
-            if (voxelMask == true && voxelType != 0)
+            if (voxelMask == true)
             {
-                voxels[voxelIndex] = voxelType;
+                byte voxelType = Voxel.GenerateType(voxelTruePosition, biome, worldSettings);
+                
+                if (voxelType != 0)
+                {
+                    voxels[voxelIndex] = voxelType;
+                }
             }
         }
 
