@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using RawVoxel.Math.Conversions;
 using System.Collections.Generic;
 using System.Diagnostics;
+using Microsoft.CodeAnalysis.Operations;
 
 namespace RawVoxel.World;
 
@@ -354,10 +355,15 @@ public partial class World() : MeshInstance3D
         Vector3I chunkGridPosition = XYZConvert.IndexToVector3I(chunkIndex, WorldDiameter) - WorldRadius;
         Vector3I chunkTruePosition = XYZBitShift.Vector3ILeft(chunkGridPosition, XYZBitShift.CalculateShifts(ChunkDiameter));
 
+        // This can only be overwritten if the global variable is false.
         bool cullGeometry = CullGeometry;
-        
+
         // Don't cull geometry from chunks in a buffer around the focus node to prevent unforseen edge cases of clipping into the world.
-        if (chunkGridPosition <= _focusNodeChunkPosition - Vector3I.One || chunkGridPosition >= _focusNodeChunkPosition + Vector3I.One) cullGeometry = true;
+        if (CullGeometry)
+        {
+            if(chunkGridPosition <= _focusNodeChunkPosition - Vector3I.One || chunkGridPosition >= _focusNodeChunkPosition + Vector3I.One)
+                cullGeometry = true;
+        }
 
         // TODO - Add voxel homogeneity check so we can skip these surface generators and use much simpler ones on homogenous chunks.
         
@@ -369,8 +375,7 @@ public partial class World() : MeshInstance3D
         };
         
         // Clear previous collision shape if any.
-        StaticBody3D collision = chunk.GetChildOrNull<StaticBody3D>(0);
-        collision?.QueueFree();
+        chunk.GetChildOrNull<StaticBody3D>(0)?.QueueFree();
         
         // Check if any surfaces contain vertices. This is temporary workaround for not having a voxel homogeneity check.
         foreach (Surface surface in surfaces)
@@ -383,8 +388,6 @@ public partial class World() : MeshInstance3D
                 break;
             }
         }
-        
-        chunk.AddToGroup("NavSource");
     }
 
     public override string[] _GetConfigurationWarnings() // Godot specific configuration warnings.
