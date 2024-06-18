@@ -6,7 +6,7 @@ namespace RawVoxel.Meshing;
 public static class CulledMesher
 {
     // Generate a naive culled mesh.
-    public static Surface[] GenerateSurfaces(Vector3I chunkTruePosition, byte chunkDiameter, bool showChunkEdges, ref byte[] voxelTypes, ref Biome biome, ref WorldSettings worldSettings)
+    public static Surface[] GenerateSurfaces(ref byte[] voxelTypes, Vector3I chunkTruePosition, byte chunkDiameter, bool showChunkEdges, Biome biome, WorldSettings worldSettings)
     {
         Surface[] surfaces = [new(), new(), new(), new(), new(), new()];
         
@@ -18,35 +18,35 @@ public static class CulledMesher
                 int voxelType = voxelTypes[voxelIndex];
                 Color voxelColor = worldSettings.Voxels[voxelType].Color;
                 
-                GenerateVoxel(voxelGridPosition, voxelColor, chunkTruePosition, chunkDiameter, showChunkEdges, ref voxelTypes, ref surfaces, ref biome, ref worldSettings);
+                GenerateVoxel(voxelGridPosition, voxelColor, chunkTruePosition, chunkDiameter, showChunkEdges, ref voxelTypes, ref surfaces, biome, worldSettings);
             }
         }
 
         return surfaces;
     }
 
-    public static void GenerateVoxel(Vector3I voxelGridPosition, Color color, Vector3I chunkTruePosition, byte chunkDiameter, bool showChunkEdges, ref byte[] voxelTypes, ref Surface[] surfaces, ref Biome biome, ref WorldSettings worldSettings)
+    public static void GenerateVoxel(Vector3I voxelGridPosition, Color color, Vector3I chunkTruePosition, byte chunkDiameter, bool showChunkEdges, ref byte[] voxelTypes, ref Surface[] surfaces, Biome biome, WorldSettings worldSettings)
     {    
         if (Voxel.IsVisible(voxelGridPosition + Vector3I.Left, chunkTruePosition, chunkDiameter, showChunkEdges, ref voxelTypes, biome, worldSettings) == false)
-            GenerateFace(voxelGridPosition, Voxel.Face.West, Vector3I.Left, color, ref surfaces[0]);
+            GenerateFace(voxelGridPosition, Voxel.Face.West, Vector3I.Left, color, surfaces[0]);
         
         if (Voxel.IsVisible(voxelGridPosition + Vector3I.Right, chunkTruePosition, chunkDiameter, showChunkEdges, ref voxelTypes, biome, worldSettings) == false)
-            GenerateFace(voxelGridPosition, Voxel.Face.East, Vector3I.Right, color, ref surfaces[1]);
-        
-        if (Voxel.IsVisible(voxelGridPosition + Vector3I.Up, chunkTruePosition, chunkDiameter, showChunkEdges, ref voxelTypes, biome, worldSettings) == false)
-            GenerateFace(voxelGridPosition, Voxel.Face.Top, Vector3I.Up, color, ref surfaces[2]);
+            GenerateFace(voxelGridPosition, Voxel.Face.East, Vector3I.Right, color, surfaces[1]);
         
         if (Voxel.IsVisible(voxelGridPosition + Vector3I.Down, chunkTruePosition, chunkDiameter, showChunkEdges, ref voxelTypes, biome, worldSettings) == false)
-            GenerateFace(voxelGridPosition, Voxel.Face.Btm, Vector3I.Down, color, ref surfaces[3]);
+            GenerateFace(voxelGridPosition, Voxel.Face.Btm, Vector3I.Down, color, surfaces[2]);
+        
+        if (Voxel.IsVisible(voxelGridPosition + Vector3I.Up, chunkTruePosition, chunkDiameter, showChunkEdges, ref voxelTypes, biome, worldSettings) == false)
+            GenerateFace(voxelGridPosition, Voxel.Face.Top, Vector3I.Up, color, surfaces[3]);
         
         if (Voxel.IsVisible(voxelGridPosition + Vector3I.Forward, chunkTruePosition, chunkDiameter, showChunkEdges, ref voxelTypes, biome, worldSettings) == false)
-            GenerateFace(voxelGridPosition, Voxel.Face.North, Vector3I.Forward, color, ref surfaces[4]);
+            GenerateFace(voxelGridPosition, Voxel.Face.North, Vector3I.Forward, color, surfaces[4]);
         
         if (Voxel.IsVisible(voxelGridPosition + Vector3I.Back, chunkTruePosition, chunkDiameter, showChunkEdges, ref voxelTypes, biome, worldSettings) == false)
-            GenerateFace(voxelGridPosition, Voxel.Face.South, Vector3I.Back, color, ref surfaces[5]);
+            GenerateFace(voxelGridPosition, Voxel.Face.South, Vector3I.Back, color, surfaces[5]);
     }
 
-    public static void GenerateFace(Vector3I voxelGridPosition, Voxel.Face face, Vector3I normal, Color color, ref Surface surface)
+    public static void GenerateFace(Vector3I voxelGridPosition, Voxel.Face face, Vector3I normal, Color color, Surface surface)
     {
         int[] faceVertices = Voxel.Faces[(int)face];
         

@@ -62,7 +62,7 @@ public partial class Voxel() : Resource
         
         foreach (BiomeLayer biomeLayer in biome.Layers.Reverse())
         {
-            float voxelHeight = biomeLayer.HeightCurve.Sample((heightNoise + 1) * 0.5f);
+            float voxelHeight = biomeLayer.HeightDistribution.Sample((heightNoise + 1) * 0.5f);
 
             if (voxelTruePosition.Y <= voxelHeight)
             {

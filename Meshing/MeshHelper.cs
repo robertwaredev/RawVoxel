@@ -4,7 +4,7 @@ namespace RawVoxel.Meshing;
     
 public static class MeshHelper
 {
-    public static ArrayMesh GenerateMesh(ref Surface[] surfaces, Material material)
+    public static ArrayMesh GenerateMesh(Surface[] surfaces, Material material)
     {
         ArrayMesh arrayMesh = new();
         

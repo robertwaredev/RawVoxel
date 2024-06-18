@@ -2,18 +2,17 @@ using Godot;
 using System;
 using RawVoxel.Meshing;
 using System.Threading;
+using System.Diagnostics;
 using System.Threading.Tasks;
 using RawVoxel.Math.Conversions;
 using System.Collections.Generic;
-using System.Diagnostics;
-using Microsoft.CodeAnalysis.Operations;
 
 namespace RawVoxel.World;
 
 [Tool]
 public partial class World() : MeshInstance3D
 {
-    public enum MeshGenerationType { Greedy, Standard }
+    const byte ChunkDiameter = 32;
 
     #region Exports
 
@@ -24,33 +23,60 @@ public partial class World() : MeshInstance3D
     
     [ExportGroup("Dimensions")]
     [Export] public bool CenterChunk = true;
-    [Export] public Vector3I DrawRadius = new(1, 1, 1);
+    private Vector3I _drawRadius = new(1, 1, 1);
+    [Export] public Vector3I DrawRadius
+    {
+        get => CenterChunk switch
+        {
+            false => _drawRadius.Clamp(Vector3I.One,  WorldRadius),
+            true  => _drawRadius.Clamp(Vector3I.Zero, WorldRadius),
+        };
+        
+        set => _drawRadius = value;
+    }
     public Vector3I DrawDiameter
     {
         get
         {
             Vector3I diameter = XYZBitShift.Vector3ILeft(DrawRadius, 1);
-            if (CenterChunk) diameter += Vector3I.One;
-            diameter.Clamp(Vector3I.Zero, WorldDiameter);
-            return diameter;
+            
+            return CenterChunk switch
+            {
+                false => diameter.Clamp(diameter, WorldDiameter),
+                true  => diameter.Clamp(diameter, WorldDiameter) + Vector3I.One,
+            };
         }
     }
-    [Export] public Vector3I WorldRadius = new(128, 128, 128);
+    private Vector3I _worldRadius = new(128, 128, 128);
+    [Export] public Vector3I WorldRadius
+    {
+        get => CenterChunk switch
+        {
+            false => _worldRadius.Clamp(Vector3I.One,  Vector3I.MaxValue / 2),
+            true  => _worldRadius.Clamp(Vector3I.Zero, Vector3I.MaxValue / 2),
+        };
+        
+        set => _worldRadius = value;
+    }
     public Vector3I WorldDiameter
     {
         get
         {
             Vector3I diameter = XYZBitShift.Vector3ILeft(WorldRadius, 1);
-            if (CenterChunk) diameter += Vector3I.One;
-            return diameter;
+            
+            return CenterChunk switch
+            {
+                false => diameter.Clamp(diameter, Vector3I.MaxValue),
+                true  => diameter.Clamp(diameter, Vector3I.MaxValue) + Vector3I.One,
+            };
         }
     }
-    [Export] public byte ChunkDiameter = 32;
+    
+    [ExportGroup("Meshing")]
+    [Export] public bool CullGeometry = false;
 
     [ExportGroup("Rendering")]
     [Export] public bool ShowChunkEdges = false;
-    [Export] public bool CullGeometry = false;
-    [Export] public MeshGenerationType MeshGeneration { get; set; } = MeshGenerationType.Greedy;
 
     [ExportGroup("Threading")]
     [Export] public int GenerateFrequency = 30;
@@ -59,11 +85,12 @@ public partial class World() : MeshInstance3D
 
     #region Variables
 
-    private Vector3 _focusNodeWorldPosition;
-    private Vector3I _focusNodeChunkPosition = Vector3I.MinValue;
+    private Vector3 _focusNodeTruePosition;
+    private Vector3I _focusNodeGridPosition = Vector3I.MinValue;
     private readonly object _focusNodePositionLock = new();
+    
     private Vector3 _focusNodeTrueBasisZ;
-    private Vector3I _focusNodeSignBasisZ = Vector3I.MinValue;
+    private Vector3I _focusNodeSignBasisZ = Vector3I.Zero;
     private readonly object _focusNodeBasisZLock = new();
 
     private readonly Queue<int> _drawQueue = [];
@@ -78,28 +105,30 @@ public partial class World() : MeshInstance3D
         // This has to be reset on scene entry as it always saves true on scene exit.
         Generated = false;
 
+        // Try to update these before physics process takes over. Ensures world load at the correct initial position.
+        TryUpdateFocusNodeTruePosition();
+        TryUpdateFocusNodeTrueBasisZ();
+        
         // Preload drawable chunks when playing the game, disable when in the editor for faster scene loading.
         if (Engine.IsEditorHint() == false)
         {
-            TryUpdateFocusNodeWorldPosition();
-            TryUpdateFocusNodeChunkPosition();
-            
-            TryUpdateFocusNodeTrueBasisZ();
+            TryUpdateFocusNodeGridPosition();
             TryUpdateFocusNodeSignBasisZ();
 
             QueueChunks();
             LoadQueued();
+            MeshLoaded();
 
             Generated = true;
         }
-
-        // Start secondary thread to handle chunk queueing, loading, freeing, and repositioning ("wrapping").
+        
+        // Start secondary thread to handle chunk queueing, loading, freeing, and wrapping.
         Thread worldThread = new(new ThreadStart(WorldProcess)) { Name = "World Thread" };
         worldThread.Start();
     }
     public override void _PhysicsProcess(double delta)
     {
-        TryUpdateFocusNodeWorldPosition();
+        TryUpdateFocusNodeTruePosition();
         TryUpdateFocusNodeTrueBasisZ();
     }
     public void WorldProcess()
@@ -108,24 +137,32 @@ public partial class World() : MeshInstance3D
         {
             if (Generated)
             {
-                if (TryUpdateFocusNodeChunkPosition() || TryUpdateFocusNodeSignBasisZ())
+                if (TryUpdateFocusNodeSignBasisZ())
                 {
-                    GD.Print("Updating world.");
+                    GD.Print("Meshing world.");
+
+                    MeshLoaded();
+                }
+
+                if (TryUpdateFocusNodeGridPosition())
+                {
+                    GD.Print("Wrapping world.");
                     
                     QueueChunks();
                     WrapQueued();
+                    MeshLoaded();
                 }
             }
             else
             {
                 GD.Print("Generating world.");
 
-                TryUpdateFocusNodeChunkPosition();
+                TryUpdateFocusNodeGridPosition();
                 TryUpdateFocusNodeSignBasisZ();
 
-                FreeLoaded();
                 QueueChunks();
                 LoadQueued();
+                MeshLoaded();
 
                 Generated = true;
             }
@@ -134,16 +171,16 @@ public partial class World() : MeshInstance3D
         }
     }
 
-    public void TryUpdateFocusNodeWorldPosition() // Update stored focus node world position.
+    public void TryUpdateFocusNodeTruePosition() // Update stored focus node world position.
     {
         if (FocusNode == null) return;
 
         lock (_focusNodePositionLock)
         {
-            _focusNodeWorldPosition = (Vector3I)FocusNode.Position.Floor();
+            _focusNodeTruePosition = (Vector3I)FocusNode.Position.Floor();
         }
     }
-    public bool TryUpdateFocusNodeChunkPosition() // Update stored focus node chunk position.
+    public bool TryUpdateFocusNodeGridPosition() // Update stored focus node chunk position.
     {
         if (FocusNode == null) return false;
 
@@ -151,19 +188,19 @@ public partial class World() : MeshInstance3D
 
         lock (_focusNodePositionLock)
         {
-            queriedFocusNodeChunkPosition = (Vector3I)(_focusNodeWorldPosition / ChunkDiameter).Floor();
+            queriedFocusNodeChunkPosition = (Vector3I)(_focusNodeTruePosition / ChunkDiameter).Floor();
         }
 
-        if (_focusNodeChunkPosition != queriedFocusNodeChunkPosition)
+        if (_focusNodeGridPosition != queriedFocusNodeChunkPosition)
         {
-            _focusNodeChunkPosition = queriedFocusNodeChunkPosition;
+            _focusNodeGridPosition = queriedFocusNodeChunkPosition;
 
             return true;
         }
 
         return false;
     }
-    public void TryUpdateFocusNodeTrueBasisZ()    // Update stored focus node true basis z.
+    public void TryUpdateFocusNodeTrueBasisZ()   // Update stored focus node true basis z.
     {
         if (FocusNode == null) return;
         
@@ -172,7 +209,7 @@ public partial class World() : MeshInstance3D
             _focusNodeTrueBasisZ = FocusNode.Basis.Z;
         }
     }
-    public bool TryUpdateFocusNodeSignBasisZ()    // Update stored focus node axis basis z.
+    public bool TryUpdateFocusNodeSignBasisZ()   // Update stored focus node sign basis z.
     {
         if (FocusNode == null) return false;
 
@@ -211,7 +248,7 @@ public partial class World() : MeshInstance3D
             {
                 for (int z = 0; z < DrawDiameter.Z; z++)
                 {
-                    Vector3I position = new Vector3I(x, y, z) - DrawRadius + _focusNodeChunkPosition + WorldRadius;
+                    Vector3I position = new Vector3I(x, y, z) - DrawRadius + _focusNodeGridPosition + WorldRadius;
 
                     int chunkIndex = XYZConvert.Vector3IToIndex(position, WorldDiameter);
 
@@ -270,12 +307,14 @@ public partial class World() : MeshInstance3D
 
             _loaded.Add(loadIndex, chunk);
 
+            chunk.Visible = false;
+
+            CallDeferred(Node.MethodName.AddChild, chunk);
+
             Task generate = new(new Action(() => CallDeferred(nameof(GenerateChunkData), loadIndex, chunk, WorldSettings)));
             
             generate.Start();
             generate.Wait();
-
-            CallDeferred(Node.MethodName.AddChild, chunk);
 
             chunk.AddToGroup("NavSource");
 
@@ -291,13 +330,13 @@ public partial class World() : MeshInstance3D
         foreach (int wrapIndex in _wrapQueue)
         {
             Chunk chunk = _loaded[wrapIndex];
-            
-            _loaded.Remove(wrapIndex);
-
             int loadIndex = _loadQueue.Dequeue();
             
+            _loaded.Remove(wrapIndex);
             _loaded.Add(loadIndex, chunk);
             
+            chunk.Visible = false;
+
             Task generate = new(new Action(() => CallDeferred(nameof(GenerateChunkData), loadIndex, chunk, WorldSettings)));
             
             generate.Start();
@@ -310,7 +349,25 @@ public partial class World() : MeshInstance3D
     }
     private void MeshLoaded()  // Mesh chunks in the scene tree.
     {
+        if (_loaded.Count == 0) return;
+        
+        foreach (int chunkIndex in _loaded.Keys)
+        {
+            Chunk chunk = _loaded[chunkIndex];
 
+            // Skip chunk if it's marked as empty.
+            if (chunk.Contents == Chunk.ChunkContents.Empty) continue;
+
+            // Generate chunk mesh.
+            Task generateMesh = new(new Action(() => CallDeferred(nameof(GenerateChunkMesh), chunkIndex, chunk, WorldSettings)));
+            
+            generateMesh.Start();
+            generateMesh.Wait();
+
+            chunk.Visible = true;
+
+            Thread.Sleep(10);
+        }
     }
     private void FreeLoaded()  // Free chunks from the scene tree.
     {
@@ -338,56 +395,43 @@ public partial class World() : MeshInstance3D
         // FIXME - This is fast for now, but probably dreadful when there'a a lot of biomes.
         Biome biome = Biome.Generate(chunkGridPosition, WorldDiameter, worldSettings);
         
+        // Stopwatch stopwatch = Stopwatch.StartNew();
+        
+        // FIXME - Needs to be a LOT faster. Start in reverse and figure out how to send less data.
+        chunk.GenerateVoxels(chunkTruePosition, ChunkDiameter, biome, worldSettings);
+
+        // stopwatch.Stop(); GD.Print("~~~ Completed in " + stopwatch.ElapsedTicks / 10000.0f + " ms.");
+    }
+    public void GenerateChunkMesh(int chunkIndex, Chunk chunk, WorldSettings worldSettings)
+    {
         Stopwatch stopwatch = Stopwatch.StartNew();
         
-        // FIXME - Could be a LOT faster. Start in reverse and figure out how to send less data.
-        byte[] voxels = Chunk.GenerateVoxels(chunkTruePosition, ChunkDiameter, biome, worldSettings);
-
-        stopwatch.Stop(); GD.Print("~~~ Completed in " + stopwatch.ElapsedTicks / 10000.0f + " ms.");
-        
-        GenerateChunkMesh(ref voxels, chunkIndex, chunk, biome, worldSettings);
-        
-    }
-    
-    public void GenerateChunkMesh(ref byte[] voxels, int chunkIndex, Chunk chunk, Biome biome, WorldSettings worldSettings)
-    {
         // Calculate chunk position.
         Vector3I chunkGridPosition = XYZConvert.IndexToVector3I(chunkIndex, WorldDiameter) - WorldRadius;
-        Vector3I chunkTruePosition = XYZBitShift.Vector3ILeft(chunkGridPosition, XYZBitShift.CalculateShifts(ChunkDiameter));
-
+        
         // This can only be overwritten if the global variable is false.
         bool cullGeometry = CullGeometry;
 
-        // Don't cull geometry from chunks in a buffer around the focus node to prevent unforseen edge cases of clipping into the world.
+        // Don't cull geometry from chunks in a buffer around the focus node to prevent (some) edge cases of clipping into the world.
         if (CullGeometry)
         {
-            if(chunkGridPosition <= _focusNodeChunkPosition - Vector3I.One || chunkGridPosition >= _focusNodeChunkPosition + Vector3I.One)
+            if(chunkGridPosition <= _focusNodeGridPosition - Vector3I.One || chunkGridPosition >= _focusNodeGridPosition + Vector3I.One)
                 cullGeometry = true;
         }
-
-        // TODO - Add voxel homogeneity check so we can skip these surface generators and use much simpler ones on homogenous chunks.
         
-        // Switch surface generation algorithm based on export setting.
-        Surface[] surfaces = MeshGeneration switch
-        {
-            MeshGenerationType.Greedy => BinaryMesher.GenerateSurfaces(ref voxels, ChunkDiameter, _focusNodeSignBasisZ, cullGeometry),
-            _                         => CulledMesher.GenerateSurfaces(chunkTruePosition, ChunkDiameter, ShowChunkEdges, ref voxels, ref biome, ref worldSettings),
-        };
+        // Generate mesh surfaces. Each of the three surfaces contains vertex, normal, and index data for planes on each axis respectively.
+        Surface[] surfaces = BinaryMesher.GenerateSurfaces(ref chunk.VoxelTypes, ChunkDiameter, _focusNodeSignBasisZ, cullGeometry);
+        
+        // Generate mesh.
+        chunk.Mesh = MeshHelper.GenerateMesh(surfaces, TerrainMaterial);
         
         // Clear previous collision shape if any.
         chunk.GetChildOrNull<StaticBody3D>(0)?.QueueFree();
-        
-        // Check if any surfaces contain vertices. This is temporary workaround for not having a voxel homogeneity check.
-        foreach (Surface surface in surfaces)
-        {
-            if (surface.Vertices.Count != 0)
-            {
-                chunk.Mesh = MeshHelper.GenerateMesh(ref surfaces, TerrainMaterial);
 
-                chunk.CreateTrimeshCollision();
-                break;
-            }
-        }
+        // Create collision.
+        chunk.CreateTrimeshCollision();
+
+        stopwatch.Stop(); GD.Print("~~~ Completed in " + stopwatch.ElapsedTicks / 10000.0f + " ms.");
     }
 
     public override string[] _GetConfigurationWarnings() // Godot specific configuration warnings.
