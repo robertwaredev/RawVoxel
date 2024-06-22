@@ -1,10 +1,8 @@
-[gd_scene load_steps=12 format=3 uid="uid://cyqtqvdarokhd"]
+[gd_scene load_steps=7 format=3 uid="uid://cyqtqvdarokhd"]
 
 [ext_resource type="Script" path="res://addons/RawVoxel/World/World.cs" id="1_c45ul"]
 [ext_resource type="Resource" uid="uid://c7lrdyml3qram" path="res://addons/RawVoxel/Resources/world/DefaultWorldSettings.tres" id="2_hr4c1"]
 [ext_resource type="Material" uid="uid://fuo8d8qsqq2t" path="res://addons/RawVoxel/Resources/materials/ChunkShaderMaterial.tres" id="3_un8p4"]
-[ext_resource type="PackedScene" uid="uid://drir5f3nksrix" path="res://Scenes/Characters/Player/player.tscn" id="4_7i5gq"]
-[ext_resource type="Script" path="res://Resources/Utilities/Tween Library/tween_res.gd" id="5_ldpl1"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_hbkxm"]
 sky_horizon_color = Color(0.64625, 0.65575, 0.67075, 1)
@@ -19,35 +17,10 @@ sky = SubResource("Sky_q8a2h")
 tonemap_mode = 2
 glow_enabled = true
 
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_4o72a"]
-resource_local_to_scene = true
-transparency = 1
-shading_mode = 2
-diffuse_mode = 3
-albedo_color = Color(0, 0, 0, 0.498039)
-emission_enabled = true
-emission = Color(0.321569, 0.568627, 1, 1)
-
-[sub_resource type="BoxMesh" id="BoxMesh_x3qor"]
-resource_local_to_scene = true
-material = SubResource("StandardMaterial3D_4o72a")
-size = Vector3(1.01, 1.01, 1.01)
-
-[sub_resource type="Resource" id="Resource_8hof6"]
-resource_local_to_scene = true
-script = ExtResource("5_ldpl1")
-loops = 1
-duration = 0.5
-ease_type = 1
-trans_type = 5
-pause_mode = 0
-process_mode = 0
-
-[node name="World" type="MeshInstance3D" node_paths=PackedStringArray("FocusNode", "Camera")]
+[node name="World" type="MeshInstance3D" node_paths=PackedStringArray("FocusNode")]
 script = ExtResource("1_c45ul")
 Generated = true
-FocusNode = NodePath("Player")
-Camera = NodePath("Player/Camera/CameraRoot/GimbalY/GimbalX/Spring/Camera")
+FocusNode = NodePath("Camera3D")
 WorldSettings = ExtResource("2_hr4c1")
 TerrainMaterial = ExtResource("3_un8p4")
 DrawRadius = Vector3i(2, 2, 2)
@@ -62,32 +35,5 @@ shadow_enabled = true
 [node name="WorldEnvironment" type="WorldEnvironment" parent="."]
 environment = SubResource("Environment_4lhsx")
 
-[node name="Player" parent="." instance=ExtResource("4_7i5gq")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 24, 30.95, 16)
-
-[node name="VoxelHighlight" parent="Player/Camera/CameraRoot/GimbalY/GimbalX/VoxelPicker" index="0"]
-mesh = SubResource("BoxMesh_x3qor")
-
-[node name="Move" parent="Player/MotionStates/HorizontalStates" index="1"]
-rotation_tween = SubResource("Resource_8hof6")
-
-[editable path="Player"]
-[editable path="Player/Camera/CameraRoot"]
-[editable path="Player/Camera/CameraStates"]
-[editable path="Player/MotionStates"]
-[editable path="Player/MotionStates/HorizontalStates"]
-[editable path="Player/MotionStates/HorizontalStates/Idle"]
-[editable path="Player/MotionStates/HorizontalStates/Move"]
-[editable path="Player/MotionStates/VerticalStates"]
-[editable path="Player/MotionStates/VerticalStates/Ground"]
-[editable path="Player/MotionStates/VerticalStates/Jump"]
-[editable path="Player/MotionStates/VerticalStates/Air"]
-[editable path="Player/MotionStates/VerticalStates/Fall"]
-[editable path="Player/MotionStates/ModifierStates"]
-[editable path="Player/MotionStates/ModifierStates/NeutralModifier"]
-[editable path="Player/MotionStates/ModifierStates/Crouch"]
-[editable path="Player/MotionStates/ModifierStates/Sprint"]
-[editable path="Player/MotionStates/ModifierStates/Slide"]
-[editable path="Player/MotionStates/ActionStates"]
-[editable path="Player/MotionStates/ActionStates/NeutralAction"]
-[editable path="Player/MotionStates/ActionStates/Dash"]
+[node name="Camera3D" type="Camera3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -42.2717, 0, 0)

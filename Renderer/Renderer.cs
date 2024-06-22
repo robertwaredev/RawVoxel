@@ -3,8 +3,9 @@ using Godot;
 
 namespace RawVoxel.Rendering;
 
-public class Renderer
+public partial class Renderer : Node
 {
+    
     public RenderingDevice RenderingDevice = RenderingServer.GetRenderingDevice();
     
     public void SetupRenderingPipeline()

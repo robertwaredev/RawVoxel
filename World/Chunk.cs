@@ -8,14 +8,14 @@ namespace RawVoxel.World;
 [Tool]
 public partial class Chunk : MeshInstance3D
 {
-    [Flags] public enum State : byte
+    [Flags] public enum StateType : byte
     {
-        Cullable = 1,
-        Composed = 2,
-        Complete = 4
+        Inactive = 0,
+        Composed = 1,
+        Rendered = 2
     }
 
-    public byte States = 0;
+    public StateType State = StateType.Inactive;
     public byte[] VoxelTypes;
 
     public override void _EnterTree()
@@ -23,9 +23,9 @@ public partial class Chunk : MeshInstance3D
         AddToGroup("NavSource");
     }
 
-    public void GenerateVoxels(Vector3I chunkTruePosition, int chunkBitshifts, int chunkVoxelCount, Biome biome, WorldSettings worldSettings)
+    public void GenerateVoxels(Vector3I chunkTruePosition, int chunkBitshifts, int chunkVoxelCount, Biome biome, WorldSettings worldSettings, out BitArray voxelMasks)
     {
-        BitArray voxelMasks = new(chunkVoxelCount);
+        voxelMasks = new(chunkVoxelCount);
 
         VoxelTypes = new byte[chunkVoxelCount];
 
@@ -44,8 +44,6 @@ public partial class Chunk : MeshInstance3D
                 }
             }
         }
-
-        if (voxelMasks.HasAnySet()) States |= (byte)State.Composed;
     }
 
     public static bool IsInFrustum(Vector3 chunkTruePosition, int chunkRadius, int chunkDiameter, Camera3D camera)

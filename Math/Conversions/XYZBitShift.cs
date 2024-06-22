@@ -19,9 +19,9 @@ public static class XYZBitShift
     // Convert a flat integer into a Vector3I in dimension space.
     public static Vector3I IndexToVector3I(int XYZ, int shifts)
     {
-        int X = (XYZ >> shifts >> shifts) % (1 << shifts);
-        int Y = (XYZ >> shifts) % (1 << shifts);
-        int Z = (XYZ) % (1 << shifts);
+        int X = (XYZ >> shifts >> shifts) & ((1 << shifts) - 1);
+        int Y = (XYZ >> shifts) & ((1 << shifts) - 1);
+        int Z = (XYZ) & ((1 << shifts) - 1);
 
         return new Vector3I(X, Y, Z);
     }
