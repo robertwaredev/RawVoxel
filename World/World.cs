@@ -46,6 +46,18 @@ public partial class World() : MeshInstance3D
     {
         get => XYZBitShift.Vector3ILeft(DrawRadius, 1).Clamp(DrawRadius, WorldDiameter);
     }
+    
+    private Vector3I _collisionRadius = new(2, 2, 2);
+    [Export] public Vector3I CollisionRadius
+    {
+        get => _collisionRadius.Clamp(Vector3I.One, DrawRadius);
+        set => _collisionRadius = value;
+    }
+    public Vector3I CollisionDiameter
+    {
+        get => XYZBitShift.Vector3ILeft(CollisionRadius, 1).Clamp(CollisionRadius, DrawDiameter);
+    }
+    
     private Vector3I _worldRadius = new(128, 128, 128);
     [Export] public Vector3I WorldRadius
     {
@@ -57,6 +69,7 @@ public partial class World() : MeshInstance3D
         get => XYZBitShift.Vector3ILeft(WorldRadius, 1).Clamp(WorldRadius, Vector3I.MaxValue);
     }
     
+
     [ExportGroup("Meshing")]
     [Export] public bool CullFrustum = false;
     [Export] public bool CullGeometry = false;
@@ -82,6 +95,7 @@ public partial class World() : MeshInstance3D
     private readonly ConcurrentDictionary<int, Chunk> _chunks = new(); // Chunks that are loaded into the scene tree, regardless of state.
 
     private readonly Queue<int> _drawable = []; // Chunk positions that are within draw distance. (Master queue)
+    private readonly Queue<int> _collider = []; // Chunk positions that are within collision distance.
     private readonly Queue<int> _loadable = []; // Chunk positions that are within draw distance, but not loaded.
     private readonly Queue<int> _freeable = []; // Chunk positions that are loaded, but outside of draw distance.
     private readonly Queue<int> _meshable = []; // Chunk positions that are meshable.
@@ -103,6 +117,7 @@ public partial class World() : MeshInstance3D
         if (Engine.IsEditorHint() == false)
         {
             QueueDrawable();
+            QueueCollider();
             QueueLoadable();
             
             LoadQueued();
@@ -140,6 +155,7 @@ public partial class World() : MeshInstance3D
                 FreeLoaded(); 
                 
                 QueueDrawable();
+                QueueCollider();
                 QueueLoadable();
                 
                 LoadQueued();
@@ -149,6 +165,7 @@ public partial class World() : MeshInstance3D
             else if (TryUpdateFocusNodeGridPosition())
             {
                 QueueDrawable();
+                QueueCollider();
                 QueueLoadable();
                 QueueFreeable();
                 
@@ -205,7 +222,7 @@ public partial class World() : MeshInstance3D
 
         return false;
     }
-    private void TryUpdateCameraTrueBasisZ()   // Update stored focus node true basis z.
+    private void TryUpdateCameraTrueBasisZ()      // Update stored camera true basis z.
     {
         lock (_cameraBasisZLock)
         {
@@ -219,7 +236,7 @@ public partial class World() : MeshInstance3D
             }
         }
     }
-    private bool TryUpdateCameraSignBasisZ()   // Update stored focus node sign basis z.
+    private bool TryUpdateCameraSignBasisZ()      // Update stored camera sign basis z.
     {
         Vector3I queriedfocusNodeChunkBasisZ;
 
@@ -237,7 +254,7 @@ public partial class World() : MeshInstance3D
 
         return false;
     }
-        
+    
     private void QueueDrawable() // Queue chunk positions that are within draw distance.
     {
         _drawable.Clear();
@@ -264,6 +281,33 @@ public partial class World() : MeshInstance3D
         }
 
         GD.Print("Drawable Chunks: ", _drawable.Count);
+    }
+    private void QueueCollider() // Queue chunk positions that are within collision distance.
+    {
+        _collider.Clear();
+        
+        for (int x = -CollisionRadius.X; x < CollisionRadius.X; x++)
+        {
+            for (int y = -CollisionRadius.Y; y < CollisionRadius.Y; y++)
+            {
+                for (int z = -CollisionRadius.Z; z < CollisionRadius.Z; z++)
+                {
+                    // Calculate chunk position around focus node.
+                    Vector3I chunkGridPosition = new Vector3I(x, y, z) + _focusNodeGridPosition;
+
+                    // Skip if chunk position is outside of world boundaries. (Chunk should not exist)
+                    if (chunkGridPosition < -WorldRadius || chunkGridPosition > WorldRadius) continue;
+
+                    // Pack chunk position into an integer, offset to signed coordinates using world radius.
+                    int colliderGridIndex = XYZConvert.Vector3IToIndex(chunkGridPosition + WorldRadius, WorldDiameter);
+                    
+                    // Draw me like one of your French girls.
+                    _collider.Enqueue(colliderGridIndex);
+                }
+            }
+        }
+
+        GD.Print("Collider Chunks: ", _collider.Count);
     }
     private void QueueLoadable() // Queue chunk positions that are within draw distance, but not loaded.
     {
@@ -348,7 +392,7 @@ public partial class World() : MeshInstance3D
             _chunks.TryGetValue(meshableIndex, out Chunk chunk);
 
             // Generate chunk mesh.
-            CallDeferred(nameof(GenerateChunkMesh), chunk);
+            CallDeferred(nameof(GenerateChunkMesh), meshableIndex, chunk);
 
             Thread.Sleep(10);
         }
@@ -395,7 +439,7 @@ public partial class World() : MeshInstance3D
         // Mark chunk state as composed.
         if (voxelMasks.HasAnySet()) chunk.State = Chunk.StateType.Composed;
     }
-    public void GenerateChunkMesh(Chunk chunk)
+    public void GenerateChunkMesh(int chunkGridIndex, Chunk chunk)
     {
         // Generate mesh surfaces. Each of the six surfaces contains vertex, and index data for each axis sign. [X-, X+, Y-, Y+, Z-, Z+]
         Surface[] surfaces = BinaryMesher.GenerateSurfaces(ref chunk.VoxelTypes, ChunkDiameter, ChunkBitshifts, _cameraSignBasisZ, CullGeometry);
@@ -403,8 +447,8 @@ public partial class World() : MeshInstance3D
         // Generate mesh.
         chunk.Mesh = MeshHelper.GenerateMesh(surfaces, TerrainMaterial);
         
-        // Create new collision.
-        chunk.CreateTrimeshCollision();
+        // Limit collision generation to a radius around the focus node.
+        if (_collider.Contains(chunkGridIndex)) chunk.CreateTrimeshCollision();
 
         // Show chunk.
         chunk.Visible = true;

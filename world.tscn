@@ -23,7 +23,8 @@ Generated = true
 FocusNode = NodePath("Camera3D")
 WorldSettings = ExtResource("2_hr4c1")
 TerrainMaterial = ExtResource("3_un8p4")
-DrawRadius = Vector3i(2, 2, 2)
+DrawRadius = Vector3i(4, 4, 4)
+CollisionRadius = Vector3i(2, 2, 2)
 WorldRadius = Vector3i(128, 128, 128)
 GenerateFrequency = 40
 metadata/_edit_lock_ = true
@@ -36,4 +37,4 @@ shadow_enabled = true
 environment = SubResource("Environment_4lhsx")
 
 [node name="Camera3D" type="Camera3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -42.2717, 0, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.7283, 34.5812, 6.40164)
