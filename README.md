@@ -8,7 +8,6 @@ Made with love by Robert A. Ware.
 - Basic multi-threading support.
 - Complete in-editor functionality.
 - Adjustable world size and draw distance.
-- Optional "center chunk" boolean for odd or even world diameters.
 - Inspector control over terrain generation via noise sampling and curve remapping. (Minecraft inspired)
 - Basic biome generation support. Functional, but ugly due to lack of any form of biome blending.
 - Two different meshing algorithms: Greedy and Naive.
@@ -65,26 +64,27 @@ A simple class embodiment of the Godot concept of "mesh surfaces". Contains list
     
 The most important part of this project, and the current main focus of development.
 
-- Seperate mesh data into six Surfaces, one for each axis sign
+- Seperates mesh data into six Surfaces, one for each axis sign.
 - Only pushes geometry into Surfaces for axis signs that are visible to the Focus Node. Can be disabled in the inspector via the "Cull Geometry" boolean.
 - Prevents geometry culling in an area round the Focus Node to prevent clipping into a chunk when crosssing into it while facing away from it.
 
 ### Standard Naive Meshing
 
-Every voxel gets its own triangles. Includes naive face culling.
+Every voxel gets its own triangles. Uses naive face culling.
 
 - Does what it says, no more, no less.
 - Takes AGES compared to binary greedy mesher, but is included as an option for comparing to better algorithms if nothing else.
 
 ## TO DO / KNOWN ISSUES
 
-- Fix the Generate button such that it can free chunks before re-meshing if the draw radius is decreased.
-- Create texture sampling for the binary greedy mesher, as when using this algorithm there is no visual differentiation between voxels yet, despite having the data structure set up to do so.
+- Fix texture sampling for the binary greedy mesher, as when using this algorithm there is no visual differentiation between voxels yet, despite having the data structure set up to do so.
 - Update the naive mesher to take advantage of axis sign optimizations.
 - Proper thread queue for chunk parallelization.
 - Fix VoxelPicker class as it relied on a previous data structure.
+- Thread queue or compute shader for voxel generation.
 - Investigate Godot's RenderingDevice for potential memory optimizations for chunk mesh data.
 - Biome blending.
+- Levels of Detail.
 - Multiplayer funtionality.
 
 ## Usage

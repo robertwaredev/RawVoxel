@@ -56,12 +56,18 @@ public partial class Voxel() : Resource
 
         return true;
     }
+    
+    // FIXME - There HAS to be a faster way to accomplish the same thing.
     public static byte GenerateType(Vector3I voxelTruePosition, Biome biome, WorldSettings worldSettings)
     {
         float heightNoise = biome.HeightNoise.GetNoise2D(voxelTruePosition.X, voxelTruePosition.Z);
         
-        foreach (BiomeLayer biomeLayer in biome.Layers.Reverse())
+        int layerCount = biome.Layers.Length;
+
+        for (int layerIndex = layerCount - 1; layerIndex >= 0; layerIndex --)
         {
+            BiomeLayer biomeLayer = biome.Layers[layerIndex];
+            
             float voxelHeight = biomeLayer.HeightDistribution.Sample((heightNoise + 1) * 0.5f);
 
             if (voxelTruePosition.Y <= voxelHeight)

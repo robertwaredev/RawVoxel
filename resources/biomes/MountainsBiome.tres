@@ -7,7 +7,7 @@
 [ext_resource type="Script" path="res://addons/RawVoxel/Resources/scripts/Biome.cs" id="5_b1yxo"]
 
 [sub_resource type="Curve" id="Curve_rkx2v"]
-_data = [Vector2(0, 0.3), 0.0, 0.0, 0, 0, Vector2(1, 1), 0.0, 0.0, 0, 0]
+_data = [Vector2(0, 0), 0.0, 0.0, 0, 0, Vector2(0.5, 1), 0.0, 0.0, 0, 0]
 point_count = 2
 metadata/_snap_enabled = true
 
@@ -15,39 +15,33 @@ metadata/_snap_enabled = true
 
 [sub_resource type="FastNoiseLite" id="FastNoiseLite_eglk0"]
 
-[sub_resource type="Curve" id="Curve_8cp61"]
-max_value = 3.0
-_data = [Vector2(0, 0), 0.0, 0.0, 0, 0, Vector2(1, 3), 0.0, 0.0, 0, 0]
+[sub_resource type="Curve" id="Curve_2k5et"]
+_data = [Vector2(0, 0), 0.0, 0.0, 0, 0, Vector2(1, 1), 0.0, 0.0, 0, 0]
 point_count = 2
 
 [sub_resource type="Resource" id="Resource_vups2"]
 script = ExtResource("2_1c6rp")
 Voxel = ExtResource("1_iml8r")
-HeightCurve = SubResource("Curve_8cp61")
+HeightDistribution = SubResource("Curve_2k5et")
 
-[sub_resource type="Curve" id="Curve_el8wi"]
-min_value = -10.0
-max_value = 0.0
-_data = [Vector2(0, -10), 0.0, 0.0, 0, 0, Vector2(1, 0), 0.0, 0.0, 0, 0]
+[sub_resource type="Curve" id="Curve_lkdtc"]
+_data = [Vector2(0, 0), 0.0, 0.0, 0, 0, Vector2(1, 1), 0.0, 0.0, 0, 0]
 point_count = 2
 
 [sub_resource type="Resource" id="Resource_ljrba"]
 script = ExtResource("2_1c6rp")
 Voxel = ExtResource("3_dk8kt")
-HeightCurve = SubResource("Curve_el8wi")
+HeightDistribution = SubResource("Curve_lkdtc")
 
-[sub_resource type="Curve" id="Curve_d7tjk"]
-min_value = -128.0
-max_value = 128.0
-_data = [Vector2(0, -128), 0.0, 0.0, 0, 0, Vector2(0.5, 0), 0.0, 0.0, 0, 0, Vector2(1, 128), 256.0, 0.0, 1, 0]
-point_count = 3
-metadata/_snap_enabled = true
-metadata/_snap_count = 16
+[sub_resource type="Curve" id="Curve_muwbt"]
+max_value = 64.0
+_data = [Vector2(0, 0), 0.0, 0.0, 0, 0, Vector2(0.292165, 6.80893), 0.0, 0.0, 0, 0, Vector2(0.74502, 32.285), 0.0, 0.0, 0, 0, Vector2(0.832669, 57.631), 0.0, 0.0, 0, 0, Vector2(1, 64), 0.0, 0.0, 0, 0]
+point_count = 5
 
 [sub_resource type="Resource" id="Resource_pmfwk"]
 script = ExtResource("2_1c6rp")
 Voxel = ExtResource("4_bp1mj")
-HeightCurve = SubResource("Curve_d7tjk")
+HeightDistribution = SubResource("Curve_muwbt")
 
 [resource]
 resource_name = "Mountains"

@@ -8,30 +8,24 @@ public static class MeshHelper
     {
         ArrayMesh arrayMesh = new();
         
-        for (int surface = 0; surface < surfaces.Length; surface ++)
+        for (int surfaceIndex = 0; surfaceIndex < 6; surfaceIndex ++)
         {
+            Surface surface = surfaces[surfaceIndex];
+
+            if (surface is null) continue;
+
             Godot.Collections.Array surfaceArray = [];
             surfaceArray.Resize((int)Mesh.ArrayType.Max);
             
-            if (surfaces[surface].Vertices.Count != 0)
-            {
-                surfaceArray[(int)Mesh.ArrayType.Vertex] = surfaces[surface].Vertices.ToArray();
-            }
-            if (surfaces[surface].Normals.Count != 0)
-            {
-                surfaceArray[(int)Mesh.ArrayType.Normal] = surfaces[surface].Normals.ToArray();
-            }
-            if (surfaces[surface].Colors.Count != 0)
-            {
-                surfaceArray[(int)Mesh.ArrayType.Color] = surfaces[surface].Colors.ToArray();
-            }
-            if (surfaces[surface].Indices.Count != 0)
-            {
-                surfaceArray[(int)Mesh.ArrayType.Index] = surfaces[surface].Indices.ToArray();
-            }
+            surfaceArray[(int)Mesh.ArrayType.Vertex] = surface.Vertices.ToArray();
+            surfaceArray[(int)Mesh.ArrayType.Index] = surface.Indices.ToArray();
         
+            int surfaceArrayMeshIndex = arrayMesh.GetSurfaceCount();
             arrayMesh.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles, surfaceArray);
-            arrayMesh.SurfaceSetMaterial(surface, material);
+
+            ShaderMaterial shaderMaterial = material.Duplicate() as ShaderMaterial;
+            shaderMaterial.SetShaderParameter("surfaceNormalID", surfaceIndex);
+            arrayMesh.SurfaceSetMaterial(surfaceArrayMeshIndex, shaderMaterial);
         }
 
         return arrayMesh;

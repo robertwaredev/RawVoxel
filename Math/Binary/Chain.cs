@@ -13,7 +13,7 @@ public struct Chain(uint bitMask, byte offset, byte length)
     // Length of the chain of set bits in BitMask.
     public byte Length = length;
 
-    // Queue "chains" of set bits from the specified sequence.
+    // Queue chains of set bits from the specified sequence.
     public static Queue<Chain> QueueChains(uint sequence)
     {
         // Create a placeholder list of chains.

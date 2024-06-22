@@ -1,0 +1,51 @@
+[gd_resource type="VisualShader" load_steps=6 format=3 uid="uid://cjxwm8t7ntsnl"]
+
+[sub_resource type="VisualShaderNodeInput" id="VisualShaderNodeInput_8c615"]
+output_port_for_preview = 0
+input_name = "texture"
+
+[sub_resource type="VisualShaderNodeVectorFunc" id="VisualShaderNodeVectorFunc_ugvki"]
+output_port_for_preview = 0
+default_input_values = [0, Quaternion(0, 0, 0, 0)]
+op_type = 2
+function = 2
+
+[sub_resource type="FastNoiseLite" id="FastNoiseLite_l6e47"]
+
+[sub_resource type="NoiseTexture2D" id="NoiseTexture2D_cqu17"]
+width = 64
+height = 64
+noise = SubResource("FastNoiseLite_l6e47")
+
+[sub_resource type="VisualShaderNodeTexture" id="VisualShaderNodeTexture_fq1ld"]
+texture = SubResource("NoiseTexture2D_cqu17")
+
+[resource]
+code = "shader_type canvas_item;
+render_mode blend_mix;
+
+uniform sampler2D tex_frg_6;
+
+
+
+void fragment() {
+// Texture2D:6
+	vec4 n_out6p0 = texture(tex_frg_6, UV);
+
+
+// Output:0
+	COLOR.rgb = vec3(n_out6p0.xyz);
+
+
+}
+"
+mode = 1
+flags/light_only = false
+nodes/fragment/0/position = Vector2(1020, 60)
+nodes/fragment/4/node = SubResource("VisualShaderNodeInput_8c615")
+nodes/fragment/4/position = Vector2(-660, 240)
+nodes/fragment/5/node = SubResource("VisualShaderNodeVectorFunc_ugvki")
+nodes/fragment/5/position = Vector2(520, 220)
+nodes/fragment/6/node = SubResource("VisualShaderNodeTexture_fq1ld")
+nodes/fragment/6/position = Vector2(60, 120)
+nodes/fragment/connections = PackedInt32Array(4, 0, 6, 2, 6, 0, 0, 0, 6, 0, 5, 0)

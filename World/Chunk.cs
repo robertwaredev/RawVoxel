@@ -1,29 +1,37 @@
-using System.Collections;
 using Godot;
+using System;
+using System.Collections;
 using RawVoxel.Math.Conversions;
 
 namespace RawVoxel.World;
 
 [Tool]
-public partial class Chunk() : MeshInstance3D
+public partial class Chunk : MeshInstance3D
 {
-    public enum ChunkContents { Empty, Solid, Varied}
+    [Flags] public enum State : byte
+    {
+        Cullable = 1,
+        Composed = 2,
+        Complete = 4
+    }
 
-    public ChunkContents Contents = ChunkContents.Empty;
-    public BitArray VoxelMasks;
+    public byte States = 0;
     public byte[] VoxelTypes;
 
-    public void GenerateVoxels(Vector3I chunkTruePosition, byte chunkDiameter, Biome biome, WorldSettings worldSettings)
+    public override void _EnterTree()
     {
-        int shifts = XYZBitShift.CalculateShifts(chunkDiameter);
+        AddToGroup("NavSource");
+    }
 
-        VoxelMasks = new(1 << shifts << shifts << shifts);
+    public void GenerateVoxels(Vector3I chunkTruePosition, int chunkBitshifts, int chunkVoxelCount, Biome biome, WorldSettings worldSettings)
+    {
+        BitArray voxelMasks = new(chunkVoxelCount);
 
-        VoxelTypes = new byte[1 << shifts << shifts << shifts];
+        VoxelTypes = new byte[chunkVoxelCount];
 
-        for (int voxelIndex = 0; voxelIndex < VoxelTypes.Length; voxelIndex ++)
+        for (int voxelGridIndex = 0; voxelGridIndex < chunkVoxelCount; voxelGridIndex ++)
         {    
-            Vector3I voxelTruePosition = chunkTruePosition + XYZBitShift.IndexToVector3I(voxelIndex, shifts);
+            Vector3I voxelTruePosition = chunkTruePosition + XYZBitShift.IndexToVector3I(voxelGridIndex, chunkBitshifts);
 
             if (Voxel.GenerateMask(voxelTruePosition, biome) == true)
             {
@@ -31,13 +39,32 @@ public partial class Chunk() : MeshInstance3D
                 
                 if (voxelType != 0)
                 {
-                    VoxelMasks[voxelIndex] = true;
-                    VoxelTypes[voxelIndex] = voxelType;
+                    voxelMasks[voxelGridIndex] = true;
+                    VoxelTypes[voxelGridIndex] = voxelType;
                 }
             }
         }
 
-        if (VoxelMasks.HasAnySet()) Contents = ChunkContents.Varied;
-        if (VoxelMasks.HasAllSet()) Contents = ChunkContents.Solid;
+        if (voxelMasks.HasAnySet()) States |= (byte)State.Composed;
+    }
+
+    public static bool IsInFrustum(Vector3 chunkTruePosition, int chunkRadius, int chunkDiameter, Camera3D camera)
+    {
+        if (camera == null) return true;
+
+        Vector3I chunkCenterPosition = (Vector3I)chunkTruePosition + new Vector3I(chunkRadius, chunkRadius, chunkRadius);
+        Vector3I chunkFrustumPosition = chunkCenterPosition - (Vector3I)camera.Transform.Basis.Z.Sign() * new Vector3I(chunkDiameter, chunkDiameter, chunkDiameter) * 2;
+
+        if (camera.IsPositionInFrustum(chunkFrustumPosition)) return true;
+
+        return false;
+    }
+    public static Vector3I GetGridPosition(int gridIndex, Vector3I worldRadius, Vector3I worldDiameter)
+    {
+        return XYZConvert.IndexToVector3I(gridIndex, worldDiameter) - worldRadius;
+    }
+    public static Vector3I GetTruePosition(Vector3I chunkGridPosition, int chunkBitshifts)
+    {
+        return XYZBitShift.Vector3ILeft(chunkGridPosition, chunkBitshifts);
     }
 }
