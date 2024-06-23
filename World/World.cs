@@ -9,7 +9,6 @@ using System.Collections;
 namespace RawVoxel.World;
 
 // TODO - Offset focus node position detection by chunk radius so the load threshold is at chunk center.
-// TODO - Only generate collision for chunks near the player.
 // TODO - Optimize mesh generation with the RenderingServer?
 // NOTE - Bypassing the scene tree might cause complications for world interactions.
 // TODO - Improve draw distance loop to start at player position.
@@ -87,14 +86,14 @@ public partial class World() : MeshInstance3D
     private Vector3 _focusNodeTruePosition; // Physics process only.
     private Vector3I _focusNodeGridPosition = Vector3I.MinValue; // Queue process only.
     private readonly object _focusNodePositionLock = new();
-    
+
     private Vector3 _cameraTrueBasisZ; // Physics process only.
     private Vector3I _cameraSignBasisZ = Vector3I.Zero; // Mesh process only.
     private readonly object _cameraBasisZLock = new();
-    
+
     private readonly ConcurrentDictionary<int, Chunk> _chunks = new(); // Chunks that are loaded into the scene tree, regardless of state.
 
-    private readonly Queue<int> _drawable = []; // Chunk positions that are within draw distance. (Master queue)
+    private readonly Queue<int> _drawable = []; // Chunk positions that are within draw distance.
     private readonly Queue<int> _collider = []; // Chunk positions that are within collision distance.
     private readonly Queue<int> _loadable = []; // Chunk positions that are within draw distance, but not loaded.
     private readonly Queue<int> _freeable = []; // Chunk positions that are loaded, but outside of draw distance.
@@ -301,7 +300,7 @@ public partial class World() : MeshInstance3D
                     // Pack chunk position into an integer, offset to signed coordinates using world radius.
                     int colliderGridIndex = XYZConvert.Vector3IToIndex(chunkGridPosition + WorldRadius, WorldDiameter);
                     
-                    // Draw me like one of your French girls.
+                    // Soundcloud dot com slash light collider.
                     _collider.Enqueue(colliderGridIndex);
                 }
             }
@@ -360,14 +359,14 @@ public partial class World() : MeshInstance3D
 
             CallDeferred(Node.MethodName.AddChild, chunk);
 
-            CallDeferred(nameof(GenerateChunkData), loadableIndex, chunk, WorldSettings);
+            CallDeferred(nameof(GenerateChunkData), loadableIndex, chunk);
             
             Thread.Sleep(GenerateFrequency);
         }
 
         _loadable.Clear();
     }
-    private void WrapQueued() // Wrap chunks back into draw range.
+    private void WrapQueued() // Wrap chunks back into draw area.
     {
         foreach (int freeableIndex in _freeable)
         {
@@ -377,14 +376,14 @@ public partial class World() : MeshInstance3D
 
             _chunks.TryAdd(loadableIndex, chunk);            
 
-            CallDeferred(nameof(GenerateChunkData), loadableIndex, chunk, WorldSettings);
+            CallDeferred(nameof(GenerateChunkData), loadableIndex, chunk);
             
             Thread.Sleep(GenerateFrequency);
         }
 
         _freeable.Clear();
     }    
-    private void MeshQueued() // Mesh chunks.
+    private void MeshQueued() // Mesh chunks marked as composed.
     {
         foreach (int meshableIndex in _meshable)
         {
@@ -409,7 +408,7 @@ public partial class World() : MeshInstance3D
         }
     }
 
-    public void GenerateChunkData(int chunkGridIndex, Chunk chunk, WorldSettings worldSettings)
+    public void GenerateChunkData(int chunkGridIndex, Chunk chunk)
     {
         // Mark chunk state as inactive.
         chunk.State = (byte)Chunk.StateType.Inactive;
@@ -431,10 +430,10 @@ public partial class World() : MeshInstance3D
         chunk.Position = chunkTruePosition;
 
         // FIXME - This is fast for now, but probably dreadful when there'a a lot of biomes.
-        Biome biome = Biome.Generate(chunkGridPosition, WorldDiameter, worldSettings);
+        Biome biome = Biome.Generate(chunkGridPosition, WorldDiameter, WorldSettings);
         
         // FIXME - Needs to be a LOT faster. Start in reverse and figure out how to send less data.
-        chunk.GenerateVoxels(chunkTruePosition, ChunkBitshifts, ChunkVoxelCount, biome, worldSettings, out BitArray voxelMasks);
+        chunk.GenerateVoxels(chunkTruePosition, ChunkBitshifts, ChunkVoxelCount, biome, WorldSettings, out BitArray voxelMasks);
 
         // Mark chunk state as composed.
         if (voxelMasks.HasAnySet()) chunk.State = Chunk.StateType.Composed;
