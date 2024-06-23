@@ -254,7 +254,7 @@ public partial class World() : MeshInstance3D
         return false;
     }
     
-    private void QueueDrawable() // Queue chunk positions that are within draw distance.
+    private void QueueDrawable() // Chunk positions that are within draw distance.
     {
         _drawable.Clear();
 
@@ -281,7 +281,7 @@ public partial class World() : MeshInstance3D
 
         GD.Print("Drawable Chunks: ", _drawable.Count);
     }
-    private void QueueCollider() // Queue chunk positions that are within collision distance.
+    private void QueueCollider() // Chunk positions that are within collision distance.
     {
         _collider.Clear();
         
@@ -308,7 +308,7 @@ public partial class World() : MeshInstance3D
 
         GD.Print("Collider Chunks: ", _collider.Count);
     }
-    private void QueueLoadable() // Queue chunk positions that are within draw distance, but not loaded.
+    private void QueueLoadable() // Chunk positions that are within draw distance, but not loaded.
     {
         foreach (int drawableGridIndex in _drawable)
         {
@@ -321,7 +321,7 @@ public partial class World() : MeshInstance3D
 
         GD.Print("Loadable Chunks: ", _loadable.Count);
     }
-    private void QueueFreeable() // Queue chunk positions that are loaded, but outside of draw distance.
+    private void QueueFreeable() // Chunk positions that are loaded, but outside of draw distance.
     {
         foreach (int chunkGridIndex in _chunks.Keys)
         {
@@ -334,7 +334,7 @@ public partial class World() : MeshInstance3D
 
         GD.Print("Freeable Chunks: ", _freeable.Count);
     }
-    private void QueueMeshable() // Queue chunk positions that are loaded, composed, and are in frustum.
+    private void QueueMeshable() // Chunk positions that are loaded, composed, and are in frustum.
     {
         foreach (int chunkGridIndex in _chunks.Keys)
         {
