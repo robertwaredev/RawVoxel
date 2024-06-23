@@ -4,57 +4,50 @@ namespace RawVoxel.Math.Conversions;
 
 public static class XYZBitShift
 {   
-    // Convert XYZ coordinates in dimension space into a flat integer.
-    public static int XYZToIndex(int X, int Y, int Z, int shifts)
+    public static int XYZToIndex(int X, int Y, int Z, int chunkBitshifts)
     {
-        return (X << shifts << shifts) + (Y << shifts) + Z;
+        return (X << chunkBitshifts << chunkBitshifts) + (Y << chunkBitshifts) + Z;
     }
-    
-    // Convert Vector3I in dimension space into a flat integer.
-    public static int Vector3IToIndex(Vector3I XYZ, int shifts)
+    public static int Vector3IToIndex(Vector3I XYZ, int chunkBitshifts)
     {
-        return XYZToIndex(XYZ.X, XYZ.Y, XYZ.Z, shifts);
+        return XYZToIndex(XYZ.X, XYZ.Y, XYZ.Z, chunkBitshifts);
     }
-    
-    // Convert a flat integer into a Vector3I in dimension space.
-    public static Vector3I IndexToVector3I(int XYZ, int shifts)
+    public static Vector3I IndexToVector3I(int XYZ, int chunkBitshifts)
     {
-        int X = (XYZ >> shifts >> shifts) & ((1 << shifts) - 1);
-        int Y = (XYZ >> shifts) & ((1 << shifts) - 1);
-        int Z = (XYZ) & ((1 << shifts) - 1);
+        int X = (XYZ >> chunkBitshifts >> chunkBitshifts) & ((1 << chunkBitshifts) - 1);
+        int Y = (XYZ >> chunkBitshifts) & ((1 << chunkBitshifts) - 1);
+        int Z = (XYZ) & ((1 << chunkBitshifts) - 1);
 
         return new Vector3I(X, Y, Z);
     }
 
-    // Bitshift each component of a Vector3I left or right.
-    public static Vector3I Vector3ILeft(Vector3I vector, int shifts)
+    public static Vector3I Vector3ILeft(Vector3I vector, int chunkBitshifts)
     {
-        vector.X <<= shifts;
-        vector.Y <<= shifts;
-        vector.Z <<= shifts;
+        vector.X <<= chunkBitshifts;
+        vector.Y <<= chunkBitshifts;
+        vector.Z <<= chunkBitshifts;
         
         return vector;
     }
-    public static Vector3I Vector3IRight(Vector3I vector, int shifts)
+    public static Vector3I Vector3IRight(Vector3I vector, int chunkBitshifts)
     {
-        vector.X >>= shifts;
-        vector.Y >>= shifts;
-        vector.Z >>= shifts;
+        vector.X >>= chunkBitshifts;
+        vector.Y >>= chunkBitshifts;
+        vector.Z >>= chunkBitshifts;
         
         return vector;
     }
 
-    // Calculate the number of right bitshifts required to reduce a number to 1.
-    public static int CalculateShifts(int value)
+    public static int IndexAddX(int index, int amount, int chunkBitshifts)
     {
-        int shifts = 0;
-
-        while (value > 1)
-        {
-            value >>= 1;
-            shifts ++;
-        }
-
-        return shifts;
+        return index + (amount << chunkBitshifts << chunkBitshifts);
+    }
+    public static int IndexAddY(int index, int amount, int chunkBitshifts)
+    {
+        return index + (amount << chunkBitshifts);
+    }
+    public static int IndexAddZ(int index, int amount)
+    {
+        return index + amount;
     }
 }
