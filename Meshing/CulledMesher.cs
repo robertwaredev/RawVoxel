@@ -1,54 +1,89 @@
 using Godot;
-using RawVoxel.Math.Conversions;
+using System.Collections;
 
 namespace RawVoxel.Meshing;
 
 public static class CulledMesher
 {
-    // Generate a naive culled mesh.
-    public static Surface[] GenerateSurfaces(ref byte[] voxelTypes, Vector3I chunkTruePosition, byte chunkDiameter, bool showChunkEdges, Biome biome, WorldSettings worldSettings)
+    public static Surface[] GenerateSurfaces(ref BitArray voxels, int chunkDiameter, int chunkBitshifts, Vector3I signBasisZ, bool cullGeometry = true)
     {
         Surface[] surfaces = [new(), new(), new(), new(), new(), new()];
-        
-        for (int voxelIndex = 0; voxelIndex < voxelTypes.Length; voxelIndex ++)
+
+        for (int axis = 0; axis < 3; axis ++)
         {
-            if (voxelTypes[voxelIndex] != 0)
+            int visibleAxisSign = signBasisZ[axis];
+
+            // Combined axis signs.
+            if (visibleAxisSign == 0 || cullGeometry == false)
             {
-                Vector3I voxelGridPosition = XYZConvert.IndexToVector3I(voxelIndex, new(chunkDiameter, chunkDiameter, chunkDiameter));
-                int voxelType = voxelTypes[voxelIndex];
-                Color voxelColor = worldSettings.Voxels[voxelType].Color;
-                
-                GenerateVoxel(voxelGridPosition, voxelColor, chunkTruePosition, chunkDiameter, showChunkEdges, ref voxelTypes, ref surfaces, biome, worldSettings);
+                for (int x = 0; x < chunkDiameter; x ++)
+                {
+                    for (int y = 0; y < chunkDiameter; y ++)
+                    {
+                        for (int z = 0; z < chunkDiameter; z ++)
+                        {
+                            Vector3I voxelGridPosition = new(x, y, z);
+
+                            int surfaceIDNegative = (axis << 1) + 0;
+                            int surfaceIDPositive = (axis << 1) + 1;
+
+                            if (Voxel.IsVisible(voxelGridPosition + Voxel.Normals[surfaceIDNegative], ref voxels, chunkDiameter) == false)
+                                GenerateFace(voxelGridPosition, surfaceIDNegative, surfaces[surfaceIDNegative]);
+
+                            if (Voxel.IsVisible(voxelGridPosition + Voxel.Normals[surfaceIDPositive], ref voxels, chunkDiameter) == false)
+                                GenerateFace(voxelGridPosition, surfaceIDPositive, surfaces[surfaceIDPositive]);
+                        }
+                    }
+                }
+            }
+
+            // Negative axis signs only.
+            else if (visibleAxisSign < 0)
+            {
+                for (int x = 0; x < chunkDiameter; x ++)
+                {
+                    for (int y = 0; y < chunkDiameter; y ++)
+                    {
+                        for (int z = 0; z < chunkDiameter; z ++)
+                        {
+                            Vector3I voxelGridPosition = new(x, y, z);
+
+                            int surfaceIDNegative = (axis << 1) + 0;
+
+                            if (Voxel.IsVisible(voxelGridPosition + Voxel.Normals[surfaceIDNegative], ref voxels, chunkDiameter) == false)
+                                GenerateFace(voxelGridPosition, surfaceIDNegative, surfaces[surfaceIDNegative]);
+                        }
+                    }
+                }
+            }
+            
+            // Postive axis signs only.
+            else if (visibleAxisSign > 0)
+            {
+                for (int x = 0; x < chunkDiameter; x ++)
+                {
+                    for (int y = 0; y < chunkDiameter; y ++)
+                    {
+                        for (int z = 0; z < chunkDiameter; z ++)
+                        {
+                            Vector3I voxelGridPosition = new(x, y, z);
+
+                            int surfaceIDPositive = (axis << 1) + 1;
+
+                            if (Voxel.IsVisible(voxelGridPosition + Voxel.Normals[surfaceIDPositive], ref voxels, chunkDiameter) == false)
+                                GenerateFace(voxelGridPosition, surfaceIDPositive, surfaces[surfaceIDPositive]);
+                        }
+                    }
+                }
             }
         }
-
+    
         return surfaces;
     }
 
-    public static void GenerateVoxel(Vector3I voxelGridPosition, Color color, Vector3I chunkTruePosition, byte chunkDiameter, bool showChunkEdges, ref byte[] voxelTypes, ref Surface[] surfaces, Biome biome, WorldSettings worldSettings)
-    {    
-        if (Voxel.IsVisible(voxelGridPosition + Vector3I.Left, chunkTruePosition, chunkDiameter, showChunkEdges, ref voxelTypes, biome, worldSettings) == false)
-            GenerateFace(voxelGridPosition, Voxel.Face.West, Vector3I.Left, color, surfaces[0]);
-        
-        if (Voxel.IsVisible(voxelGridPosition + Vector3I.Right, chunkTruePosition, chunkDiameter, showChunkEdges, ref voxelTypes, biome, worldSettings) == false)
-            GenerateFace(voxelGridPosition, Voxel.Face.East, Vector3I.Right, color, surfaces[1]);
-        
-        if (Voxel.IsVisible(voxelGridPosition + Vector3I.Down, chunkTruePosition, chunkDiameter, showChunkEdges, ref voxelTypes, biome, worldSettings) == false)
-            GenerateFace(voxelGridPosition, Voxel.Face.Btm, Vector3I.Down, color, surfaces[2]);
-        
-        if (Voxel.IsVisible(voxelGridPosition + Vector3I.Up, chunkTruePosition, chunkDiameter, showChunkEdges, ref voxelTypes, biome, worldSettings) == false)
-            GenerateFace(voxelGridPosition, Voxel.Face.Top, Vector3I.Up, color, surfaces[3]);
-        
-        if (Voxel.IsVisible(voxelGridPosition + Vector3I.Forward, chunkTruePosition, chunkDiameter, showChunkEdges, ref voxelTypes, biome, worldSettings) == false)
-            GenerateFace(voxelGridPosition, Voxel.Face.North, Vector3I.Forward, color, surfaces[4]);
-        
-        if (Voxel.IsVisible(voxelGridPosition + Vector3I.Back, chunkTruePosition, chunkDiameter, showChunkEdges, ref voxelTypes, biome, worldSettings) == false)
-            GenerateFace(voxelGridPosition, Voxel.Face.South, Vector3I.Back, color, surfaces[5]);
-    }
-
-    public static void GenerateFace(Vector3I voxelGridPosition, Voxel.Face face, Vector3I normal, Color color, Surface surface)
+    public static void GenerateFace(Vector3I voxelGridPosition, int surfaceID, Surface surface)
     {
-        int[] faceVertices = Voxel.Faces[(int)face];
+        int[] faceVertices = Voxel.Faces[surfaceID];
         
         Vector3I vertexA = Voxel.Vertices[faceVertices[0]] + voxelGridPosition;
         Vector3I vertexB = Voxel.Vertices[faceVertices[1]] + voxelGridPosition;
@@ -58,8 +93,6 @@ public static class CulledMesher
         int offset = surface.Vertices.Count;
 
         surface.Vertices.AddRange([vertexA, vertexB, vertexC, vertexD]);
-        //surface.Normals.AddRange([normal, normal, normal, normal]);
-        //surface.Colors.AddRange([color, color, color, color]);
         surface.Indices.AddRange([0 + offset, 1 + offset, 2 + offset, 0 + offset, 2 + offset, 3 + offset]);
-    }        
+    }
 }

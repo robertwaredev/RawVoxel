@@ -1,10 +1,10 @@
 using System.Collections.Generic;
 using static System.Numerics.BitOperations;
 
-namespace RawVoxel.Math.Binary;
+namespace RawVoxel.Meshing;
 
 // A bit mask representing a "chain" of set bits from the specified sequence.
-public struct Chain(uint bitMask, byte offset, byte length)
+public struct BinaryChain(uint bitMask, byte offset, byte length)
 {
     // Bit mask representing a chain of set bits from a larger sequence.
     public uint BitMask = bitMask;
@@ -14,10 +14,10 @@ public struct Chain(uint bitMask, byte offset, byte length)
     public byte Length = length;
 
     // Queue chains of set bits from the specified sequence.
-    public static Queue<Chain> QueueChains(uint sequence)
+    public static Queue<BinaryChain> QueueChains(uint sequence)
     {
         // Create a placeholder list of chains.
-        Queue<Chain> chains = [];
+        Queue<BinaryChain> chains = [];
         
         // Generate chains from sequence.
         while (sequence != 0)
@@ -28,7 +28,7 @@ public struct Chain(uint bitMask, byte offset, byte length)
             uint bitMask = uint.MaxValue >> (32 - length) << offset;
             
             // Create new chain.
-            Chain chain = new(bitMask, offset, length);
+            BinaryChain chain = new(bitMask, offset, length);
 
             // Add chain to the list.
             chains.Enqueue(chain);

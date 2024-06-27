@@ -14,6 +14,7 @@ metadata/_snap_enabled = true
 [sub_resource type="FastNoiseLite" id="FastNoiseLite_i1dle"]
 
 [sub_resource type="FastNoiseLite" id="FastNoiseLite_eglk0"]
+frequency = 0.001
 
 [sub_resource type="Curve" id="Curve_2k5et"]
 _data = [Vector2(0, 0), 0.0, 0.0, 0, 0, Vector2(1, 1), 0.0, 0.0, 0, 0]
@@ -34,8 +35,8 @@ Voxel = ExtResource("3_dk8kt")
 HeightDistribution = SubResource("Curve_lkdtc")
 
 [sub_resource type="Curve" id="Curve_muwbt"]
-max_value = 64.0
-_data = [Vector2(0, 0), 0.0, 0.0, 0, 0, Vector2(0.292165, 6.80893), 0.0, 0.0, 0, 0, Vector2(0.74502, 32.285), 0.0, 0.0, 0, 0, Vector2(0.832669, 57.631), 0.0, 0.0, 0, 0, Vector2(1, 64), 0.0, 0.0, 0, 0]
+max_value = 256.0
+_data = [Vector2(0, 0), 0.0, 0.0, 0, 0, Vector2(0.292165, 15.57), 0.0, 0.0, 0, 0, Vector2(0.662277, 53.2277), 0.0, 0.0, 0, 0, Vector2(0.832669, 233.188), 0.0, 0.0, 0, 0, Vector2(1, 256), 0.0, 0.0, 0, 0]
 point_count = 5
 
 [sub_resource type="Resource" id="Resource_pmfwk"]

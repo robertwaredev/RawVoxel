@@ -1,68 +1,56 @@
 using Godot;
-using System;
+using RawVoxel.Math;
 using System.Collections;
-using RawVoxel.Math.Conversions;
 
 namespace RawVoxel.World;
 
 [Tool]
 public partial class Chunk : MeshInstance3D
 {
-    [Flags] public enum StateType : byte
-    {
-        Inactive = 0,
-        Composed = 1,
-        Rendered = 2
-    }
+    public enum StateType : byte { Abstract, Tangible, Observed, Rendered, Tethered }
 
-    public StateType State = StateType.Inactive;
-    public byte[] VoxelTypes;
+    public StateType State;
+    public ImageTexture[] VoxelTypes;
+    public BitArray VoxelMasks;
 
-    public override void _EnterTree()
+    public override void _Ready()
     {
+        //Owner = GetParent(); // Enable to load chunks into the scene tree in editor.
         AddToGroup("NavSource");
     }
 
-    public void GenerateVoxels(Vector3I chunkTruePosition, int chunkBitshifts, int chunkVoxelCount, Biome biome, WorldSettings worldSettings, out BitArray voxelMasks)
+    public void GenerateVoxels(Vector3I chunkTruePosition, int chunkDiameter, int chunkBitshifts, int chunkVoxelCount, Biome biome, WorldSettings worldSettings)
     {
-        voxelMasks = new(chunkVoxelCount);
+        VoxelMasks = new BitArray(chunkVoxelCount);
+        VoxelTypes = new ImageTexture[chunkDiameter];
 
-        VoxelTypes = new byte[chunkVoxelCount];
+        for (int z = 0; z < chunkDiameter; z ++)
+        {
+            Image zImage = Image.Create(chunkDiameter, chunkDiameter, false, Image.Format.R8);
 
-        for (int voxelGridIndex = 0; voxelGridIndex < chunkVoxelCount; voxelGridIndex ++)
-        {    
-            Vector3I voxelTruePosition = chunkTruePosition + XYZBitShift.IndexToVector3I(voxelGridIndex, chunkBitshifts);
-
-            if (Voxel.GenerateMask(voxelTruePosition, biome) == true)
+            for (int y = 0; y < chunkDiameter; y ++)
             {
-                byte voxelType = Voxel.GenerateType(voxelTruePosition, biome, worldSettings);
-                
-                if (voxelType != 0)
+                for (int x = 0; x < chunkDiameter; x ++)
                 {
-                    voxelMasks[voxelGridIndex] = true;
-                    VoxelTypes[voxelGridIndex] = voxelType;
+                    Vector3I voxelGridPosition = new(x, y, z);
+                    Vector3I voxelTruePosition = chunkTruePosition + voxelGridPosition;
+
+                    // Generate voxel visibility/solidity mask.
+                    if (Voxel.GenerateMask(voxelTruePosition, biome) == true)
+                    {
+                        // Generate voxel type.
+                        byte voxelType = Voxel.GenerateType(voxelTruePosition, biome, worldSettings);
+                        
+                        if (voxelType == 0) continue;
+                        
+                        VoxelMasks[XYZ.Encode(voxelGridPosition, chunkBitshifts)] = true;
+                        
+                        zImage.SetPixel(x, y, new(){ R8 = voxelType });
+                    }
                 }
             }
+        
+            VoxelTypes[z] = ImageTexture.CreateFromImage(zImage);
         }
-    }
-
-    public static bool IsInFrustum(Vector3 chunkTruePosition, int chunkRadius, int chunkDiameter, Camera3D camera)
-    {
-        if (camera == null) return true;
-
-        Vector3I chunkCenterPosition = (Vector3I)chunkTruePosition + new Vector3I(chunkRadius, chunkRadius, chunkRadius);
-        Vector3I chunkFrustumPosition = chunkCenterPosition - (Vector3I)camera.Transform.Basis.Z.Sign() * new Vector3I(chunkDiameter, chunkDiameter, chunkDiameter) * 2;
-
-        if (camera.IsPositionInFrustum(chunkFrustumPosition)) return true;
-
-        return false;
-    }
-    public static Vector3I GetGridPosition(int gridIndex, Vector3I worldRadius, Vector3I worldDiameter)
-    {
-        return XYZConvert.IndexToVector3I(gridIndex, worldDiameter) - worldRadius;
-    }
-    public static Vector3I GetTruePosition(Vector3I chunkGridPosition, int chunkBitshifts)
-    {
-        return XYZBitShift.Vector3ILeft(chunkGridPosition, chunkBitshifts);
     }
 }

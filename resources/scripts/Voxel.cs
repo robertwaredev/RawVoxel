@@ -1,7 +1,7 @@
 using Godot;
 using System;
-using System.Linq;
-using RawVoxel.Math.Conversions;
+using RawVoxel.Math;
+using System.Collections;
 
 namespace RawVoxel;
 
@@ -17,7 +17,7 @@ public partial class Voxel() : Resource
     #region Enums
 
     public enum Vertex { FrontTopLeft, FrontBtmLeft, FrontTopRight, FrontBtmRight, BackTopLeft, BackBtmLeft, BackTopRight, BackBtmRight }
-    public enum Face { Top, Btm, West, East, North, South }
+    public enum Face { West, East, Btm, Top, North, South }
     public enum UV { TopLeft, BtmLeft, TopRight, BtmRight }
     
     #endregion Enums
@@ -37,12 +37,21 @@ public partial class Voxel() : Resource
     ];
     public static readonly int[][] Faces =
     [
-        [4, 6, 2, 0],
-        [1, 3, 7, 5],
-        [4, 0, 1, 5],
-        [2, 6, 7, 3],
-        [6, 4, 5, 7],
-        [0, 2, 3, 1]
+        [4, 0, 1, 5],   // West
+        [2, 6, 7, 3],   // East
+        [1, 3, 7, 5],   // Btm
+        [4, 6, 2, 0],   // Top
+        [6, 4, 5, 7],   // North
+        [0, 2, 3, 1]    // South
+    ];
+    public static readonly Vector3I[] Normals =
+    [
+        Vector3I.Left,
+        Vector3I.Right,
+        Vector3I.Down,
+        Vector3I.Up,
+        Vector3I.Forward,
+        Vector3I.Back,
     ];
 
     #endregion Constants
@@ -56,8 +65,6 @@ public partial class Voxel() : Resource
 
         return true;
     }
-    
-    // FIXME - There HAS to be a faster way to accomplish the same thing.
     public static byte GenerateType(Vector3I voxelTruePosition, Biome biome, WorldSettings worldSettings)
     {
         float heightNoise = biome.HeightNoise.GetNoise2D(voxelTruePosition.X, voxelTruePosition.Z);
@@ -78,7 +85,8 @@ public partial class Voxel() : Resource
 
         return 0;
     }
-    public static bool IsExternal(Vector3I voxelGridPosition, byte chunkDiameter)
+    
+    public static bool IsExternal(Vector3I voxelGridPosition, int chunkDiameter)
     {
         if (voxelGridPosition.X < 0 || voxelGridPosition.X >= chunkDiameter) return true;
         if (voxelGridPosition.Y < 0 || voxelGridPosition.Y >= chunkDiameter) return true;
@@ -86,38 +94,22 @@ public partial class Voxel() : Resource
         
         return false;
     }
-    public static bool IsVisible(Vector3I voxelGridPosition, Vector3I chunkTruePosition, byte chunkDiameter, bool showChunkEdges, ref byte[] voxelTypes, Biome biome, WorldSettings worldSettings)
+    public static bool IsVisible(Vector3I voxelGridPosition, ref BitArray voxels, int chunkDiameter)
     {
-        if (IsExternal(voxelGridPosition, chunkDiameter))
-        {
-            if (showChunkEdges) return false;
-
-            Vector3I voxelTruePosition = chunkTruePosition + voxelGridPosition;
-            
-            bool mask = GenerateMask(voxelTruePosition, biome);
-            uint type = GenerateType(voxelTruePosition, biome, worldSettings);
-            
-            if (mask == true && type != 0) return true;
-            
-            else return false;
-        }
+        if (IsExternal(voxelGridPosition, chunkDiameter)) return false;
         
-        int voxelIndex = XYZConvert.Vector3IToIndex(voxelGridPosition, new(chunkDiameter, chunkDiameter, chunkDiameter));
-        
-        if (voxelTypes[voxelIndex] == 0)
-        {
-            return false;
-        }
+        int voxelIndex = XYZ.Encode(voxelGridPosition, new Vector3I(chunkDiameter, chunkDiameter, chunkDiameter));
 
-        return true;
+        return voxels[voxelIndex];
     }
+    
     public static void SetType(ref byte[] voxelTypes, Vector3I voxelPosition, byte voxelType, byte chunkDiameter)
     {
         voxelPosition.X = Mathf.PosMod(voxelPosition.X, chunkDiameter);
         voxelPosition.Y = Mathf.PosMod(voxelPosition.Y, chunkDiameter);
         voxelPosition.Z = Mathf.PosMod(voxelPosition.Z, chunkDiameter);
         
-        int voxelIndex = XYZConvert.Vector3IToIndex(voxelPosition, new(chunkDiameter, chunkDiameter, chunkDiameter));
+        int voxelIndex = XYZ.Encode(voxelPosition, new Vector3I(chunkDiameter, chunkDiameter, chunkDiameter));
         
         voxelTypes[voxelIndex] = voxelType;
     }

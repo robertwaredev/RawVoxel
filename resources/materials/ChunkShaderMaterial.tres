@@ -1,9 +1,14 @@
-[gd_resource type="ShaderMaterial" load_steps=2 format=3 uid="uid://fuo8d8qsqq2t"]
+[gd_resource type="ShaderMaterial" load_steps=3 format=3 uid="uid://fuo8d8qsqq2t"]
 
 [ext_resource type="Shader" path="res://addons/RawVoxel/Resources/shaders/Chunk.gdshader" id="1_27t73"]
+
+[sub_resource type="Texture2DArray" id="Texture2DArray_p7jru"]
 
 [resource]
 resource_local_to_scene = true
 resource_name = "Voxel Type Map"
 render_priority = 0
 shader = ExtResource("1_27t73")
+shader_parameter/voxelColors = PackedColorArray(0.758044, 0.000141986, 0.657229, 1, 0, 0.811765, 0, 1, 0.737255, 0, 0, 1, 0, 0, 0.815686, 1, 0.847059, 0.662745, 0, 1)
+shader_parameter/surfaceID = null
+shader_parameter/voxelIDMap = SubResource("Texture2DArray_p7jru")

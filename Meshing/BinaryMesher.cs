@@ -1,6 +1,6 @@
 using Godot;
-using RawVoxel.Math.Binary;
-using RawVoxel.Math.Conversions;
+using RawVoxel.Math;
+using System.Collections;
 using System.Collections.Generic;
 using static System.Numerics.BitOperations;
 
@@ -26,13 +26,13 @@ public static class BinaryMesher
     /// <summary>
     /// Generate a <c>Surface</c> array containing mesh data for each axis sign.
     /// </summary>
-    /// <param name="voxels">Byte array containing voxel IDs.</param>
+    /// <param name="voxelMasks">BitArray containing voxel visibility masks.</param>
     /// <param name="chunkDiameter">Chunk diameter in voxel units.</param>
     /// <param name="chunkBitshifts">Equivalent to chunk diameter as 1 bitshifted left.</param>
     /// <param name="signBasisZ">Signed <c>Node3D.Transform.Basis.Z</c>.</param>
     /// <param name="cullGeometry">Whether axis signs sohuld be culled based on signBasisZ.</param>
     /// <returns>A <c>Surface</c> array containing vertex and index data for each axis sign.</returns>
-    public static Surface[] GenerateSurfaces(ref byte[] voxels, int chunkDiameter, int chunkBitshifts, Vector3I signBasisZ, bool cullGeometry = false)
+    public static Surface[] GenerateSurfaces(ref BitArray voxelMasks, int chunkDiameter, int chunkBitshifts, Vector3I signBasisZ, bool cullGeometry = true)
     {
         // Sequences of voxel visibility bit masks, stored as [axis, relative depth, relative width] with relative height encoded into each sequence's bits.
         uint[,,] voxelSequences = new uint[3, chunkDiameter, chunkDiameter];
@@ -51,7 +51,7 @@ public static class BinaryMesher
                 for (int z = 0; z < chunkDiameter; z ++)
                 {
                     // Skip if current voxel is not solid.
-                    if (voxels[XYZBitShift.XYZToIndex(x, y, z, chunkBitshifts)] == 0) continue;
+                    if (voxelMasks[XYZ.Encode(x, y, z, chunkBitshifts)] == false) continue;
 
                     // Merge voxel bit mask into its respective sequence.
                     voxelSequences[0, y, z] |= (uint)1 << x;
@@ -155,7 +155,7 @@ public static class BinaryMesher
             }
         }
             
-        // Loop through axes and generate surfaces from plane sequences.
+        // Loop through axes and generate surfaces from plane bit mask sequences.
         for (int axis = 0; axis < 3; axis ++)
         {
             // Determine which axis sign is visible.
@@ -202,10 +202,10 @@ public static class BinaryMesher
                 if (planeSequence == 0) continue;
                 
                 // Generate chains from the current plane sequence.
-                Queue<Chain> chains = Chain.QueueChains(planeSequence);
+                Queue<BinaryChain> chains = BinaryChain.QueueChains(planeSequence);
 
                 // Loop through chains and generate mesh data.
-                foreach (Chain chain in chains)
+                foreach (BinaryChain chain in chains)
                 {
                     // Store chain offset and length as "depth" and "length" for clarity purposes.
                     int depth = chain.Offset;
@@ -279,11 +279,9 @@ public static class BinaryMesher
                     {
                         case 0:
                             surface.Vertices.AddRange([vertexGridPositionD, vertexGridPositionC, vertexGridPositionB, vertexGridPositionA]);
-                            //surface.UVs.AddRange([new(1, 0), new(1, 1), new(0, 1), new(0, 0)]);
                             break;
                         case 1:
                             surface.Vertices.AddRange([vertexGridPositionA, vertexGridPositionB, vertexGridPositionC, vertexGridPositionD]);
-                            //surface.UVs.AddRange([new(0, 0), new(0, 1), new(1, 1), new(1, 0)]);
                             break;
                     }
 

@@ -2,7 +2,7 @@
 
 [ext_resource type="Script" path="res://addons/RawVoxel/World/World.cs" id="1_c45ul"]
 [ext_resource type="Resource" uid="uid://c7lrdyml3qram" path="res://addons/RawVoxel/Resources/world/DefaultWorldSettings.tres" id="2_hr4c1"]
-[ext_resource type="Material" uid="uid://fuo8d8qsqq2t" path="res://addons/RawVoxel/Resources/materials/ChunkShaderMaterial.tres" id="3_un8p4"]
+[ext_resource type="Material" uid="uid://fuo8d8qsqq2t" path="res://addons/RawVoxel/Resources/materials/ChunkShaderMaterial.tres" id="3_qd5rx"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_hbkxm"]
 sky_horizon_color = Color(0.64625, 0.65575, 0.67075, 1)
@@ -17,14 +17,15 @@ sky = SubResource("Sky_q8a2h")
 tonemap_mode = 2
 glow_enabled = true
 
-[node name="World" type="MeshInstance3D" node_paths=PackedStringArray("FocusNode")]
+[node name="World" type="MeshInstance3D" node_paths=PackedStringArray("ChunkBin", "FocusNode")]
 script = ExtResource("1_c45ul")
 Generated = true
-FocusNode = NodePath("Camera3D")
+ChunkBin = NodePath(".")
+FocusNode = NodePath(".")
 WorldSettings = ExtResource("2_hr4c1")
-TerrainMaterial = ExtResource("3_un8p4")
-DrawRadius = Vector3i(8, 1, 8)
-CollisionRadius = Vector3i(2, 1, 2)
+TerrainMaterial = ExtResource("3_qd5rx")
+DrawRadius = Vector3i(8, 4, 8)
+CollisionRadius = Vector3i(1, 1, 1)
 WorldRadius = Vector3i(128, 128, 128)
 GenerateFrequency = 40
 metadata/_edit_lock_ = true
@@ -35,6 +36,3 @@ shadow_enabled = true
 
 [node name="WorldEnvironment" type="WorldEnvironment" parent="."]
 environment = SubResource("Environment_4lhsx")
-
-[node name="Camera3D" type="Camera3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.7283, 34.5812, 6.40164)
