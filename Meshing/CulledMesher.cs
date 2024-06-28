@@ -1,13 +1,16 @@
 using Godot;
+using RawVoxel.Resources;
 using System.Collections;
 
 namespace RawVoxel.Meshing;
 
 public static class CulledMesher
 {
-    public static Surface[] GenerateSurfaces(ref BitArray voxels, int chunkDiameter, int chunkBitshifts, Vector3I signBasisZ, bool cullGeometry = true)
+    public static Binary.Surface[] GenerateSurfaces(ref BitArray voxels, int chunkBitshifts, Vector3I signBasisZ, bool cullGeometry = true)
     {
-        Surface[] surfaces = [new(), new(), new(), new(), new(), new()];
+        int chunkDiameter = 1 << chunkBitshifts;
+
+        Binary.Surface[] surfaces = [new(), new(), new(), new(), new(), new()];
 
         for (int axis = 0; axis < 3; axis ++)
         {
@@ -81,7 +84,7 @@ public static class CulledMesher
         return surfaces;
     }
 
-    public static void GenerateFace(Vector3I voxelGridPosition, int surfaceID, Surface surface)
+    public static void GenerateFace(Vector3I voxelGridPosition, int surfaceID, Binary.Surface surface)
     {
         int[] faceVertices = Voxel.Faces[surfaceID];
         

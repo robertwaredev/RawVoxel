@@ -1,4 +1,4 @@
-[gd_scene load_steps=7 format=3 uid="uid://cyqtqvdarokhd"]
+[gd_scene load_steps=7 format=3 uid="uid://b40ii65nsyrfy"]
 
 [ext_resource type="Script" path="res://addons/RawVoxel/World/World.cs" id="1_c45ul"]
 [ext_resource type="Resource" uid="uid://c7lrdyml3qram" path="res://addons/RawVoxel/Resources/world/DefaultWorldSettings.tres" id="2_hr4c1"]
@@ -21,10 +21,10 @@ glow_enabled = true
 script = ExtResource("1_c45ul")
 Generated = true
 ChunkBin = NodePath(".")
-FocusNode = NodePath(".")
+FocusNode = NodePath("Marker3D")
 WorldSettings = ExtResource("2_hr4c1")
 TerrainMaterial = ExtResource("3_qd5rx")
-DrawRadius = Vector3i(8, 4, 8)
+DrawRadius = Vector3i(8, 8, 8)
 CollisionRadius = Vector3i(1, 1, 1)
 WorldRadius = Vector3i(128, 128, 128)
 GenerateFrequency = 40
@@ -36,3 +36,5 @@ shadow_enabled = true
 
 [node name="WorldEnvironment" type="WorldEnvironment" parent="."]
 environment = SubResource("Environment_4lhsx")
+
+[node name="Marker3D" type="Marker3D" parent="."]

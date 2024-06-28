@@ -6,13 +6,13 @@ namespace RawVoxel.Meshing;
     
 public static class MeshHelper
 {
-    public static ArrayMesh GenerateMesh(Surface[] surfaces, Chunk chunk, Material material)
+    public static ArrayMesh GenerateMesh(Binary.Surface[] surfaces, Chunk chunk, Material material)
     {
         ArrayMesh arrayMesh = new();
         
         for (int surfaceIndex = 0; surfaceIndex < 6; surfaceIndex ++)
         {
-            Surface surface = surfaces[surfaceIndex];
+            Binary.Surface surface = surfaces[surfaceIndex];
 
             if (surface is null) continue;
             if (surface.Indices.Count  == 0) continue;

@@ -1,17 +1,16 @@
-[gd_resource type="Resource" script_class="Biome" load_steps=15 format=3 uid="uid://dr48in2yja7pv"]
+[gd_resource type="Resource" script_class="Biome" load_steps=12 format=3 uid="uid://dr48in2yja7pv"]
 
-[ext_resource type="Resource" uid="uid://bncsgv1yauy85" path="res://addons/RawVoxel/Resources/voxels/Grass.tres" id="1_iml8r"]
-[ext_resource type="Script" path="res://addons/RawVoxel/Resources/scripts/BiomeLayer.cs" id="2_1c6rp"]
-[ext_resource type="Resource" uid="uid://dle7im5f8jvv7" path="res://addons/RawVoxel/Resources/voxels/Dirt.tres" id="3_dk8kt"]
-[ext_resource type="Resource" uid="uid://dmyx04guxsghu" path="res://addons/RawVoxel/Resources/voxels/Stone.tres" id="4_bp1mj"]
-[ext_resource type="Script" path="res://addons/RawVoxel/Resources/scripts/Biome.cs" id="5_b1yxo"]
+[ext_resource type="Script" path="res://addons/RawVoxel/Resources/BiomeLayer.cs" id="2_1c6rp"]
+[ext_resource type="Script" path="res://addons/RawVoxel/Resources/Biome.cs" id="5_b1yxo"]
 
 [sub_resource type="Curve" id="Curve_rkx2v"]
-_data = [Vector2(0, 0), 0.0, 0.0, 0, 0, Vector2(0.5, 1), 0.0, 0.0, 0, 0]
+_data = [Vector2(0.25, 0), 0.0, 0.0, 0, 0, Vector2(0.75, 1), 0.0, 0.0, 0, 0]
 point_count = 2
 metadata/_snap_enabled = true
+metadata/_snap_count = 8
 
 [sub_resource type="FastNoiseLite" id="FastNoiseLite_i1dle"]
+frequency = 0.002
 
 [sub_resource type="FastNoiseLite" id="FastNoiseLite_eglk0"]
 frequency = 0.001
@@ -22,7 +21,6 @@ point_count = 2
 
 [sub_resource type="Resource" id="Resource_vups2"]
 script = ExtResource("2_1c6rp")
-Voxel = ExtResource("1_iml8r")
 HeightDistribution = SubResource("Curve_2k5et")
 
 [sub_resource type="Curve" id="Curve_lkdtc"]
@@ -31,17 +29,15 @@ point_count = 2
 
 [sub_resource type="Resource" id="Resource_ljrba"]
 script = ExtResource("2_1c6rp")
-Voxel = ExtResource("3_dk8kt")
 HeightDistribution = SubResource("Curve_lkdtc")
 
 [sub_resource type="Curve" id="Curve_muwbt"]
-max_value = 256.0
-_data = [Vector2(0, 0), 0.0, 0.0, 0, 0, Vector2(0.292165, 15.57), 0.0, 0.0, 0, 0, Vector2(0.662277, 53.2277), 0.0, 0.0, 0, 0, Vector2(0.832669, 233.188), 0.0, 0.0, 0, 0, Vector2(1, 256), 0.0, 0.0, 0, 0]
-point_count = 5
+max_value = 512.0
+_data = [Vector2(0, 0), 0.0, 0.0, 0, 0, Vector2(0.498403, 61.3465), 0.0, 0.0, 0, 0, Vector2(0.838658, 465.162), 0.0, 0.0, 0, 0, Vector2(1, 512), 0.0, 0.0, 0, 0]
+point_count = 4
 
 [sub_resource type="Resource" id="Resource_pmfwk"]
 script = ExtResource("2_1c6rp")
-Voxel = ExtResource("4_bp1mj")
 HeightDistribution = SubResource("Curve_muwbt")
 
 [resource]

@@ -1,5 +1,6 @@
 using Godot;
 using RawVoxel.Math;
+using RawVoxel.Resources;
 using System.Collections;
 
 namespace RawVoxel.World;
@@ -10,18 +11,20 @@ public partial class Chunk : MeshInstance3D
     public enum StateType : byte { Abstract, Tangible, Observed, Rendered, Tethered }
 
     public StateType State;
-    public ImageTexture[] VoxelTypes;
     public BitArray VoxelMasks;
+    public ImageTexture[] VoxelTypes;
 
     public override void _Ready()
     {
-        //Owner = GetParent(); // Enable to load chunks into the scene tree in editor.
+        //Owner = GetParent(); // Enable to load chunks into the scene tree in editor. DONT leave enabled.
         AddToGroup("NavSource");
     }
 
-    public void GenerateVoxels(Vector3I chunkTruePosition, int chunkDiameter, int chunkBitshifts, int chunkVoxelCount, Biome biome, WorldSettings worldSettings)
+    public void GenerateVoxels(Vector3I chunkTruePosition, int chunkBitshifts, Biome biome, WorldSettings worldSettings)
     {
-        VoxelMasks = new BitArray(chunkVoxelCount);
+        int chunkDiameter = 1 << chunkBitshifts;
+
+        VoxelMasks = new(chunkDiameter * chunkDiameter * chunkDiameter);
         VoxelTypes = new ImageTexture[chunkDiameter];
 
         for (int z = 0; z < chunkDiameter; z ++)
@@ -35,18 +38,15 @@ public partial class Chunk : MeshInstance3D
                     Vector3I voxelGridPosition = new(x, y, z);
                     Vector3I voxelTruePosition = chunkTruePosition + voxelGridPosition;
 
-                    // Generate voxel visibility/solidity mask.
-                    if (Voxel.GenerateMask(voxelTruePosition, biome) == true)
-                    {
-                        // Generate voxel type.
-                        byte voxelType = Voxel.GenerateType(voxelTruePosition, biome, worldSettings);
-                        
-                        if (voxelType == 0) continue;
-                        
-                        VoxelMasks[XYZ.Encode(voxelGridPosition, chunkBitshifts)] = true;
-                        
-                        zImage.SetPixel(x, y, new(){ R8 = voxelType });
-                    }
+                    if (Voxel.GenerateMask(voxelTruePosition, biome) == false) continue;
+                    
+                    byte voxelType = Voxel.GenerateType(voxelTruePosition, biome, worldSettings);
+                    
+                    if (voxelType == 0) continue;
+                    
+                    VoxelMasks[XYZ.Encode(voxelGridPosition, chunkBitshifts)] = true;
+                    
+                    zImage.SetPixel(x, y, new(){ R8 = voxelType });
                 }
             }
         

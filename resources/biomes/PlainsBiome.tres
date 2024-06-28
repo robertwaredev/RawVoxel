@@ -1,9 +1,7 @@
-[gd_resource type="Resource" script_class="Biome" load_steps=12 format=3 uid="uid://b60p7ir6ohe2d"]
+[gd_resource type="Resource" script_class="Biome" load_steps=8 format=3 uid="uid://b60p7ir6ohe2d"]
 
-[ext_resource type="Resource" uid="uid://bncsgv1yauy85" path="res://addons/RawVoxel/Resources/voxels/Grass.tres" id="1_bsoum"]
-[ext_resource type="Script" path="res://addons/RawVoxel/Resources/scripts/BiomeLayer.cs" id="2_oxfyi"]
-[ext_resource type="Resource" uid="uid://dle7im5f8jvv7" path="res://addons/RawVoxel/Resources/voxels/Dirt.tres" id="3_a72er"]
-[ext_resource type="Script" path="res://addons/RawVoxel/Resources/scripts/Biome.cs" id="4_8xel6"]
+[ext_resource type="Script" path="res://addons/RawVoxel/Resources/BiomeLayer.cs" id="2_oxfyi"]
+[ext_resource type="Script" path="res://addons/RawVoxel/Resources/Biome.cs" id="4_8xel6"]
 
 [sub_resource type="Curve" id="Curve_jxc0h"]
 _data = [Vector2(0, 0), 0.0, 0.0, 0, 0, Vector2(0, 0), 0.0, 0.0, 0, 0, Vector2(0, 0), 0.0, 0.0, 0, 0, Vector2(0, 0), 0.0, 0.0, 0, 0, Vector2(0, 0), 0.0, 0.0, 0, 0, Vector2(0, 0), 0.0, 0.0, 0, 0, Vector2(0, 0), 0.0, 0.0, 0, 0, Vector2(0, 0), 0.0, 0.0, 0, 0, Vector2(0, 0), 0.0, 0.0, 0, 0, Vector2(0, 0), 0.0, 0.0, 0, 0, Vector2(0, 0), 0.0, 0.0, 0, 0, Vector2(0, 0), 0.0, 0.0, 0, 0, Vector2(0, 0), 0.0, 0.0, 0, 0, Vector2(0, 0), 0.0, 0.0, 0, 0, Vector2(0, 0), 0.0, 0.0, 0, 0, Vector2(0, 0), 0.0, 0.0, 0, 0, Vector2(0, 0), 0.0, 0.0, 0, 0, Vector2(0, 0), 0.0, 0.0, 0, 0, Vector2(0, 0), 0.0, 0.0, 0, 0, Vector2(0, 0), 0.0, 0.0, 0, 0, Vector2(0, 0), 0.0, 0.0, 0, 0, Vector2(0, 0), 0.0, 0.0, 0, 0, Vector2(0, 0), 0.0, 0.0, 0, 0, Vector2(0.5, 1), 0.0, 0.0, 0, 0, Vector2(1, 1), 0.0, 0.0, 0, 0, Vector2(1, 1), 0.0, 0.0, 0, 0, Vector2(1, 1), 0.0, 0.0, 0, 0, Vector2(1, 1), 0.0, 0.0, 0, 0, Vector2(1, 1), 0.0, 0.0, 0, 0, Vector2(1, 1), 0.0, 0.0, 0, 0, Vector2(1, 1), 0.0, 0.0, 0, 0, Vector2(1, 1), 0.0, 0.0, 0, 0, Vector2(1, 1), 0.0, 0.0, 0, 0, Vector2(1, 1), 0.0, 0.0, 0, 0, Vector2(1, 1), 0.0, 0.0, 0, 0, Vector2(1, 1), 0.0, 0.0, 0, 0, Vector2(1, 1), 0.0, 0.0, 0, 0, Vector2(1, 1), 0.0, 0.0, 0, 0, Vector2(1, 1), 0.0, 0.0, 0, 0, Vector2(1, 1), 0.0, 0.0, 0, 0, Vector2(1, 1), 0.0, 0.0, 0, 0, Vector2(1, 1), 0.0, 0.0, 0, 0, Vector2(1, 1), 0.0, 0.0, 0, 0, Vector2(1, 1), 0.0, 0.0, 0, 0, Vector2(1, 1), 0.0, 0.0, 0, 0, Vector2(1, 1), 0.0, 0.0, 0, 0]
@@ -17,28 +15,11 @@ metadata/_preview_in_3d_space_ = true
 
 [sub_resource type="FastNoiseLite" id="FastNoiseLite_ub3bu"]
 
-[sub_resource type="Curve" id="Curve_65kmv"]
-min_value = -3.0
-max_value = 0.0
-_data = [Vector2(0, -3), 0.0, 0.0, 0, 0, Vector2(1, 0), 0.0, 0.0, 0, 0]
-point_count = 2
-metadata/_snap_enabled = true
-metadata/_snap_count = 16
-
 [sub_resource type="Resource" id="Resource_gumvy"]
 script = ExtResource("2_oxfyi")
-Voxel = ExtResource("1_bsoum")
-HeightCurve = SubResource("Curve_65kmv")
-
-[sub_resource type="Curve" id="Curve_wremd"]
-max_value = 3.0
-_data = [Vector2(0, 0), 0.0, 3.0, 0, 1, Vector2(1, 3), 3.0, 0.0, 1, 0]
-point_count = 2
 
 [sub_resource type="Resource" id="Resource_2htbq"]
 script = ExtResource("2_oxfyi")
-Voxel = ExtResource("3_a72er")
-HeightCurve = SubResource("Curve_wremd")
 
 [resource]
 resource_name = "Plains"

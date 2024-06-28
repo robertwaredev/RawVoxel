@@ -1,7 +1,7 @@
 [gd_resource type="Resource" script_class="Voxel" load_steps=2 format=3 uid="uid://dle7im5f8jvv7"]
 
-[ext_resource type="Script" path="res://addons/RawVoxel/Resources/scripts/Voxel.cs" id="1_ov4xb"]
+[ext_resource type="Script" path="res://addons/RawVoxel/Resources/Voxel.cs" id="1_o05ie"]
 
 [resource]
-script = ExtResource("1_ov4xb")
-Color = Color(0.5, 0.354167, 0.25, 1)
+script = ExtResource("1_o05ie")
+Color = Color(0, 0, 0, 0)

@@ -1,6 +1,6 @@
 using Godot;
 
-namespace RawVoxel;
+namespace RawVoxel.Resources;
 
 [GlobalClass, Tool]
 public partial class BiomeLayer() : Resource

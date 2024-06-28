@@ -1,8 +1,8 @@
 [gd_resource type="Resource" script_class="WorldSettings" load_steps=15 format=3 uid="uid://c7lrdyml3qram"]
 
 [ext_resource type="Resource" uid="uid://dr48in2yja7pv" path="res://addons/RawVoxel/Resources/biomes/MountainsBiome.tres" id="1_n3txv"]
-[ext_resource type="Script" path="res://addons/RawVoxel/Resources/scripts/WorldSettings.cs" id="2_od4l8"]
-[ext_resource type="Script" path="res://addons/RawVoxel/Resources/scripts/WorldAttribute.cs" id="3_4jtgp"]
+[ext_resource type="Script" path="res://addons/RawVoxel/Resources/WorldSettings.cs" id="2_od4l8"]
+[ext_resource type="Script" path="res://addons/RawVoxel/Resources/WorldAttribute.cs" id="3_4jtgp"]
 [ext_resource type="Resource" uid="uid://bdnxmvftm0qou" path="res://addons/RawVoxel/Resources/voxels/Air.tres" id="5_6anfm"]
 [ext_resource type="Resource" uid="uid://d15wxuv113hrr" path="res://addons/RawVoxel/Resources/voxels/Bedrock.tres" id="6_u1t8x"]
 [ext_resource type="Resource" uid="uid://dmyx04guxsghu" path="res://addons/RawVoxel/Resources/voxels/Stone.tres" id="7_1eo1y"]

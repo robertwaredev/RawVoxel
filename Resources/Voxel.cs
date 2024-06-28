@@ -3,7 +3,7 @@ using System;
 using RawVoxel.Math;
 using System.Collections;
 
-namespace RawVoxel;
+namespace RawVoxel.Resources;
 
 [GlobalClass, Tool]
 public partial class Voxel() : Resource
