@@ -78,9 +78,9 @@ public static class Binary
                         if (voxelMasks[XYZ.Encode(x, y, z, chunkBitshifts)] == false) continue;
 
                         // Merge voxel bit mask into its respective sequence.
-                        binaryVoxels[0, y, z] |= (uint)1 << x;
-                        binaryVoxels[1, z, x] |= (uint)1 << y;
-                        binaryVoxels[2, x, y] |= (uint)1 << z;
+                        binaryVoxels[0, y, z] |= 1u << x;
+                        binaryVoxels[1, z, x] |= 1u << y;
+                        binaryVoxels[2, x, y] |= 1u << z;
                     }
                 }
             }
@@ -121,11 +121,11 @@ public static class Binary
                                 int heightNegative = TrailingZeroCount(planeSequenceNegative);
                                 int heightPositive = TrailingZeroCount(planeSequencePositive);
                                 
-                                binaryPlanes[(axis << 1) + 0, heightNegative, width] |= (uint)1 << depth;
-                                binaryPlanes[(axis << 1) + 1, heightPositive, width] |= (uint)1 << depth;
+                                binaryPlanes[(axis << 1) + 0, heightNegative, width] |= 1u << depth;
+                                binaryPlanes[(axis << 1) + 1, heightPositive, width] |= 1u << depth;
                                 
-                                planeSequenceNegative &= ~(uint)(1 << heightNegative);
-                                planeSequencePositive &= ~(uint)(1 << heightPositive);
+                                planeSequenceNegative &= ~(1u << heightNegative);
+                                planeSequencePositive &= ~(1u << heightPositive);
                             }
                         }
                     }
@@ -151,8 +151,8 @@ public static class Binary
                             while (planeSequenceNegative != 0)
                             {
                                 int heightNegative = TrailingZeroCount(planeSequenceNegative);
-                                binaryPlanes[(axis << 1) + 0, heightNegative, width] |= (uint)1 << depth;
-                                planeSequenceNegative &= ~(uint)(1 << heightNegative);
+                                binaryPlanes[(axis << 1) + 0, heightNegative, width] |= 1u << depth;
+                                planeSequenceNegative &= ~(1u << heightNegative);
                             }
                         }
                     }                
@@ -178,8 +178,8 @@ public static class Binary
                             while (planeSequencePositive != 0)
                             {
                                 int heightPositive = TrailingZeroCount(planeSequencePositive);
-                                binaryPlanes[(axis << 1) + 1, heightPositive, width] |= (uint)1 << depth;
-                                planeSequencePositive &= ~(uint)(1 << heightPositive);
+                                binaryPlanes[(axis << 1) + 1, heightPositive, width] |= 1u << depth;
+                                planeSequencePositive &= ~(1u << heightPositive);
                             }
                         }
                     }                
@@ -250,25 +250,25 @@ public static class Binary
                         }
 
                         // Create vertices.
-                        Vector3I vertexGridPositionA = chainStart; 
-                        Vector3I vertexGridPositionB = chainStart;
-                        Vector3I vertexGridPositionC = chainEnd; 
-                        Vector3I vertexGridPositionD = chainEnd;
+                        Vector3I vertexUGridPositionA = chainStart; 
+                        Vector3I vertexUGridPositionB = chainStart;
+                        Vector3I vertexUGridPositionC = chainEnd; 
+                        Vector3I vertexUGridPositionD = chainEnd;
 
                         // Offset vertices A & C. (Offset relative height)
                         switch (axis)
                         {
                             case 0:
-                                vertexGridPositionA.Y += chain.Length;
-                                vertexGridPositionC.Y -= chain.Length;
+                                vertexUGridPositionA.Y += length;
+                                vertexUGridPositionC.Y -= length;
                                 break;
                             case 1:
-                                vertexGridPositionA.Z += chain.Length;
-                                vertexGridPositionC.Z -= chain.Length;
+                                vertexUGridPositionA.Z += length;
+                                vertexUGridPositionC.Z -= length;
                                 break;
                             default:
-                                vertexGridPositionA.X += chain.Length;
-                                vertexGridPositionC.X -= chain.Length;
+                                vertexUGridPositionA.X += length;
+                                vertexUGridPositionC.X -= length;
                                 break;
                         }
 
@@ -279,10 +279,10 @@ public static class Binary
                         switch (axisOffset)
                         {
                             case 0:
-                                surface.Vertices.AddRange([vertexGridPositionD, vertexGridPositionC, vertexGridPositionB, vertexGridPositionA]);
+                                surface.Vertices.AddRange([vertexUGridPositionD, vertexUGridPositionC, vertexUGridPositionB, vertexUGridPositionA]);
                                 break;
                             case 1:
-                                surface.Vertices.AddRange([vertexGridPositionA, vertexGridPositionB, vertexGridPositionC, vertexGridPositionD]);
+                                surface.Vertices.AddRange([vertexUGridPositionA, vertexUGridPositionB, vertexUGridPositionC, vertexUGridPositionD]);
                                 break;
                         }
 
@@ -346,9 +346,9 @@ public static class Binary
                         if (voxelMasks[XYZ.Encode(x, y, z, chunkBitshifts)] == false) continue;
 
                         // Merge voxel bit mask into its respective sequence.
-                        binaryVoxels[0, y, z] |= (uint)1 << x;
-                        binaryVoxels[1, z, x] |= (uint)1 << y;
-                        binaryVoxels[2, x, y] |= (uint)1 << z;
+                        binaryVoxels[0, y, z] |= 1u << x;
+                        binaryVoxels[1, z, x] |= 1u << y;
+                        binaryVoxels[2, x, y] |= 1u << z;
                     }
                 }
             }
@@ -356,7 +356,6 @@ public static class Binary
             // Loop through axes and encode visible plane positions into bit mask sequences.
             for (int axis = 0; axis < 3; axis ++)
             {
-                // Determine which axis sign is visible.
                 int visibleAxisSign = signBasisZ[axis];
                 
                 // Combined axis signs.
@@ -382,11 +381,11 @@ public static class Binary
                                 int heightNegative = TrailingZeroCount(planeSequenceNegative);
                                 int heightPositive = TrailingZeroCount(planeSequencePositive);
                                 
-                                binaryPlanes[(axis << 1) + 0, heightNegative, width] |= (uint)1 << depth;
-                                binaryPlanes[(axis << 1) + 1, heightPositive, width] |= (uint)1 << depth;
+                                binaryPlanes[(axis << 1) + 0, heightNegative, width] |= 1u << depth;
+                                binaryPlanes[(axis << 1) + 1, heightPositive, width] |= 1u << depth;
                                 
-                                planeSequenceNegative &= ~(uint)(1 << heightNegative);
-                                planeSequencePositive &= ~(uint)(1 << heightPositive);
+                                planeSequenceNegative &= ~(1u << heightNegative);
+                                planeSequencePositive &= ~(1u << heightPositive);
                             }
                         }
                     }
@@ -412,8 +411,8 @@ public static class Binary
                             while (planeSequenceNegative != 0)
                             {
                                 int heightNegative = TrailingZeroCount(planeSequenceNegative);
-                                binaryPlanes[(axis << 1) + 0, heightNegative, width] |= (uint)1 << depth;
-                                planeSequenceNegative &= ~(uint)(1 << heightNegative);
+                                binaryPlanes[(axis << 1) + 0, heightNegative, width] |= 1u << depth;
+                                planeSequenceNegative &= ~(1u << heightNegative);
                             }
                         }
                     }                
@@ -439,8 +438,8 @@ public static class Binary
                             while (planeSequencePositive != 0)
                             {
                                 int heightPositive = TrailingZeroCount(planeSequencePositive);
-                                binaryPlanes[(axis << 1) + 1, heightPositive, width] |= (uint)1 << depth;
-                                planeSequencePositive &= ~(uint)(1 << heightPositive);
+                                binaryPlanes[(axis << 1) + 1, heightPositive, width] |= 1u << depth;
+                                planeSequencePositive &= ~(1u << heightPositive);
                             }
                         }
                     }                
@@ -450,7 +449,6 @@ public static class Binary
             // Loop through axes and generate surfaces from plane bit mask sequences.
             for (int axis = 0; axis < 3; axis ++)
             {
-                // Determine which axis sign is visible.
                 int visibleAxisSign = signBasisZ[axis];
                 
                 // Negative axis signs.

@@ -15,7 +15,7 @@ public static class MeshHelper
             Binary.Surface surface = surfaces[surfaceIndex];
 
             if (surface is null) continue;
-            if (surface.Indices.Count  == 0) continue;
+            if (surface.Indices.Count == 0) continue;
 
             Array surfaceArray = [];
             surfaceArray.Resize((int)Mesh.ArrayType.Max);

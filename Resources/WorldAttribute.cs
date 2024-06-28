@@ -12,8 +12,8 @@ public partial class WorldAttribute() : Resource
 
     #endregion Exports
 
-    public float Sample(int axisGridPosition, int axisGridDiameter)
+    public float Sample(uint axisUGridPosition, uint axisUGridDiameter)
     {
-        return Range.Sample(Distribution.Sample((axisGridPosition + 0.5f) / axisGridDiameter));
+        return Range.Sample(Distribution.Sample((axisUGridPosition + 0.5f) / axisUGridDiameter));
     }
 }

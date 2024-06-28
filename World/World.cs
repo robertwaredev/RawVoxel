@@ -1,8 +1,10 @@
 using Godot;
+using System;
 using RawVoxel.Math;
 using RawVoxel.Meshing;
 using System.Threading;
 using RawVoxel.Resources;
+using System.Threading.Tasks;
 using System.Collections.Generic;
 using System.Collections.Concurrent;
 
@@ -99,17 +101,12 @@ public partial class World() : MeshInstance3D
 
     private readonly ConcurrentDictionary<int, Chunk> _chunks = new(); // Chunks that are loaded into the scene tree, regardless of state.
 
-    private readonly Queue<KeyValuePair<int, int>> _abstract = []; // Chunk indices that have no voxel data.
-    private readonly Queue<KeyValuePair<int, int>> _tangible = []; // Chunk indices that have voxel data.
-    private readonly Queue<KeyValuePair<int, int>> _observed = []; // Chunk indices that are within draw distance.
-    private readonly Queue<KeyValuePair<int, int>> _collider = []; // Chunk indices that are within collision distance.
-
     #endregion Variables
 
     public override void _Ready()
     {
-        ThreadPool.SetMinThreads(DrawableChunks * 3, DrawableChunks * 3);
-        //ThreadPool.SetMaxThreads(DrawableChunks * 3, DrawableChunks * 3);
+        //ThreadPool.SetMinThreads(DrawableChunks * 3, DrawableChunks * 3);
+        ThreadPool.SetMaxThreads(DrawableChunks * 3, DrawableChunks * 3);
 
         // Set chunk bin to self if nothing else is selected.
         ChunkBin ??= this;
@@ -150,36 +147,36 @@ public partial class World() : MeshInstance3D
         
         // Start your engines.
         chunkDataThread.Start();
-        //chunkMeshThread.Start();
+        chunkMeshThread.Start();
     }
     public override void _PhysicsProcess(double delta)
     {
         TryUpdateFocusNodeTruePosition();
         TryUpdateCameraTrueBasisZ();
-    }
 
+        if (!Generated)
+        {
+            TryUpdateFocusNodeGridPosition();
+
+            TryFreeChunkDictionary();
+            TryFillChunkDictionary();
+
+            Generated = true;
+        }
+    }
+    
     private void DataProcess()
     {
         GD.Print("Started Chunk Data Thread.");
 
         while (IsInstanceValid(this))
         {
-            if (!Generated)
-            {
-                TryUpdateFocusNodeGridPosition();
-
-                FreeChunkDictionary();
-                FillChunkDictionary();
-
-                HandleAbstract();
-
-                Generated = true;
-            }
-            
             if (TryUpdateFocusNodeGridPosition())
             {
                 //LocateAbstract();
             }
+            
+            HandleAbstract();
 
             Thread.Sleep(100);
         }
@@ -215,41 +212,41 @@ public partial class World() : MeshInstance3D
     }
     private bool TryUpdateFocusNodeGridPosition()
     {
-        Vector3I queriedFocusNodeGridPosition;
+        Vector3I queriedFocusNodeSGridPosition;
 
         lock (_focusNodePositionLock)
         {
-            queriedFocusNodeGridPosition = XYZ.RShift((Vector3I)_focusNodeTruePosition.Floor(), ChunkBitshifts);
+            queriedFocusNodeSGridPosition = XYZ.RShift((Vector3I)_focusNodeTruePosition.Floor(), ChunkBitshifts);
         }
 
         if (Generated == false)
         {
-            _focusNodeLastSGridPosition = queriedFocusNodeGridPosition;
+            _focusNodeLastSGridPosition = queriedFocusNodeSGridPosition;
             _focusNodeLastUGridPosition = XYZ.Wrap(_focusNodeLastSGridPosition + WorldRadius, WorldDiameter);
             
-            _focusNodeThisSGridPosition = queriedFocusNodeGridPosition;
+            _focusNodeThisSGridPosition = queriedFocusNodeSGridPosition;
             _focusNodeThisUGridPosition = XYZ.Wrap(_focusNodeThisSGridPosition + WorldRadius, WorldDiameter);
 
-            GD.PrintS("Focus node last signed chunk:", _focusNodeLastSGridPosition);
-            GD.PrintS("Focus node last unsigned chunk:", _focusNodeLastSGridPosition);
-            GD.PrintS("Focus node this signed chunk:", _focusNodeThisUGridPosition);
-            GD.PrintS("Focus node this unsigned chunk:", _focusNodeThisUGridPosition);
+            GD.PrintS("Last focus node sGridPosition:", _focusNodeLastSGridPosition);
+            GD.PrintS("Last focus node uGridPosition:", _focusNodeLastSGridPosition);
+            GD.PrintS("This focus node sGridPosition:", _focusNodeThisUGridPosition);
+            GD.PrintS("This focus node uGridPosition:", _focusNodeThisUGridPosition);
 
             return true;
         }
         
-        if (_focusNodeThisSGridPosition != queriedFocusNodeGridPosition)
+        if (_focusNodeThisSGridPosition != queriedFocusNodeSGridPosition)
         {
             _focusNodeLastSGridPosition = _focusNodeThisSGridPosition;
             _focusNodeLastUGridPosition = XYZ.Wrap(_focusNodeLastSGridPosition + WorldRadius, WorldDiameter);
 
-            _focusNodeThisSGridPosition = queriedFocusNodeGridPosition;
+            _focusNodeThisSGridPosition = queriedFocusNodeSGridPosition;
             _focusNodeThisUGridPosition = XYZ.Wrap(_focusNodeThisSGridPosition + WorldRadius, WorldDiameter);
 
-            GD.PrintS("Focus node last signed chunk:", _focusNodeLastSGridPosition);
-            GD.PrintS("Focus node last unsigned chunk:", _focusNodeLastSGridPosition);
-            GD.PrintS("Focus node this signed chunk:", _focusNodeThisUGridPosition);
-            GD.PrintS("Focus node this unsigned chunk:", _focusNodeThisUGridPosition);
+            GD.PrintS("Last focus node sGridPosition:", _focusNodeLastSGridPosition);
+            GD.PrintS("Last focus node uGridPosition:", _focusNodeLastSGridPosition);
+            GD.PrintS("This focus node sGridPosition:", _focusNodeThisUGridPosition);
+            GD.PrintS("This focus node uGridPosition:", _focusNodeThisUGridPosition);
 
             return true;
         }
@@ -290,43 +287,50 @@ public partial class World() : MeshInstance3D
         return false;
     }
 
-    private void FreeChunkDictionary()
+    private void TryFreeChunkDictionary()
     {
         foreach (KeyValuePair<int, Chunk> item in _chunks)
         {
             _chunks.TryRemove(item.Key, out Chunk chunk);
 
-            chunk.QueueFree();
+            Task.Run(chunk.QueueFree);
         }
     }
-    private void FillChunkDictionary()
+    private void TryFillChunkDictionary()
     {
-        if (_chunks.Count == DrawableChunks) return;
-
         for (int x = 0; x < DrawDiameter.X; x ++)
         {
             for (int y = 0; y < DrawDiameter.Y; y ++)
             {
                 for (int z = 0; z < DrawDiameter.Z; z ++)
                 {
-                    Vector3I chunkGridPosition = new Vector3I(x, y, z) + _focusNodeThisUGridPosition;
+                    Vector3I chunkUGridPosition = new Vector3I(x, y, z) + _focusNodeThisUGridPosition;
                     
-                    int chunkGridIndex = XYZ.Encode(chunkGridPosition, WorldDiameter);
+                    int chunkUGridIndex = XYZ.Encode(chunkUGridPosition, WorldDiameter);
 
                     Chunk chunk = new();
 
-                    _chunks.TryAdd(chunkGridIndex, chunk);
+                    if (_chunks.TryAdd(chunkUGridIndex, chunk) == false) continue;
                     
-                    ThreadPool.QueueUserWorkItem(new WaitCallback(task => { CallDeferred(Node.MethodName.AddChild, chunk); }));
-                    
-                    Thread.Sleep(5);
+                    Task.Run(new Action(() => { CallDeferred(Node.MethodName.AddChild, chunk); }));
 
                     GD.PrintS("🟥 Generated chunk item.");
+
+                    Thread.Sleep(5);
                 }
             }
         }
     }
 
+    private void SetAllAbstract()
+    {
+        foreach (int i in _chunks.Keys)
+        {
+            if (_chunks.TryGetValue(i, out Chunk chunk) == false) continue;
+
+            chunk.State = Chunk.StateType.Abstract;
+        }
+    }
     private void LocateAbstract()
     {
         Vector3I drawOffset = _focusNodeThisSGridPosition - _focusNodeLastSGridPosition;
@@ -360,27 +364,27 @@ public partial class World() : MeshInstance3D
                 {
                     for (int depth = 0; depth < swizzledDrawDiameter.Y; depth ++)
                     {
-                        Vector3I oldChunkGridPosition = axis switch
+                        Vector3I oldDrawableUGridPosition = axis switch
                         {
                             0 => XYZ.Wrap(new Vector3I(width, height, depth), DrawDiameter), // X axis.
                             1 => XYZ.Wrap(new Vector3I(height, depth, width), DrawDiameter), // Y axis.
                             _ => XYZ.Wrap(new Vector3I(depth, width, height), DrawDiameter), // Z axis.
                         };
 
-                        Vector3I newChunkGridPosition = axis switch
+                        Vector3I newDrawableUGridPosition = axis switch
                         {
                             0 => XYZ.Wrap(new Vector3I(width, height, depth) - drawOffset, DrawDiameter), // X axis.
                             1 => XYZ.Wrap(new Vector3I(height, depth, width) - drawOffset, DrawDiameter), // Y axis.
                             _ => XYZ.Wrap(new Vector3I(depth, width, height) - drawOffset, DrawDiameter), // Z axis.
                         };
                         
-                        int oldChunkGridIndex = XYZ.Encode(oldChunkGridPosition, WorldDiameter);
-                        int newChunkGridIndex = XYZ.Encode(newChunkGridPosition, WorldDiameter);
+                        int oldChunkUGridIndex = XYZ.Encode(oldDrawableUGridPosition + _focusNodeLastUGridPosition, WorldDiameter);
+                        int newChunkUGridIndex = XYZ.Encode(newDrawableUGridPosition + _focusNodeThisUGridPosition, WorldDiameter);
 
-                        if (newChunkGridIndex != oldChunkGridIndex)
+                        if (newChunkUGridIndex != oldChunkUGridIndex)
                         {
-                            if (_chunks.TryRemove(oldChunkGridIndex, out Chunk chunk))
-                                _chunks.TryAdd(newChunkGridIndex, chunk);
+                            if (_chunks.TryRemove(oldChunkUGridIndex, out Chunk chunk))
+                                _chunks.TryAdd(newChunkUGridIndex, chunk);
                             
                             chunk.State = Chunk.StateType.Abstract;
                         }
@@ -389,6 +393,7 @@ public partial class World() : MeshInstance3D
             }
         }
     }
+    
     private void HandleAbstract()
     {
         foreach (int i in _chunks.Keys)
@@ -399,9 +404,9 @@ public partial class World() : MeshInstance3D
 
             chunk.State = Chunk.StateType.Tethered;
 
-            ThreadPool.QueueUserWorkItem(new WaitCallback(task => { GenerateChunkData(chunk, i); }));
-        
-            Thread.Sleep(10);
+            Task.Run(new Action(() => { GenerateChunkData(chunk, i); }));
+
+            Thread.Sleep(5);
         }
     }
     private void HandleTangible()
@@ -414,9 +419,9 @@ public partial class World() : MeshInstance3D
 
             chunk.State = Chunk.StateType.Tethered;
 
-            ThreadPool.QueueUserWorkItem(new WaitCallback(task => { CallDeferred(nameof(EvaluateChunkView), chunk); }));
+            Task.Run(new Action(() => { CallDeferred(nameof(EvaluateChunkView), chunk); }));
 
-            Thread.Sleep(10);
+            Thread.Sleep(5);
         }
     }
     private void HandleObserved()
@@ -429,23 +434,23 @@ public partial class World() : MeshInstance3D
 
             chunk.State = Chunk.StateType.Tethered;
 
-            ThreadPool.QueueUserWorkItem(new WaitCallback(task => { CallDeferred(nameof(GenerateChunkMesh), chunk, i); }));
+            Task.Run(new Action(() => { CallDeferred(nameof(GenerateChunkMesh), chunk, i); }));
 
-            Thread.Sleep(10);
+            Thread.Sleep(5);
         }
     }
 
-    private void GenerateChunkData(Chunk chunk, int chunkGridIndex)
+    private void GenerateChunkData(Chunk chunk, int chunkUGridIndex)
     {
         // Calculate chunk position.
-        Vector3I chunkGridPosition = XYZ.Decode(chunkGridIndex, WorldDiameter) - WorldRadius - DrawRadius;
-        Vector3I chunkTruePosition = XYZ.LShift(chunkGridPosition, ChunkBitshifts);
+        Vector3I chunkSGridPosition = XYZ.Decode(chunkUGridIndex, WorldDiameter) - (WorldRadius + DrawRadius);
+        Vector3I chunkSTruePosition = XYZ.LShift(chunkSGridPosition, ChunkBitshifts);
         
         // Generate biome.
-        Biome biome = Biome.Generate(chunkGridPosition, WorldDiameter, WorldSettings);
+        Biome biome = Biome.Generate(chunkSGridPosition, WorldDiameter, WorldSettings);
         
         // Generate voxels.
-        chunk.GenerateVoxels(chunkTruePosition, ChunkBitshifts, biome, WorldSettings);
+        chunk.GenerateVoxels(chunkSTruePosition, ChunkBitshifts, biome, WorldSettings);
 
         // Mark chunk state as tangible.
         if (chunk.VoxelMasks.HasAnySet()) chunk.State = Chunk.StateType.Tangible;
@@ -469,17 +474,17 @@ public partial class World() : MeshInstance3D
         
         GD.PrintS("🟨 Evaluated chunk view.");
     }
-    private void GenerateChunkMesh(Chunk chunk, int chunkGridIndex)
+    private void GenerateChunkMesh(Chunk chunk, int chunkUGridIndex)
     {
         // Clear chunk collision if any.
         chunk.GetChildOrNull<StaticBody3D>(0)?.QueueFree();
 
         // Calculate chunk position.
-        Vector3I chunkGridPosition = XYZ.Decode(chunkGridIndex, WorldDiameter) - DrawRadius + _focusNodeThisSGridPosition;
-        Vector3I chunkTruePosition = XYZ.LShift(chunkGridPosition, ChunkBitshifts);
+        Vector3I chunkSGridPosition = XYZ.Decode(chunkUGridIndex, WorldDiameter) - (WorldRadius + DrawRadius);
+        Vector3I chunkSTruePosition = XYZ.LShift(chunkSGridPosition, ChunkBitshifts);
 
         // Set chunk position.
-        chunk.Position = chunkTruePosition;
+        chunk.Position = chunkSTruePosition;
 
         // Generate mesh surfaces. Each of the six surfaces contains vertex, and index data for each axis sign. [X-, X+, Y-, Y+, Z-, Z+]
         Binary.Surface[] surfaces = MeshingAlgorithm switch
@@ -493,7 +498,7 @@ public partial class World() : MeshInstance3D
         chunk.Mesh = MeshHelper.GenerateMesh(surfaces, chunk, TerrainMaterial);
         
         // Limit collision generation to a radius around the focus node.
-        // if (_collider.Contains(chunkGridIndex)) chunk.CreateTrimeshCollision();
+        // chunk.CreateTrimeshCollision();
         
         // Mark chunk state as rendered.
         chunk.State = Chunk.StateType.Rendered;

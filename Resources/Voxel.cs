@@ -56,18 +56,18 @@ public partial class Voxel() : Resource
 
     #endregion Constants
     
-    public static bool GenerateMask(Vector3I voxelTruePosition, Biome biome)
+    public static bool GenerateMask(Vector3I voxelSTruePosition, Biome biome)
     {
-        float densityNoise = biome.DensityNoise.GetNoise3Dv(voxelTruePosition);
+        float densityNoise = biome.DensityNoise.GetNoise3Dv(voxelSTruePosition);
         float voxelDensity = biome.DensityCurve.Sample((densityNoise + 1) * 0.5f);
 
         if (voxelDensity < 0.5f) return false;
 
         return true;
     }
-    public static byte GenerateType(Vector3I voxelTruePosition, Biome biome, WorldSettings worldSettings)
+    public static byte GenerateType(Vector3I voxelSTruePosition, Biome biome, WorldSettings worldSettings)
     {
-        float heightNoise = biome.HeightNoise.GetNoise2D(voxelTruePosition.X, voxelTruePosition.Z);
+        float heightNoise = biome.HeightNoise.GetNoise2D(voxelSTruePosition.X, voxelSTruePosition.Z);
         
         int layerCount = biome.Layers.Length;
 
@@ -77,7 +77,7 @@ public partial class Voxel() : Resource
             
             float voxelHeight = biomeLayer.HeightDistribution.Sample((heightNoise + 1) * 0.5f);
 
-            if (voxelTruePosition.Y <= voxelHeight)
+            if (voxelSTruePosition.Y <= voxelHeight)
             {
                 return (byte)Array.IndexOf(worldSettings.Voxels, biomeLayer.Voxel);
             }
@@ -86,30 +86,30 @@ public partial class Voxel() : Resource
         return 0;
     }
     
-    public static bool IsExternal(Vector3I voxelGridPosition, int chunkDiameter)
+    public static bool IsExternal(Vector3I voxelUGridPosition, int chunkDiameter)
     {
-        if (voxelGridPosition.X < 0 || voxelGridPosition.X >= chunkDiameter) return true;
-        if (voxelGridPosition.Y < 0 || voxelGridPosition.Y >= chunkDiameter) return true;
-        if (voxelGridPosition.Z < 0 || voxelGridPosition.Z >= chunkDiameter) return true;
+        if (voxelUGridPosition.X < 0 || voxelUGridPosition.X >= chunkDiameter) return true;
+        if (voxelUGridPosition.Y < 0 || voxelUGridPosition.Y >= chunkDiameter) return true;
+        if (voxelUGridPosition.Z < 0 || voxelUGridPosition.Z >= chunkDiameter) return true;
         
         return false;
     }
-    public static bool IsVisible(Vector3I voxelGridPosition, ref BitArray voxels, int chunkDiameter)
+    public static bool IsVisible(Vector3I voxelUGridPosition, ref BitArray voxels, int chunkDiameter)
     {
-        if (IsExternal(voxelGridPosition, chunkDiameter)) return false;
+        if (IsExternal(voxelUGridPosition, chunkDiameter)) return false;
         
-        int voxelIndex = XYZ.Encode(voxelGridPosition, new Vector3I(chunkDiameter, chunkDiameter, chunkDiameter));
+        int voxelIndex = XYZ.Encode(voxelUGridPosition, new Vector3I(chunkDiameter, chunkDiameter, chunkDiameter));
 
         return voxels[voxelIndex];
     }
     
-    public static void SetType(ref byte[] voxelTypes, Vector3I voxelPosition, byte voxelType, byte chunkDiameter)
+    public static void SetType(ref byte[] voxelTypes, Vector3I voxelUGridPosition, byte voxelType, byte chunkDiameter)
     {
-        voxelPosition.X = Mathf.PosMod(voxelPosition.X, chunkDiameter);
-        voxelPosition.Y = Mathf.PosMod(voxelPosition.Y, chunkDiameter);
-        voxelPosition.Z = Mathf.PosMod(voxelPosition.Z, chunkDiameter);
+        voxelUGridPosition.X = Mathf.PosMod(voxelUGridPosition.X, chunkDiameter);
+        voxelUGridPosition.Y = Mathf.PosMod(voxelUGridPosition.Y, chunkDiameter);
+        voxelUGridPosition.Z = Mathf.PosMod(voxelUGridPosition.Z, chunkDiameter);
         
-        int voxelIndex = XYZ.Encode(voxelPosition, new Vector3I(chunkDiameter, chunkDiameter, chunkDiameter));
+        int voxelIndex = XYZ.Encode(voxelUGridPosition, new Vector3I(chunkDiameter, chunkDiameter, chunkDiameter));
         
         voxelTypes[voxelIndex] = voxelType;
     }

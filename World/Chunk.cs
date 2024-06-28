@@ -20,11 +20,11 @@ public partial class Chunk : MeshInstance3D
         AddToGroup("NavSource");
     }
 
-    public void GenerateVoxels(Vector3I chunkTruePosition, int chunkBitshifts, Biome biome, WorldSettings worldSettings)
+    public void GenerateVoxels(Vector3I chunkSTruePosition, int chunkBitshifts, Biome biome, WorldSettings worldSettings)
     {
         int chunkDiameter = 1 << chunkBitshifts;
 
-        VoxelMasks = new(chunkDiameter * chunkDiameter * chunkDiameter);
+        VoxelMasks = new(chunkDiameter << chunkBitshifts << chunkBitshifts);
         VoxelTypes = new ImageTexture[chunkDiameter];
 
         for (int z = 0; z < chunkDiameter; z ++)
@@ -35,16 +35,16 @@ public partial class Chunk : MeshInstance3D
             {
                 for (int x = 0; x < chunkDiameter; x ++)
                 {
-                    Vector3I voxelGridPosition = new(x, y, z);
-                    Vector3I voxelTruePosition = chunkTruePosition + voxelGridPosition;
+                    Vector3I voxelUGridPosition = new(x, y, z);
+                    Vector3I voxelSTruePosition = chunkSTruePosition + voxelUGridPosition;
 
-                    if (Voxel.GenerateMask(voxelTruePosition, biome) == false) continue;
+                    if (Voxel.GenerateMask(voxelSTruePosition, biome) == false) continue;
                     
-                    byte voxelType = Voxel.GenerateType(voxelTruePosition, biome, worldSettings);
+                    byte voxelType = Voxel.GenerateType(voxelSTruePosition, biome, worldSettings);
                     
                     if (voxelType == 0) continue;
                     
-                    VoxelMasks[XYZ.Encode(voxelGridPosition, chunkBitshifts)] = true;
+                    VoxelMasks[XYZ.Encode(voxelUGridPosition, chunkBitshifts)] = true;
                     
                     zImage.SetPixel(x, y, new(){ R8 = voxelType });
                 }

@@ -25,16 +25,16 @@ public static class CulledMesher
                     {
                         for (int z = 0; z < chunkDiameter; z ++)
                         {
-                            Vector3I voxelGridPosition = new(x, y, z);
+                            Vector3I voxelUGridPosition = new(x, y, z);
 
                             int surfaceIDNegative = (axis << 1) + 0;
                             int surfaceIDPositive = (axis << 1) + 1;
 
-                            if (Voxel.IsVisible(voxelGridPosition + Voxel.Normals[surfaceIDNegative], ref voxels, chunkDiameter) == false)
-                                GenerateFace(voxelGridPosition, surfaceIDNegative, surfaces[surfaceIDNegative]);
+                            if (Voxel.IsVisible(voxelUGridPosition + Voxel.Normals[surfaceIDNegative], ref voxels, chunkDiameter) == false)
+                                GenerateFace(voxelUGridPosition, surfaceIDNegative, surfaces[surfaceIDNegative]);
 
-                            if (Voxel.IsVisible(voxelGridPosition + Voxel.Normals[surfaceIDPositive], ref voxels, chunkDiameter) == false)
-                                GenerateFace(voxelGridPosition, surfaceIDPositive, surfaces[surfaceIDPositive]);
+                            if (Voxel.IsVisible(voxelUGridPosition + Voxel.Normals[surfaceIDPositive], ref voxels, chunkDiameter) == false)
+                                GenerateFace(voxelUGridPosition, surfaceIDPositive, surfaces[surfaceIDPositive]);
                         }
                     }
                 }
@@ -49,12 +49,12 @@ public static class CulledMesher
                     {
                         for (int z = 0; z < chunkDiameter; z ++)
                         {
-                            Vector3I voxelGridPosition = new(x, y, z);
+                            Vector3I voxelUGridPosition = new(x, y, z);
 
                             int surfaceIDNegative = (axis << 1) + 0;
 
-                            if (Voxel.IsVisible(voxelGridPosition + Voxel.Normals[surfaceIDNegative], ref voxels, chunkDiameter) == false)
-                                GenerateFace(voxelGridPosition, surfaceIDNegative, surfaces[surfaceIDNegative]);
+                            if (Voxel.IsVisible(voxelUGridPosition + Voxel.Normals[surfaceIDNegative], ref voxels, chunkDiameter) == false)
+                                GenerateFace(voxelUGridPosition, surfaceIDNegative, surfaces[surfaceIDNegative]);
                         }
                     }
                 }
@@ -69,12 +69,12 @@ public static class CulledMesher
                     {
                         for (int z = 0; z < chunkDiameter; z ++)
                         {
-                            Vector3I voxelGridPosition = new(x, y, z);
+                            Vector3I voxelUGridPosition = new(x, y, z);
 
                             int surfaceIDPositive = (axis << 1) + 1;
 
-                            if (Voxel.IsVisible(voxelGridPosition + Voxel.Normals[surfaceIDPositive], ref voxels, chunkDiameter) == false)
-                                GenerateFace(voxelGridPosition, surfaceIDPositive, surfaces[surfaceIDPositive]);
+                            if (Voxel.IsVisible(voxelUGridPosition + Voxel.Normals[surfaceIDPositive], ref voxels, chunkDiameter) == false)
+                                GenerateFace(voxelUGridPosition, surfaceIDPositive, surfaces[surfaceIDPositive]);
                         }
                     }
                 }
@@ -84,14 +84,14 @@ public static class CulledMesher
         return surfaces;
     }
 
-    public static void GenerateFace(Vector3I voxelGridPosition, int surfaceID, Binary.Surface surface)
+    public static void GenerateFace(Vector3I voxelUGridPosition, int surfaceID, Binary.Surface surface)
     {
         int[] faceVertices = Voxel.Faces[surfaceID];
         
-        Vector3I vertexA = Voxel.Vertices[faceVertices[0]] + voxelGridPosition;
-        Vector3I vertexB = Voxel.Vertices[faceVertices[1]] + voxelGridPosition;
-        Vector3I vertexC = Voxel.Vertices[faceVertices[2]] + voxelGridPosition;
-        Vector3I vertexD = Voxel.Vertices[faceVertices[3]] + voxelGridPosition;
+        Vector3I vertexA = Voxel.Vertices[faceVertices[0]] + voxelUGridPosition;
+        Vector3I vertexB = Voxel.Vertices[faceVertices[1]] + voxelUGridPosition;
+        Vector3I vertexC = Voxel.Vertices[faceVertices[2]] + voxelUGridPosition;
+        Vector3I vertexD = Voxel.Vertices[faceVertices[3]] + voxelUGridPosition;
 
         int offset = surface.Vertices.Count;
 

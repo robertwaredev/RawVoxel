@@ -28,12 +28,12 @@ public partial class Biome() : Resource
     #endregion Exports
 
     // FIXME - This is NOT the ideal way to handle biome generation.
-    public static Biome Generate(Vector3I chunkGridPosition, Vector3I worldDiameter, WorldSettings worldSettings)
+    public static Biome Generate(Vector3I chunkSGridPosition, Vector3I worldDiameter, WorldSettings worldSettings)
     {
-        float temperature = worldSettings.Temperature.Distribution.Sample((float)(chunkGridPosition.Z + 0.5f) / worldDiameter.Z);
+        float temperature = worldSettings.Temperature.Distribution.Sample((float)(chunkSGridPosition.Z + 0.5f) / worldDiameter.Z);
         temperature = worldSettings.Temperature.Range.Sample(temperature);
 
-        float humidity = worldSettings.Humidity.Distribution.Sample((float)(chunkGridPosition.X + 0.5f) / worldDiameter.X);
+        float humidity = worldSettings.Humidity.Distribution.Sample((float)(chunkSGridPosition.X + 0.5f) / worldDiameter.X);
         humidity = worldSettings.Humidity.Range.Sample(humidity);
 
         Biome thisBiome = worldSettings.Biomes[0];
