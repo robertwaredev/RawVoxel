@@ -1,6 +1,5 @@
 using Godot;
 using RawVoxel.Math;
-using RawVoxel.Resources;
 using System.Collections;
 using System.Collections.Generic;
 using static System.Numerics.BitOperations;
@@ -38,31 +37,9 @@ public static class Binary
             };
         }
     }
-    public static class Chains
-    {
-        public static Queue<Chain> Generate(uint sequence)
-        {
-            Queue<Chain> chains = [];
-            
-            // Generate chains from sequence.
-            while (sequence != 0)
-            {
-                // Create new chain.
-                Chain chain = Chain.Generate(sequence);
-
-                // Add chain to the list.
-                chains.Enqueue(chain);
-
-                // Clear bits from sequence using the chain's bit mask.
-                sequence &= ~chain.BitMask;
-            }
-
-            return chains;
-        }
-    }
     public static class Voxels
     {
-        public static uint[,,] Generate(ref BitArray voxelMasks, int chunkBitshifts, Biome biome)
+        public static uint[,,] Generate(ref BitArray voxelMasks, int chunkBitshifts)
         {
             int chunkDiameter = 1 << chunkBitshifts;
 
@@ -90,8 +67,10 @@ public static class Binary
     }
     public static class Planes
     {
-        public static uint[,,] Generate(ref uint[,,] binaryVoxels, int chunkDiameter, Vector3I signBasisZ, bool cullAxes = false)
+        public static uint[,,] Generate(ref uint[,,] binaryVoxels, int chunkBitshifts, Vector3I signBasisZ, bool cullAxes = false)
         {
+            int chunkDiameter = 1 << chunkBitshifts;
+
             uint[,,] binaryPlanes = new uint[6, chunkDiameter, chunkDiameter];
 
             for (int axis = 0; axis < 3; axis ++)
@@ -106,26 +85,26 @@ public static class Binary
                         for (int width = 0; width < chunkDiameter; width ++)
                         {
                             // Retrieve current voxel seqeuence.
-                            uint voxelSequence = binaryVoxels[axis, depth, width];
+                            uint voxelsCombinedAxis = binaryVoxels[axis, depth, width];
 
                             // Skip if no visible voxels.
-                            if (voxelSequence == 0) continue;
+                            if (voxelsCombinedAxis == 0) continue;
 
                             // Extract visible planes from voxel sequence on both axis signs.
-                            uint planeSequenceNegative = voxelSequence & ~(voxelSequence << 1);
-                            uint planeSequencePositive = voxelSequence & ~(voxelSequence >> 1);
+                            uint planesNegativeAxis = voxelsCombinedAxis & ~(voxelsCombinedAxis << 1);
+                            uint planesPositiveAxis = voxelsCombinedAxis & ~(voxelsCombinedAxis >> 1);
 
                             // Loop through set bits in visible plane sequences and swizzle them into new sets.
-                            while ((planeSequenceNegative | planeSequencePositive) != 0)
+                            while ((planesNegativeAxis | planesPositiveAxis) != 0)
                             {
-                                int heightNegative = TrailingZeroCount(planeSequenceNegative);
-                                int heightPositive = TrailingZeroCount(planeSequencePositive);
+                                int heightNegativeAxis = TrailingZeroCount(planesNegativeAxis);
+                                int heightPositiveAxis = TrailingZeroCount(planesPositiveAxis);
                                 
-                                binaryPlanes[(axis << 1) + 0, heightNegative, width] |= 1u << depth;
-                                binaryPlanes[(axis << 1) + 1, heightPositive, width] |= 1u << depth;
+                                binaryPlanes[(axis << 1) + 0, heightNegativeAxis, width] |= 1u << depth;
+                                binaryPlanes[(axis << 1) + 1, heightPositiveAxis, width] |= 1u << depth;
                                 
-                                planeSequenceNegative &= ~(1u << heightNegative);
-                                planeSequencePositive &= ~(1u << heightPositive);
+                                planesNegativeAxis &= ~(1u << heightNegativeAxis);
+                                planesPositiveAxis &= ~(1u << heightPositiveAxis);
                             }
                         }
                     }
@@ -139,20 +118,20 @@ public static class Binary
                         for (int width = 0; width < chunkDiameter; width ++)
                         {
                             // Retrieve current voxel seqeuence.
-                            uint voxelSequence = binaryVoxels[axis, depth, width];
+                            uint voxelsCombinedAxis = binaryVoxels[axis, depth, width];
 
                             // Skip if no visible voxels.
-                            if (voxelSequence == 0) continue;
+                            if (voxelsCombinedAxis == 0) continue;
                             
                             // Extract visible planes from voxel sequence on the negative axis sign.
-                            uint planeSequenceNegative = voxelSequence & ~(voxelSequence << 1);
+                            uint planesNegativeAxis = voxelsCombinedAxis & ~(voxelsCombinedAxis << 1);
                             
                             // Loop through set bits in visible plane sequence and swizzle them into a new sequence.
-                            while (planeSequenceNegative != 0)
+                            while (planesNegativeAxis != 0)
                             {
-                                int heightNegative = TrailingZeroCount(planeSequenceNegative);
-                                binaryPlanes[(axis << 1) + 0, heightNegative, width] |= 1u << depth;
-                                planeSequenceNegative &= ~(1u << heightNegative);
+                                int heightNegativeAxis = TrailingZeroCount(planesNegativeAxis);
+                                binaryPlanes[(axis << 1) + 0, heightNegativeAxis, width] |= 1u << depth;
+                                planesNegativeAxis &= ~(1u << heightNegativeAxis);
                             }
                         }
                     }                
@@ -166,20 +145,20 @@ public static class Binary
                         for (int width = 0; width < chunkDiameter; width ++)
                         {
                             // Retrieve current voxel seqeuence.
-                            uint voxelSequence = binaryVoxels[axis, depth, width];
+                            uint voxelsCombinedAxis = binaryVoxels[axis, depth, width];
 
                             // Skip if no visible voxels.
-                            if (voxelSequence == 0) continue;
+                            if (voxelsCombinedAxis == 0) continue;
                             
                             // Extract visible planes from voxel sequence on the positive axis sign.
-                            uint planeSequencePositive = voxelSequence & ~(voxelSequence >> 1);
+                            uint planesPositiveAxis = voxelsCombinedAxis & ~(voxelsCombinedAxis >> 1);
                             
                             // Loop through set bits in visible plane sequence and swizzle them into a new sequence.
-                            while (planeSequencePositive != 0)
+                            while (planesPositiveAxis != 0)
                             {
-                                int heightPositive = TrailingZeroCount(planeSequencePositive);
-                                binaryPlanes[(axis << 1) + 1, heightPositive, width] |= 1u << depth;
-                                planeSequencePositive &= ~(1u << heightPositive);
+                                int heightPositiveAxis = TrailingZeroCount(planesPositiveAxis);
+                                binaryPlanes[(axis << 1) + 1, heightPositiveAxis, width] |= 1u << depth;
+                                planesPositiveAxis &= ~(1u << heightPositiveAxis);
                             }
                         }
                     }                
@@ -203,16 +182,16 @@ public static class Binary
             {
                 for (int width = 0; width < chunkDiameter; width ++)
                 {
-                    uint planeSequence = binaryPlanes[(axis << 1) + axisOffset, height, width];
+                    uint planesOnAxis = binaryPlanes[(axis << 1) + axisOffset, height, width];
 
-                    if (planeSequence == 0) continue;
-                    
-                    Queue<Chain> chains = Chains.Generate(planeSequence);
-
-                    foreach (Chain chain in chains)
+                    while (planesOnAxis != 0)
                     {
+                        Chain chain = Chain.Generate(planesOnAxis);
+
                         int depth = chain.Offset;
                         int length = chain.Length;
+                        
+                        planesOnAxis &= ~chain.BitMask;
 
                         Vector3I chainStart = axis switch
                         {
@@ -297,8 +276,13 @@ public static class Binary
     }
     public static class Surfaces
     {
-        public static Surface[] Generate(ref uint[,,] binaryPlanes, int chunkDiameter, Vector3I signBasisZ, bool cullAxes = false)
+        public static Surface[] Generate(ref BitArray voxelmasks, int chunkBitshifts, Vector3I signBasisZ, bool cullAxes = false)
         {
+            int chunkDiameter = 1 << chunkBitshifts;
+
+            uint[,,] binaryVoxels = Voxels.Generate(ref voxelmasks, chunkBitshifts);
+            uint[,,] binaryPlanes = Planes.Generate(ref binaryVoxels, chunkBitshifts, signBasisZ, cullAxes);
+            
             Surface[] surfaces = new Surface[6];
 
             for (int axis = 0; axis < 3; axis ++)
@@ -366,26 +350,26 @@ public static class Binary
                         for (int width = 0; width < chunkDiameter; width ++)
                         {
                             // Retrieve current voxel seqeuence.
-                            uint voxelSequence = binaryVoxels[axis, depth, width];
+                            uint voxelsCombinedAxis = binaryVoxels[axis, depth, width];
 
                             // Skip if no visible voxels.
-                            if (voxelSequence == 0) continue;
+                            if (voxelsCombinedAxis == 0) continue;
 
                             // Extract visible planes from voxel sequence on both axis signs.
-                            uint planeSequenceNegative = voxelSequence & ~(voxelSequence << 1);
-                            uint planeSequencePositive = voxelSequence & ~(voxelSequence >> 1);
+                            uint planesNegativeAxis = voxelsCombinedAxis & ~(voxelsCombinedAxis << 1);
+                            uint planesPositiveAxis = voxelsCombinedAxis & ~(voxelsCombinedAxis >> 1);
 
-                            // Loop through set bits in visible plane sequences and swizzle them into new sets.
-                            while ((planeSequenceNegative | planeSequencePositive) != 0)
+                            // Loop through set bits and swizzle them into new sets.
+                            while ((planesNegativeAxis | planesPositiveAxis) != 0)
                             {
-                                int heightNegative = TrailingZeroCount(planeSequenceNegative);
-                                int heightPositive = TrailingZeroCount(planeSequencePositive);
+                                int heightNegativeAxisAxis = TrailingZeroCount(planesNegativeAxis);
+                                int heightPositiveAxis = TrailingZeroCount(planesPositiveAxis);
                                 
-                                binaryPlanes[(axis << 1) + 0, heightNegative, width] |= 1u << depth;
-                                binaryPlanes[(axis << 1) + 1, heightPositive, width] |= 1u << depth;
+                                binaryPlanes[(axis << 1) + 0, heightNegativeAxisAxis, width] |= 1u << depth;
+                                binaryPlanes[(axis << 1) + 1, heightPositiveAxis, width] |= 1u << depth;
                                 
-                                planeSequenceNegative &= ~(1u << heightNegative);
-                                planeSequencePositive &= ~(1u << heightPositive);
+                                planesNegativeAxis &= ~(1u << heightNegativeAxisAxis);
+                                planesPositiveAxis &= ~(1u << heightPositiveAxis);
                             }
                         }
                     }
@@ -399,20 +383,20 @@ public static class Binary
                         for (int width = 0; width < chunkDiameter; width ++)
                         {
                             // Retrieve current voxel seqeuence.
-                            uint voxelSequence = binaryVoxels[axis, depth, width];
+                            uint voxelsCombinedAxis = binaryVoxels[axis, depth, width];
 
                             // Skip if no visible voxels.
-                            if (voxelSequence == 0) continue;
+                            if (voxelsCombinedAxis == 0) continue;
                             
                             // Extract visible planes from voxel sequence on the negative axis sign.
-                            uint planeSequenceNegative = voxelSequence & ~(voxelSequence << 1);
+                            uint planesNegativeAxis = voxelsCombinedAxis & ~(voxelsCombinedAxis << 1);
                             
-                            // Loop through set bits in visible plane sequence and swizzle them into a new sequence.
-                            while (planeSequenceNegative != 0)
+                            // Loop through set bits and swizzle them into a new sequence.
+                            while (planesNegativeAxis != 0)
                             {
-                                int heightNegative = TrailingZeroCount(planeSequenceNegative);
-                                binaryPlanes[(axis << 1) + 0, heightNegative, width] |= 1u << depth;
-                                planeSequenceNegative &= ~(1u << heightNegative);
+                                int heightNegativeAxisAxis = TrailingZeroCount(planesNegativeAxis);
+                                binaryPlanes[(axis << 1) + 0, heightNegativeAxisAxis, width] |= 1u << depth;
+                                planesNegativeAxis &= ~(1u << heightNegativeAxisAxis);
                             }
                         }
                     }                
@@ -426,20 +410,20 @@ public static class Binary
                         for (int width = 0; width < chunkDiameter; width ++)
                         {
                             // Retrieve current voxel seqeuence.
-                            uint voxelSequence = binaryVoxels[axis, depth, width];
+                            uint voxelsCombinedAxis = binaryVoxels[axis, depth, width];
 
                             // Skip if no visible voxels.
-                            if (voxelSequence == 0) continue;
+                            if (voxelsCombinedAxis == 0) continue;
                             
                             // Extract visible planes from voxel sequence on the positive axis sign.
-                            uint planeSequencePositive = voxelSequence & ~(voxelSequence >> 1);
+                            uint planesPositiveAxis = voxelsCombinedAxis & ~(voxelsCombinedAxis >> 1);
                             
-                            // Loop through set bits in visible plane sequence and swizzle them into a new sequence.
-                            while (planeSequencePositive != 0)
+                            // Loop through set bits and swizzle them into a new sequence.
+                            while (planesPositiveAxis != 0)
                             {
-                                int heightPositive = TrailingZeroCount(planeSequencePositive);
-                                binaryPlanes[(axis << 1) + 1, heightPositive, width] |= 1u << depth;
-                                planeSequencePositive &= ~(1u << heightPositive);
+                                int heightPositiveAxis = TrailingZeroCount(planesPositiveAxis);
+                                binaryPlanes[(axis << 1) + 1, heightPositiveAxis, width] |= 1u << depth;
+                                planesPositiveAxis &= ~(1u << heightPositiveAxis);
                             }
                         }
                     }                

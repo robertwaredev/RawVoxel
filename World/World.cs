@@ -88,15 +88,15 @@ public partial class World() : MeshInstance3D
 
     #region Variables
 
-    private Vector3 _focusNodeTruePosition; // Physics process only.
+    private Vector3 _focusNodeTruePosition;
     private Vector3I _focusNodeLastSGridPosition = Vector3I.Zero; // Signed position.
     private Vector3I _focusNodeThisSGridPosition = Vector3I.Zero; // Signed position.
     private Vector3I _focusNodeLastUGridPosition = Vector3I.Zero; // Unsigned position.
     private Vector3I _focusNodeThisUGridPosition = Vector3I.Zero; // Unsigned position.
     private readonly object _focusNodePositionLock = new();
 
-    private Vector3 _cameraTrueBasisZ; // Physics process only.
-    private Vector3I _cameraSignBasisZ = Vector3I.Zero; // Mesh process only.
+    private Vector3 _cameraTrueBasisZ;
+    private Vector3I _cameraSignBasisZ = Vector3I.Zero;
     private readonly object _cameraBasisZLock = new();
 
     private readonly ConcurrentDictionary<int, Chunk> _chunks = new(); // Chunks that are loaded into the scene tree, regardless of state.
@@ -158,8 +158,8 @@ public partial class World() : MeshInstance3D
         {
             TryUpdateFocusNodeGridPosition();
 
-            TryFreeChunkDictionary();
-            TryFillChunkDictionary();
+            Task.Run(TryFreeChunkDictionary);
+            Task.Run(TryFillChunkDictionary);
 
             Generated = true;
         }
@@ -173,7 +173,7 @@ public partial class World() : MeshInstance3D
         {
             if (TryUpdateFocusNodeGridPosition())
             {
-                //LocateAbstract();
+                LocateAbstract();
             }
             
             HandleAbstract();
@@ -186,11 +186,13 @@ public partial class World() : MeshInstance3D
         GD.Print("Started Chunk Mesh Thread.");
 
         while (IsInstanceValid(this))
-        {  
+        {
+            if (!Generated) continue;
+
             TryUpdateCameraSignBasisZ();
                 
-            HandleTangible();
-            HandleObserved();
+            Task.Run(HandleTangible);
+            Task.Run(HandleObserved);
         
             Thread.Sleep(100);
         }
@@ -304,9 +306,9 @@ public partial class World() : MeshInstance3D
             {
                 for (int z = 0; z < DrawDiameter.Z; z ++)
                 {
-                    Vector3I chunkUGridPosition = new Vector3I(x, y, z) + _focusNodeThisUGridPosition;
+                    Vector3I chunkUGridPosition = new(x, y, z);
                     
-                    int chunkUGridIndex = XYZ.Encode(chunkUGridPosition, WorldDiameter);
+                    int chunkUGridIndex = XYZ.Encode(chunkUGridPosition + _focusNodeThisUGridPosition, WorldDiameter);
 
                     Chunk chunk = new();
 
@@ -314,9 +316,9 @@ public partial class World() : MeshInstance3D
                     
                     Task.Run(new Action(() => { CallDeferred(Node.MethodName.AddChild, chunk); }));
 
-                    GD.PrintS("🟥 Generated chunk item.");
-
                     Thread.Sleep(5);
+                
+                    GD.PrintS("🟥 Generated chunk item.");
                 }
             }
         }
@@ -344,9 +346,9 @@ public partial class World() : MeshInstance3D
 
         Vector3I rangeMax = new()
         {
-            X = (drawOffset.X > 0) ? drawOffset.X : (drawOffset.X == 0) ? DrawDiameter.X : 0,
-            Y = (drawOffset.Y > 0) ? drawOffset.Y : (drawOffset.Y == 0) ? DrawDiameter.Y : 0,
-            Z = (drawOffset.Z > 0) ? drawOffset.Z : (drawOffset.Z == 0) ? DrawDiameter.Z : 0,
+            X = (drawOffset.X > 0) ? drawOffset.X : 0,
+            Y = (drawOffset.Y > 0) ? drawOffset.Y : 0,
+            Z = (drawOffset.Z > 0) ? drawOffset.Z : 0,
         };
 
         for (int axis = 0; axis < 3; axis ++)
@@ -367,15 +369,15 @@ public partial class World() : MeshInstance3D
                         Vector3I oldDrawableUGridPosition = axis switch
                         {
                             0 => XYZ.Wrap(new Vector3I(width, height, depth), DrawDiameter), // X axis.
-                            1 => XYZ.Wrap(new Vector3I(height, depth, width), DrawDiameter), // Y axis.
-                            _ => XYZ.Wrap(new Vector3I(depth, width, height), DrawDiameter), // Z axis.
+                            1 => XYZ.Wrap(new Vector3I(depth, width, height), DrawDiameter), // Y axis.
+                            _ => XYZ.Wrap(new Vector3I(height, depth, width), DrawDiameter), // Z axis.
                         };
 
                         Vector3I newDrawableUGridPosition = axis switch
                         {
                             0 => XYZ.Wrap(new Vector3I(width, height, depth) - drawOffset, DrawDiameter), // X axis.
-                            1 => XYZ.Wrap(new Vector3I(height, depth, width) - drawOffset, DrawDiameter), // Y axis.
-                            _ => XYZ.Wrap(new Vector3I(depth, width, height) - drawOffset, DrawDiameter), // Z axis.
+                            1 => XYZ.Wrap(new Vector3I(depth, width, height) - drawOffset, DrawDiameter), // Y axis.
+                            _ => XYZ.Wrap(new Vector3I(height, depth, width) - drawOffset, DrawDiameter), // Z axis.
                         };
                         
                         int oldChunkUGridIndex = XYZ.Encode(oldDrawableUGridPosition + _focusNodeLastUGridPosition, WorldDiameter);
@@ -406,7 +408,7 @@ public partial class World() : MeshInstance3D
 
             Task.Run(new Action(() => { GenerateChunkData(chunk, i); }));
 
-            Thread.Sleep(5);
+            Thread.Sleep(10);
         }
     }
     private void HandleTangible()
@@ -421,7 +423,7 @@ public partial class World() : MeshInstance3D
 
             Task.Run(new Action(() => { CallDeferred(nameof(EvaluateChunkView), chunk); }));
 
-            Thread.Sleep(5);
+            Thread.Sleep(10);
         }
     }
     private void HandleObserved()
@@ -436,7 +438,7 @@ public partial class World() : MeshInstance3D
 
             Task.Run(new Action(() => { CallDeferred(nameof(GenerateChunkMesh), chunk, i); }));
 
-            Thread.Sleep(5);
+            Thread.Sleep(10);
         }
     }
 
@@ -490,7 +492,7 @@ public partial class World() : MeshInstance3D
         Binary.Surface[] surfaces = MeshingAlgorithm switch
         {  
             MeshingAlgorithmType.Simple => CulledMesher.GenerateSurfaces(ref chunk.VoxelMasks, ChunkBitshifts, _cameraSignBasisZ, CullAxes),
-            MeshingAlgorithmType.Greedy => Binary.Mesher.GenerateSurfaces(ref chunk.VoxelMasks, ChunkBitshifts, _cameraSignBasisZ, CullAxes),
+            MeshingAlgorithmType.Greedy => Binary.Surfaces.Generate(ref chunk.VoxelMasks, ChunkBitshifts, _cameraSignBasisZ, CullAxes),
             _ => []
         };
 
