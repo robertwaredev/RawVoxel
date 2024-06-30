@@ -1,0 +1,14 @@
+[remap]
+
+importer="glsl"
+type="RDShaderFile"
+uid="uid://cgwiqxfhpyqb0"
+path="res://.godot/imported/vert.glsl-c19efbdecf9a1f571ad6e94663945057.res"
+
+[deps]
+
+source_file="res://addons/RawVoxel/Renderer/vert.glsl"
+dest_files=["res://.godot/imported/vert.glsl-c19efbdecf9a1f571ad6e94663945057.res"]
+
+[params]
+

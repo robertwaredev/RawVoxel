@@ -13,7 +13,7 @@ metadata/_snap_count = 8
 frequency = 0.002
 
 [sub_resource type="FastNoiseLite" id="FastNoiseLite_eglk0"]
-frequency = 0.001
+frequency = 0.0016
 
 [sub_resource type="Curve" id="Curve_2k5et"]
 _data = [Vector2(0, 0), 0.0, 0.0, 0, 0, Vector2(1, 1), 0.0, 0.0, 0, 0]

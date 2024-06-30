@@ -1,0 +1,14 @@
+[remap]
+
+importer="glsl"
+type="RDShaderFile"
+uid="uid://ch07x5jmkwyv2"
+path="res://.godot/imported/frag.glsl-1c63856dfed52fcc3fffdf94c48b32e4.res"
+
+[deps]
+
+source_file="res://addons/RawVoxel/Renderer/frag.glsl"
+dest_files=["res://.godot/imported/frag.glsl-1c63856dfed52fcc3fffdf94c48b32e4.res"]
+
+[params]
+

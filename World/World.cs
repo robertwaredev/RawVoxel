@@ -173,7 +173,7 @@ public partial class World() : MeshInstance3D
         {
             if (TryUpdateFocusNodeGridPosition())
             {
-                LocateAbstract();
+                LocateReusable();
             }
             
             HandleAbstract();
@@ -219,40 +219,40 @@ public partial class World() : MeshInstance3D
         lock (_focusNodePositionLock)
         {
             queriedFocusNodeSGridPosition = XYZ.RShift((Vector3I)_focusNodeTruePosition.Floor(), ChunkBitshifts);
-        }
 
-        if (Generated == false)
-        {
-            _focusNodeLastSGridPosition = queriedFocusNodeSGridPosition;
-            _focusNodeLastUGridPosition = XYZ.Wrap(_focusNodeLastSGridPosition + WorldRadius, WorldDiameter);
+            if (Generated == false)
+            {
+                _focusNodeLastSGridPosition = queriedFocusNodeSGridPosition;
+                _focusNodeLastUGridPosition = XYZ.Wrap(_focusNodeLastSGridPosition + WorldRadius, WorldDiameter);
+                
+                _focusNodeThisSGridPosition = queriedFocusNodeSGridPosition;
+                _focusNodeThisUGridPosition = XYZ.Wrap(_focusNodeThisSGridPosition + WorldRadius, WorldDiameter);
+
+                GD.PrintS("Last focus node sGridPosition:", _focusNodeLastSGridPosition);
+                GD.PrintS("Last focus node uGridPosition:", _focusNodeLastUGridPosition);
+                GD.PrintS("This focus node sGridPosition:", _focusNodeThisSGridPosition);
+                GD.PrintS("This focus node uGridPosition:", _focusNodeThisUGridPosition);
+
+                return true;
+            }
             
-            _focusNodeThisSGridPosition = queriedFocusNodeSGridPosition;
-            _focusNodeThisUGridPosition = XYZ.Wrap(_focusNodeThisSGridPosition + WorldRadius, WorldDiameter);
+            if (_focusNodeThisSGridPosition != queriedFocusNodeSGridPosition)
+            {
+                _focusNodeLastSGridPosition = _focusNodeThisSGridPosition;
+                _focusNodeLastUGridPosition = XYZ.Wrap(_focusNodeLastSGridPosition + WorldRadius, WorldDiameter);
 
-            GD.PrintS("Last focus node sGridPosition:", _focusNodeLastSGridPosition);
-            GD.PrintS("Last focus node uGridPosition:", _focusNodeLastSGridPosition);
-            GD.PrintS("This focus node sGridPosition:", _focusNodeThisUGridPosition);
-            GD.PrintS("This focus node uGridPosition:", _focusNodeThisUGridPosition);
+                _focusNodeThisSGridPosition = queriedFocusNodeSGridPosition;
+                _focusNodeThisUGridPosition = XYZ.Wrap(_focusNodeThisSGridPosition + WorldRadius, WorldDiameter);
 
-            return true;
+                GD.PrintS("Last focus node sGridPosition:", _focusNodeLastSGridPosition);
+                GD.PrintS("Last focus node uGridPosition:", _focusNodeLastUGridPosition);
+                GD.PrintS("This focus node sGridPosition:", _focusNodeThisSGridPosition);
+                GD.PrintS("This focus node uGridPosition:", _focusNodeThisUGridPosition);
+
+                return true;
+            }
         }
-        
-        if (_focusNodeThisSGridPosition != queriedFocusNodeSGridPosition)
-        {
-            _focusNodeLastSGridPosition = _focusNodeThisSGridPosition;
-            _focusNodeLastUGridPosition = XYZ.Wrap(_focusNodeLastSGridPosition + WorldRadius, WorldDiameter);
-
-            _focusNodeThisSGridPosition = queriedFocusNodeSGridPosition;
-            _focusNodeThisUGridPosition = XYZ.Wrap(_focusNodeThisSGridPosition + WorldRadius, WorldDiameter);
-
-            GD.PrintS("Last focus node sGridPosition:", _focusNodeLastSGridPosition);
-            GD.PrintS("Last focus node uGridPosition:", _focusNodeLastSGridPosition);
-            GD.PrintS("This focus node sGridPosition:", _focusNodeThisUGridPosition);
-            GD.PrintS("This focus node uGridPosition:", _focusNodeThisUGridPosition);
-
-            return true;
-        }
-        
+            
         return false;
     }
 
@@ -277,13 +277,13 @@ public partial class World() : MeshInstance3D
         lock (_cameraBasisZLock)
         {
             queriedfocusNodeChunkBasisZ = (Vector3I)_cameraTrueBasisZ.Sign();
-        }
         
-        if (_cameraSignBasisZ != queriedfocusNodeChunkBasisZ)
-        {
-            _cameraSignBasisZ = queriedfocusNodeChunkBasisZ;
-            
-            return true;
+            if (_cameraSignBasisZ != queriedfocusNodeChunkBasisZ)
+            {
+                _cameraSignBasisZ = queriedfocusNodeChunkBasisZ;
+                
+                return true;
+            }
         }
 
         return false;
@@ -324,18 +324,9 @@ public partial class World() : MeshInstance3D
         }
     }
 
-    private void SetAllAbstract()
+    private void LocateReusable()
     {
-        foreach (int i in _chunks.Keys)
-        {
-            if (_chunks.TryGetValue(i, out Chunk chunk) == false) continue;
-
-            chunk.State = Chunk.StateType.Abstract;
-        }
-    }
-    private void LocateAbstract()
-    {
-        Vector3I drawOffset = _focusNodeThisSGridPosition - _focusNodeLastSGridPosition;
+        Vector3I drawOffset = _focusNodeThisUGridPosition - _focusNodeLastUGridPosition;
 
         Vector3I rangeMin = new()
         {
@@ -383,13 +374,14 @@ public partial class World() : MeshInstance3D
                         int oldChunkUGridIndex = XYZ.Encode(oldDrawableUGridPosition + _focusNodeLastUGridPosition, WorldDiameter);
                         int newChunkUGridIndex = XYZ.Encode(newDrawableUGridPosition + _focusNodeThisUGridPosition, WorldDiameter);
 
-                        if (newChunkUGridIndex != oldChunkUGridIndex)
-                        {
-                            if (_chunks.TryRemove(oldChunkUGridIndex, out Chunk chunk))
-                                _chunks.TryAdd(newChunkUGridIndex, chunk);
-                            
-                            chunk.State = Chunk.StateType.Abstract;
-                        }
+                        if (newChunkUGridIndex == oldChunkUGridIndex) continue;
+
+                        if (_chunks.ContainsKey(oldChunkUGridIndex) == false) continue;
+
+                        if (_chunks.TryRemove(oldChunkUGridIndex, out Chunk chunk))
+                            _chunks.TryAdd(newChunkUGridIndex, chunk);
+                        
+                        chunk.State = Chunk.StateType.Abstract;
                     }
                 }
             }

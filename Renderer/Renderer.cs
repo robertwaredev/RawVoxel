@@ -1,36 +1,59 @@
-using System.Diagnostics;
 using Godot;
+using System.IO;
+using System.Diagnostics;
+using System;
 
 namespace RawVoxel.Rendering;
 
+[Tool]
 public partial class Renderer : Node
 {
+    #region Variables
+
+    private Rid spatialShader;
     
-    public RenderingDevice RenderingDevice = RenderingServer.GetRenderingDevice();
+    private Rid pipeline;
+    private long vertexFormat;
     
-    public void SetupRenderingPipeline()
+    private Rid framebuffer;
+    private long framebufferFormat;
+    private RDTextureFormat colorTextureFormat;
+    private RDTextureFormat depthTextureFormat;
+    private RDTextureView textureView;
+    private Rid colorTexture;
+    private Rid depthTexture;
+
+    private Rid indexBuffer;
+    private Rid indexArray;
+    private Rid storageBuffer;
+
+    long drawList;
+
+    private RenderingDevice RD = RenderingServer.GetRenderingDevice();
+
+    #endregion Variables
+
+    public override void _Ready()
     {
-        // Chunk shader
-        RDShaderFile shaderFile = GD.Load("") as RDShaderFile;
-        RDShaderSpirV shaderSpirV = shaderFile.GetSpirV();
-        Rid shader = RenderingDevice.ShaderCreateFromSpirV(shaderSpirV, "RawVoxel Shader");
+        string vertPath = "addons/RawVoxel/Renderer/vert.glsl";
+        string fragPath = "addons/RawVoxel/Renderer/frag.glsl";
 
-        // Framebuffer format
-        long framebufferFormat = RenderingDevice.FramebufferFormatCreate
-        ([
-            new RDAttachmentFormat()
-            {
-                Format = RenderingDevice.DataFormat.R8G8B8A8Srgb,
-                Samples = RenderingDevice.TextureSamples.Samples64
-            }
-        ]);
+        spatialShader = ShaderHelper.Spatial.Generate(RD, vertPath, fragPath);
 
-        // Vertex format
-        long vertexFormat = RenderingDevice.VertexFormatCreate
+        SetupFormats();
+        SetupPipeline();
+        SetupFramebuffer();
+        SetupDrawList();
+    }
+    
+    public void SetupFormats()
+    {
+        // Vertex attributes
+        vertexFormat = RD.VertexFormatCreate
         ([
             new RDVertexAttribute() // Vertex
             {
-                Format = RenderingDevice.DataFormat.R8G8B8A8Srgb,
+                Format = RenderingDevice.DataFormat.R32G32B32Sfloat,
                 Frequency = RenderingDevice.VertexFrequency.Instance,
                 Location = 0,
                 Offset = 0,
@@ -38,6 +61,62 @@ public partial class Renderer : Node
             }
         ]);
 
+        // Framebuffer texture formats
+        colorTextureFormat = new()
+        {
+            Width = 1920,
+            Height = 1080,
+            Depth = 1,
+            Mipmaps = 1,
+            ArrayLayers = 1,
+            Format = RenderingDevice.DataFormat.R8G8B8A8Unorm,
+            Samples = RenderingDevice.TextureSamples.Samples1,
+            TextureType = RenderingDevice.TextureType.Type2D,
+            UsageBits = RenderingDevice.TextureUsageBits.ColorAttachmentBit | RenderingDevice.TextureUsageBits.CanCopyFromBit
+        };
+
+        depthTextureFormat = new()
+        {
+            Width = 1920,
+            Height = 1080,
+            Depth = 1,
+            Mipmaps = 1,
+            ArrayLayers = 1,
+            Format = RenderingDevice.DataFormat.D16Unorm,
+            Samples = RenderingDevice.TextureSamples.Samples1,
+            TextureType = RenderingDevice.TextureType.Type2D,
+            UsageBits = RenderingDevice.TextureUsageBits.DepthStencilAttachmentBit
+        };
+        
+        // Framebuffer texture view
+        textureView = new()
+        {
+            FormatOverride = RenderingDevice.DataFormat.R8G8B8A8Unorm,
+            SwizzleR = RenderingDevice.TextureSwizzle.R,
+            SwizzleG = RenderingDevice.TextureSwizzle.G,
+            SwizzleB = RenderingDevice.TextureSwizzle.B,
+            SwizzleA = RenderingDevice.TextureSwizzle.A
+        };
+        
+        // Framebuffer formats
+        framebufferFormat = RD.FramebufferFormatCreate
+        ([
+            new RDAttachmentFormat() // Color
+            {
+                Format = colorTextureFormat.Format,
+                Samples = colorTextureFormat.Samples,
+                UsageFlags = (uint)colorTextureFormat.UsageBits
+            },
+            new RDAttachmentFormat() // Depth
+            {
+                Format = depthTextureFormat.Format,
+                Samples = depthTextureFormat.Samples,
+                UsageFlags = (uint)depthTextureFormat.UsageBits
+            }
+        ]);
+    }
+    public void SetupPipeline()
+    {
         // Rasterization state
         RDPipelineRasterizationState rasterizationState = new()
         {
@@ -102,7 +181,7 @@ public partial class Renderer : Node
             LogicOp = RenderingDevice.LogicOperation.Clear,
             Attachments =
             [
-                new RDPipelineColorBlendStateAttachment()
+                new RDPipelineColorBlendStateAttachment() // I have no idea what these attachments do.
                 {
                     AlphaBlendOp = RenderingDevice.BlendOperation.Add,
                     ColorBlendOp = RenderingDevice.BlendOperation.Add,
@@ -120,9 +199,9 @@ public partial class Renderer : Node
         };
 
         // Render pipeline
-        Rid renderingPipeline = RenderingDevice.RenderPipelineCreate
+        pipeline = RD.RenderPipelineCreate
         (
-            shader: shader,
+            shader: spatialShader,
             framebufferFormat: framebufferFormat,
             vertexFormat: vertexFormat,
             primitive: RenderingDevice.RenderPrimitive.Triangles,
@@ -130,15 +209,72 @@ public partial class Renderer : Node
             multisampleState: multisampleState,
             stencilState: depthStencilState,
             colorBlendState: colorBlendState
+            // THESE ARE OPTIONAL, ALSO I DON'T KNOW WHAT THEY DO.
             // dynamicStateFlags:
             // forRenderPass:
             // specializationConstants: 
         );
+        
+        Debug.Assert(RD.RenderPipelineIsValid(pipeline), "Invalid render pipeline!");
+    }
+    public void SetupFramebuffer()
+    {
+        // Framebuffer textures
+        colorTexture = RD.TextureCreate(colorTextureFormat, textureView);
+        Debug.Assert(RD.TextureIsValid(colorTexture), "Invalid framebuffer color texture!");
 
-        Debug.Assert(RenderingDevice.RenderPipelineIsValid(renderingPipeline), "Invalid render pipeline!");
+        depthTexture = RD.TextureCreate(depthTextureFormat, textureView);
+        Debug.Assert(RD.TextureIsValid(depthTexture), "Invalid framebuffer depth texture!");
 
         // Framebuffer
-        //Rid framebuffer = RenderingDevice.FramebufferCreate();
-        //Debug.Assert(RenderingDevice.FramebufferIsValid(framebuffer), "Invalid framebuffer!");
+        framebuffer = RD.FramebufferCreate([colorTexture, depthTexture], framebufferFormat);
+        Debug.Assert(RD.FramebufferIsValid(framebuffer), "Invalid framebuffer!");
+    }
+    public void SetupDrawList()
+    {
+        // Create draw list
+        drawList = RD.DrawListBegin
+        (
+            framebuffer: framebuffer,
+            initialColorAction: RenderingDevice.InitialAction.Clear,
+            finalColorAction: RenderingDevice.FinalAction.Read,
+            initialDepthAction: RenderingDevice.InitialAction.Clear,
+            finalDepthAction: RenderingDevice.FinalAction.Discard,
+            clearColorValues: null, // TODO - This probably needs to be filled in.
+            clearDepth: 1.0f,
+            clearStencil: 0,
+            region: null
+        );
+
+        // Bind draw list to the pipeline
+        RD.DrawListBindRenderPipeline(drawList, pipeline);
+    }
+    
+    public void BufferSurface(byte[] indices, byte[] data)
+    {
+        Debug.Assert(indices.Length != 0, "Tried to buffer a surface with no indices!");
+        Debug.Assert(data.Length != 0, "Tried to buffer a surface with no data!");
+
+        // Index buffer
+        indexBuffer = RD.IndexBufferCreate((uint)indices.Length, RenderingDevice.IndexBufferFormat.Uint32, indices, false);
+        indexArray = RD.IndexArrayCreate(indexBuffer, 0, (uint)indices.Length);
+        RD.DrawListBindIndexArray(drawList, indexArray);
+
+        // Data buffer
+        storageBuffer = RD.StorageBufferCreate((uint)data.Length * sizeof(short), data, RenderingDevice.StorageBufferUsage.Indirect);
+    }
+
+    public void Draw()
+    {
+        RD.DrawListDraw
+        (
+            drawList: drawList,
+            useIndices: true,
+            instances: 1,
+            proceduralVertexCount: 0
+        );
+        
+        // Stop drawing stuff
+        RD.DrawListEnd();
     }
 }
