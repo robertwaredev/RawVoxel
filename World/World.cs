@@ -7,6 +7,7 @@ using RawVoxel.Resources;
 using System.Threading.Tasks;
 using System.Collections.Generic;
 using System.Collections.Concurrent;
+using System.Diagnostics;
 
 namespace RawVoxel.World;
 
@@ -38,6 +39,7 @@ public partial class World() : MeshInstance3D
     
     [ExportGroup("Dimensions")]
     private Vector3I _drawRadius = Vector3I.One;
+    [Export] public float VoxelSize = 0.125f;
     [Export] public Vector3I DrawRadius
     {
         get => _drawRadius.Clamp(Vector3I.One,  WorldRadius);
@@ -89,10 +91,10 @@ public partial class World() : MeshInstance3D
     #region Variables
 
     private Vector3 _focusNodeTruePosition;
-    private Vector3I _focusNodeLastSGridPosition = Vector3I.Zero; // Signed position.
-    private Vector3I _focusNodeThisSGridPosition = Vector3I.Zero; // Signed position.
-    private Vector3I _focusNodeLastUGridPosition = Vector3I.Zero; // Unsigned position.
-    private Vector3I _focusNodeThisUGridPosition = Vector3I.Zero; // Unsigned position.
+    private Vector3I _focusNodeLastSGridPosition = Vector3I.Zero; // Signed grid position.
+    private Vector3I _focusNodeThisSGridPosition = Vector3I.Zero; // Signed grid position.
+    private Vector3I _focusNodeLastUGridPosition = Vector3I.Zero; // Unsigned grid position.
+    private Vector3I _focusNodeThisUGridPosition = Vector3I.Zero; // Unsigned grid position.
     private readonly object _focusNodePositionLock = new();
 
     private Vector3 _cameraTrueBasisZ;
@@ -218,15 +220,16 @@ public partial class World() : MeshInstance3D
 
         lock (_focusNodePositionLock)
         {
-            queriedFocusNodeSGridPosition = XYZ.RShift((Vector3I)_focusNodeTruePosition.Floor(), ChunkBitshifts);
+            queriedFocusNodeSGridPosition = (Vector3I)_focusNodeTruePosition.Floor() / ((1 << ChunkBitshifts) * (int)(1 / VoxelSize));
+            queriedFocusNodeSGridPosition.Clamp(-WorldRadius, WorldRadius);
 
             if (Generated == false)
             {
                 _focusNodeLastSGridPosition = queriedFocusNodeSGridPosition;
-                _focusNodeLastUGridPosition = XYZ.Wrap(_focusNodeLastSGridPosition + WorldRadius, WorldDiameter);
+                _focusNodeLastUGridPosition = (_focusNodeLastSGridPosition + WorldRadius).Clamp(Vector3I.Zero, WorldDiameter);
                 
                 _focusNodeThisSGridPosition = queriedFocusNodeSGridPosition;
-                _focusNodeThisUGridPosition = XYZ.Wrap(_focusNodeThisSGridPosition + WorldRadius, WorldDiameter);
+                _focusNodeThisUGridPosition = (_focusNodeThisSGridPosition + WorldRadius).Clamp(Vector3I.Zero, WorldDiameter);
 
                 GD.PrintS("Last focus node sGridPosition:", _focusNodeLastSGridPosition);
                 GD.PrintS("Last focus node uGridPosition:", _focusNodeLastUGridPosition);
@@ -239,10 +242,10 @@ public partial class World() : MeshInstance3D
             if (_focusNodeThisSGridPosition != queriedFocusNodeSGridPosition)
             {
                 _focusNodeLastSGridPosition = _focusNodeThisSGridPosition;
-                _focusNodeLastUGridPosition = XYZ.Wrap(_focusNodeLastSGridPosition + WorldRadius, WorldDiameter);
+                _focusNodeLastUGridPosition = (_focusNodeLastSGridPosition + WorldRadius).Clamp(Vector3I.Zero, WorldDiameter);
 
                 _focusNodeThisSGridPosition = queriedFocusNodeSGridPosition;
-                _focusNodeThisUGridPosition = XYZ.Wrap(_focusNodeThisSGridPosition + WorldRadius, WorldDiameter);
+                _focusNodeThisUGridPosition = (_focusNodeThisSGridPosition + WorldRadius).Clamp(Vector3I.Zero, WorldDiameter);
 
                 GD.PrintS("Last focus node sGridPosition:", _focusNodeLastSGridPosition);
                 GD.PrintS("Last focus node uGridPosition:", _focusNodeLastUGridPosition);
@@ -300,15 +303,15 @@ public partial class World() : MeshInstance3D
     }
     private void TryFillChunkDictionary()
     {
+        Debug.Assert(DrawDiameter.X > 0 && DrawDiameter.Y > 0 && DrawDiameter.Z > 0, "Cannot have a negative or zero value draw diameter!");
+
         for (int x = 0; x < DrawDiameter.X; x ++)
         {
             for (int y = 0; y < DrawDiameter.Y; y ++)
             {
                 for (int z = 0; z < DrawDiameter.Z; z ++)
                 {
-                    Vector3I chunkUGridPosition = new(x, y, z);
-                    
-                    int chunkUGridIndex = XYZ.Encode(chunkUGridPosition + _focusNodeThisUGridPosition, WorldDiameter);
+                    int chunkUGridIndex = XYZ.Encode(new Vector3I(x, y, z) + _focusNodeThisUGridPosition, WorldDiameter);
 
                     Chunk chunk = new();
 
@@ -437,14 +440,14 @@ public partial class World() : MeshInstance3D
     private void GenerateChunkData(Chunk chunk, int chunkUGridIndex)
     {
         // Calculate chunk position.
-        Vector3I chunkSGridPosition = XYZ.Decode(chunkUGridIndex, WorldDiameter) - (WorldRadius + DrawRadius);
-        Vector3I chunkSTruePosition = XYZ.LShift(chunkSGridPosition, ChunkBitshifts);
+        Vector3 chunkSGridPosition = XYZ.Decode(chunkUGridIndex, WorldDiameter) - (WorldRadius + DrawRadius);
+        Vector3 chunkSTruePosition = chunkSGridPosition * (1 << ChunkBitshifts) * VoxelSize;
         
         // Generate biome.
         Biome biome = Biome.Generate(chunkSGridPosition, WorldDiameter, WorldSettings);
         
         // Generate voxels.
-        chunk.GenerateVoxels(chunkSTruePosition, ChunkBitshifts, biome, WorldSettings);
+        chunk.GenerateVoxels(VoxelSize, chunkSTruePosition, ChunkBitshifts, biome, WorldSettings);
 
         // Mark chunk state as tangible.
         if (chunk.VoxelMasks.HasAnySet()) chunk.State = Chunk.StateType.Tangible;
@@ -459,8 +462,8 @@ public partial class World() : MeshInstance3D
         }
         else
         {
-            Vector3I chunkCenterPosition = (Vector3I)chunk.Position + new Vector3I(ChunkRadius, ChunkRadius, ChunkRadius);
-            Vector3I chunkFrustumPosition = chunkCenterPosition - XYZ.LShift(_cameraSignBasisZ, ChunkBitshifts) * 2;
+            Vector3 chunkCenterPosition = chunk.Position + (new Vector3(ChunkRadius, ChunkRadius, ChunkRadius) * VoxelSize);
+            Vector3 chunkFrustumPosition = chunkCenterPosition - (Vector3)XYZ.LShift(_cameraSignBasisZ, ChunkBitshifts) * 2 * VoxelSize;
 
             if (Camera.IsPositionInFrustum(chunkFrustumPosition))
                 chunk.State = Chunk.StateType.Observed;
@@ -474,8 +477,8 @@ public partial class World() : MeshInstance3D
         chunk.GetChildOrNull<StaticBody3D>(0)?.QueueFree();
 
         // Calculate chunk position.
-        Vector3I chunkSGridPosition = XYZ.Decode(chunkUGridIndex, WorldDiameter) - (WorldRadius + DrawRadius);
-        Vector3I chunkSTruePosition = XYZ.LShift(chunkSGridPosition, ChunkBitshifts);
+        Vector3 chunkSGridPosition = XYZ.Decode(chunkUGridIndex, WorldDiameter) - (WorldRadius + DrawRadius);
+        Vector3 chunkSTruePosition = chunkSGridPosition * (1 << ChunkBitshifts) * VoxelSize;
 
         // Set chunk position.
         chunk.Position = chunkSTruePosition;
@@ -484,7 +487,7 @@ public partial class World() : MeshInstance3D
         Binary.Surface[] surfaces = MeshingAlgorithm switch
         {  
             MeshingAlgorithmType.Simple => CulledMesher.GenerateSurfaces(ref chunk.VoxelMasks, ChunkBitshifts, _cameraSignBasisZ, CullAxes),
-            MeshingAlgorithmType.Greedy => Binary.Surfaces.Generate(ref chunk.VoxelMasks, ChunkBitshifts, _cameraSignBasisZ, CullAxes),
+            MeshingAlgorithmType.Greedy => Binary.Surfaces.Generate(ref chunk.VoxelMasks, VoxelSize, ChunkBitshifts, _cameraSignBasisZ, CullAxes),
             _ => []
         };
 

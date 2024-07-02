@@ -20,7 +20,7 @@ public partial class Chunk : MeshInstance3D
         AddToGroup("NavSource");
     }
 
-    public void GenerateVoxels(Vector3I chunkSTruePosition, int chunkBitshifts, Biome biome, WorldSettings worldSettings)
+    public void GenerateVoxels(float voxelSize, Vector3 chunkSTruePosition, int chunkBitshifts, Biome biome, WorldSettings worldSettings)
     {
         int chunkDiameter = 1 << chunkBitshifts;
 
@@ -36,7 +36,7 @@ public partial class Chunk : MeshInstance3D
                 for (int x = 0; x < chunkDiameter; x ++)
                 {
                     Vector3I voxelUGridPosition = new(x, y, z);
-                    Vector3I voxelSTruePosition = chunkSTruePosition + voxelUGridPosition;
+                    Vector3 voxelSTruePosition = chunkSTruePosition + ((Vector3)voxelUGridPosition * voxelSize);
 
                     if (Voxel.GenerateMask(voxelSTruePosition, biome) == false) continue;
                     

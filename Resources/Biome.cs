@@ -28,7 +28,7 @@ public partial class Biome() : Resource
     #endregion Exports
 
     // FIXME - This is NOT the ideal way to handle biome generation.
-    public static Biome Generate(Vector3I chunkSGridPosition, Vector3I worldDiameter, WorldSettings worldSettings)
+    public static Biome Generate(Vector3 chunkSGridPosition, Vector3I worldDiameter, WorldSettings worldSettings)
     {
         float temperature = worldSettings.Temperature.Distribution.Sample((float)(chunkSGridPosition.Z + 0.5f) / worldDiameter.Z);
         temperature = worldSettings.Temperature.Range.Sample(temperature);

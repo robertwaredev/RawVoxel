@@ -56,7 +56,7 @@ public partial class Voxel() : Resource
 
     #endregion Constants
     
-    public static bool GenerateMask(Vector3I voxelSTruePosition, Biome biome)
+    public static bool GenerateMask(Vector3 voxelSTruePosition, Biome biome)
     {
         float densityNoise = biome.DensityNoise.GetNoise3Dv(voxelSTruePosition);
         float voxelDensity = biome.DensityCurve.Sample((densityNoise + 1) * 0.5f);
@@ -65,7 +65,7 @@ public partial class Voxel() : Resource
 
         return true;
     }
-    public static byte GenerateType(Vector3I voxelSTruePosition, Biome biome, WorldSettings worldSettings)
+    public static byte GenerateType(Vector3 voxelSTruePosition, Biome biome, WorldSettings worldSettings)
     {
         float heightNoise = biome.HeightNoise.GetNoise2D(voxelSTruePosition.X, voxelSTruePosition.Z);
         
